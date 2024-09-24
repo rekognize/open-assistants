@@ -1,0 +1,60 @@
+<!-- Manage Keys Modal -->
+<div class="modal fade" id="manageKeysModal" tabindex="-1" aria-labelledby="manageKeysModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manageKeysModalLabel">Project keys</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul id="project-list" class="list-group">
+                    {% for project in user_projects %}
+                        <li id="project-{{ project.id }}"
+                            class="list-group-item d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center flex-grow-1">
+                                <div class="me-3 d-flex align-items-center" style="min-width: 200px; max-width: 500px;">
+                                    {% if project.name %}
+                                        <span class="name">{{ project.name }}</span>
+                                    {% else %}
+                                        <small class="text-secondary name">No name available</small>
+                                    {% endif %}
+                                    <!-- Checkmark icon next to the project name if it's selected -->
+                                    {% if project.id == selected_project.id %}
+                                        <i class="bi bi-check-circle-fill text-success ms-2" data-bs-toggle="tooltip"
+                                           title="Selected Project"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    {% if project.get_partial_key %}
+                                        <span class="text-secondary key">{{ project.get_partial_key }}</span>
+                                    {% else %}
+                                        <small class="text-secondary key">No key available</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        onclick="editProject('{{ project.id }}')" data-bs-toggle="tooltip" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick="deleteProject('{{ project.id }}')" data-bs-toggle="tooltip"
+                                        title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <!-- Add Key Button -->
+                <div class="d-flex justify-content-end mt-3">
+                    <button id="addKeyBtn" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-circle"></i> Add Key
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

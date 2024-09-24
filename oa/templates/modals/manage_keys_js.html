@@ -1,0 +1,304 @@
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const projectList = document.getElementById('project-list');
+        const addKeyBtn = document.getElementById('addKeyBtn');
+        const manageKeysModal = document.getElementById('manageKeysModal');
+
+        // Add Key Button Click Event
+        addKeyBtn.addEventListener('click', function () {
+            const newProjectId = 'new_' + Date.now();  // Generate a temporary ID
+            const newProjectItem = document.createElement('li');
+            newProjectItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+            newProjectItem.id = newProjectId;
+            newProjectItem.innerHTML = `
+            <div class="d-flex align-items-center">
+                <input type="text" class="form-control form-control-sm me-2" placeholder="Name" id="name-${newProjectId}" maxlength="100" required>
+                <input type="text" class="form-control form-control-sm" placeholder="Key" id="key-${newProjectId}" maxlength="500" required>
+            </div>
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-success me-2" onclick="saveNewProject('${newProjectId}')" data-bs-toggle="tooltip" title="Save">
+                    <i class="bi bi-check-lg"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="cancelNewProject('${newProjectId}')" data-bs-toggle="tooltip" title="Cancel">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        `;
+            projectList.appendChild(newProjectItem);
+            initializeTooltips(); // Initialize tooltips for new elements
+        });
+
+        // Clear unsaved project fields when the modal is closed
+        manageKeysModal.addEventListener('hidden.bs.modal', function () {
+            const newProjectItems = document.querySelectorAll('[id^="new_"]');
+            newProjectItems.forEach(item => {
+                disposeTooltips(item);
+                item.remove();
+            });
+        });
+    });
+
+    function saveNewProject(id) {
+        const nameInput = document.getElementById(`name-${id}`);
+        const keyInput = document.getElementById(`key-${id}`);
+
+        const name = nameInput.value.trim();
+        const key = keyInput.value.trim();
+
+        if (!key) {
+            showToast("Key is required!", "Please fill out the key field.");
+            return;
+        }
+
+        // Dispose tooltips before saving
+        disposeTooltips(document.getElementById(id));
+
+        fetch('{% url "create_project" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: new URLSearchParams({
+                'name': name,
+                'key': key,
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const newProjectItem = document.getElementById(id);
+                    newProjectItem.innerHTML = `
+                <div class="d-flex align-items-center flex-grow-1">
+                    <div class="me-3" style="min-width: 200px; max-width: 500px;">
+                        <span class="name">${data.project.name}</span>
+                    </div>
+                    <div>
+                        <span class="text-secondary key">${data.project.partial_key}</span>
+                    </div>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="editProject('${data.project.id}')" data-bs-toggle="tooltip" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteProject('${data.project.id}')" data-bs-toggle="tooltip" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+                    newProjectItem.id = `project-${data.project.id}`;
+                    initializeTooltips(); // Re-initialize tooltips after DOM update
+                } else {
+                    showToast('Failed to create project!', data.error);
+                    console.error('Failed to create project!', data.error);
+                }
+            })
+            .catch(error => {
+                showToast('Error:', error);
+                console.error('Error:', error);
+            });
+    }
+
+    function cancelNewProject(id) {
+        const newProjectItem = document.getElementById(id);
+
+        // Dispose tooltips before removing the element
+        disposeTooltips(newProjectItem);
+
+        newProjectItem.remove();
+    }
+
+    function editProject(id) {
+        const projectItem = document.getElementById(`project-${id}`);
+        const nameElement = projectItem.querySelector('.name');
+        const keyElement = projectItem.querySelector('.key');
+
+        if (!nameElement || !keyElement) {
+            console.error('Name or key element not found.');
+            return;
+        }
+
+        const currentName = nameElement.innerText;
+        const currentKey = keyElement.innerText;
+
+        // Replace the text with input fields for editing
+        const editForm = `
+        <div class="d-flex align-items-center">
+            <input type="text" class="form-control form-control-sm me-2" value="${currentName}" id="edit-name-${id}" maxlength="100" required>
+            <input type="text" class="form-control form-control-sm" value="${currentKey}" id="edit-key-${id}" maxlength="500" required>
+        </div>
+        <div class="d-flex align-items-center">
+            <button class="btn btn-sm btn-outline-success me-2" onclick="saveEditedProject('${id}', '${currentKey}')" data-bs-toggle="tooltip" title="Save" disabled>
+                <i class="bi bi-check-lg"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="cancelEditProject('${id}', '${currentName}', '${currentKey}')" data-bs-toggle="tooltip" title="Cancel">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    `;
+
+        // Dispose tooltips before replacing the innerHTML
+        disposeTooltips(projectItem);
+
+        projectItem.innerHTML = editForm;
+
+        const nameInput = document.getElementById(`edit-name-${id}`);
+        const keyInput = document.getElementById(`edit-key-${id}`);
+        const saveButton = projectItem.querySelector('.btn-outline-success');
+
+        // Watch the inputs for changes and enable the save button if any changes are made
+        nameInput.addEventListener('input', () => toggleSaveButton(nameInput, keyInput, currentName, currentKey, saveButton));
+        keyInput.addEventListener('input', () => toggleSaveButton(nameInput, keyInput, currentName, currentKey, saveButton));
+
+        initializeTooltips(); // Re-initialize tooltips for the new buttons
+    }
+
+    function toggleSaveButton(nameInput, keyInput, originalName, originalKey, saveButton) {
+        // Enable save button if name or key is changed
+        if (nameInput.value.trim() !== originalName || keyInput.value.trim() !== originalKey) {
+            saveButton.disabled = false;
+        } else {
+            saveButton.disabled = true;
+        }
+    }
+
+    function saveEditedProject(id, originalKey) {
+        const nameInput = document.getElementById(`edit-name-${id}`);
+        const keyInput = document.getElementById(`edit-key-${id}`);
+
+        const name = nameInput.value.trim();
+        const key = keyInput.value.trim();
+
+        const formData = new URLSearchParams({
+            'name': name
+        });
+
+        // Only include the key in the request if it was changed
+        if (key !== originalKey) {
+            formData.append('key', key);
+        }
+
+        fetch(`/projects/${id}/edit/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const projectItem = document.getElementById(`project-${id}`);
+
+                    disposeTooltips(projectItem);
+
+                    projectItem.innerHTML = `
+                <div class="d-flex align-items-center flex-grow-1">
+                    <div class="me-3" style="min-width: 200px; max-width: 500px;">
+                        <span class="name">${data.project.name}</span>
+                    </div>
+                    <div>
+                        <span class="text-secondary key">${data.project.partial_key}</span>
+                    </div>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="editProject('${data.project.id}')" data-bs-toggle="tooltip" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteProject('${data.project.id}')" data-bs-toggle="tooltip" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+                    initializeTooltips(); // Re-initialize tooltips after DOM update
+                } else {
+                    showToast('Failed to edit project!', data.error);
+                    console.error('Failed to edit project!', data.error);
+                }
+            })
+            .catch(error => {
+                showToast('Error:', error);
+                console.error('Error:', error);
+            });
+    }
+
+    function cancelEditProject(id, originalName, originalKey) {
+        const projectItem = document.getElementById(`project-${id}`);
+
+        // Dispose tooltips before replacing the innerHTML
+        disposeTooltips(projectItem);
+
+        projectItem.innerHTML = `
+        <div class="d-flex align-items-center flex-grow-1">
+            <div class="me-3" style="min-width: 200px; max-width: 500px;">
+                <span class="name">${originalName}</span>
+            </div>
+            <div>
+                <span class="text-secondary key">${originalKey}</span>
+            </div>
+        </div>
+        <div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="editProject('${id}')" data-bs-toggle="tooltip" title="Edit">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteProject('${id}')" data-bs-toggle="tooltip" title="Delete">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `;
+        initializeTooltips(); // Re-initialize tooltips after DOM update
+    }
+
+    function deleteProject(id) {
+        if (confirm("Are you sure you want to delete this project?")) {
+            const projectItem = document.getElementById(`project-${id}`);
+
+            const deleteUrl = `/projects/${id}/delete/`;
+
+            fetch(deleteUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Dispose tooltips before removing the element
+                        disposeTooltips(projectItem);
+
+                        projectItem.remove();
+                    } else {
+                        showToast('Failed to delete project!', data.error);
+                        console.error('Failed to delete project!', data.error);
+                    }
+                })
+                .catch(error => {
+                    showToast('Error:', error);
+                    console.error('Error:', error);
+                });
+        }
+    }
+
+    function disposeTooltips(element) {
+        const tooltipElements = element.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipElements.forEach((el) => {
+            const tooltipInstance = bootstrap.Tooltip.getInstance(el);
+            if (tooltipInstance) {
+                tooltipInstance.dispose();
+            }
+        });
+    }
+
+    function initializeTooltips() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+
+    // Initialize tooltips on page load
+    initializeTooltips();
+</script>
