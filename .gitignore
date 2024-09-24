@@ -1,0 +1,10 @@
+.*
+!.gitignore
+*.sqlite3
+*.pyc
+*.csv
+*.zip
+*.xls
+
+/env/*
+/venv/*
