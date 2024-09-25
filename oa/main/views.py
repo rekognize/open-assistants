@@ -41,8 +41,10 @@ def create_project(request):
         name = request.POST.get('name')
         key = request.POST.get('key')
 
-        if not name or not key:
-            return JsonResponse({'success': False, 'error': 'Name and key are required.'})
+        if not name:
+            return JsonResponse({'success': False, 'error': 'Name is required.'})
+        if not key:
+            return JsonResponse({'success': False, 'error': 'Key is required.'})
 
         try:
             project = Project.objects.create(user=request.user, name=name, key=key)

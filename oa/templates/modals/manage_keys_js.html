@@ -1,3 +1,5 @@
+{% include "partials/tooltip_helpers_js.html" %}
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const projectList = document.getElementById('project-list');
@@ -13,7 +15,7 @@
             newProjectItem.innerHTML = `
             <div class="d-flex align-items-center">
                 <input type="text" class="form-control form-control-sm me-2" placeholder="Name" id="name-${newProjectId}" maxlength="100" required>
-                <input type="text" class="form-control form-control-sm" placeholder="Key" id="key-${newProjectId}" maxlength="500" required>
+                <input type="text" class="form-control form-control-sm" placeholder="Key" id="key-${newProjectId}" maxlength="255" required>
             </div>
             <div class="d-flex align-items-center">
                 <button class="btn btn-sm btn-outline-success me-2" onclick="saveNewProject('${newProjectId}')" data-bs-toggle="tooltip" title="Save">
@@ -45,8 +47,8 @@
         const name = nameInput.value.trim();
         const key = keyInput.value.trim();
 
-        if (!key) {
-            showToast("Key is required!", "Please fill out the key field.");
+        if (!name && !key) {
+            showToast("Name and key are required!", "Please fill out both the name and key fields.");
             return;
         }
 
@@ -69,25 +71,28 @@
                 if (data.success) {
                     const newProjectItem = document.getElementById(id);
                     newProjectItem.innerHTML = `
-                <div class="d-flex align-items-center flex-grow-1">
-                    <div class="me-3" style="min-width: 200px; max-width: 500px;">
-                        <span class="name">${data.project.name}</span>
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <div class="me-3" style="min-width: 200px; max-width: 500px;">
+                            <span class="name">${data.project.name}</span>
+                        </div>
+                        <div>
+                            <span class="text-secondary key">${data.project.partial_key}</span>
+                        </div>
                     </div>
                     <div>
-                        <span class="text-secondary key">${data.project.partial_key}</span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="editProject('${data.project.id}')" data-bs-toggle="tooltip" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteProject('${data.project.id}')" data-bs-toggle="tooltip" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
-                </div>
-                <div>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="editProject('${data.project.id}')" data-bs-toggle="tooltip" title="Edit">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteProject('${data.project.id}')" data-bs-toggle="tooltip" title="Delete">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-            `;
+                `;
                     newProjectItem.id = `project-${data.project.id}`;
                     initializeTooltips(); // Re-initialize tooltips after DOM update
+
+                    // Update the dropdown with the new project
+                    addProjectToDropdown(data.project);
                 } else {
                     showToast('Failed to create project!', data.error);
                     console.error('Failed to create project!', data.error);
@@ -125,7 +130,7 @@
         const editForm = `
         <div class="d-flex align-items-center">
             <input type="text" class="form-control form-control-sm me-2" value="${currentName}" id="edit-name-${id}" maxlength="100" required>
-            <input type="text" class="form-control form-control-sm" value="${currentKey}" id="edit-key-${id}" maxlength="500" required>
+            <input type="text" class="form-control form-control-sm" value="${currentKey}" id="edit-key-${id}" maxlength="255" required>
         </div>
         <div class="d-flex align-items-center">
             <button class="btn btn-sm btn-outline-success me-2" onclick="saveEditedProject('${id}', '${currentKey}')" data-bs-toggle="tooltip" title="Save" disabled>
@@ -168,6 +173,15 @@
 
         const name = nameInput.value.trim();
         const key = keyInput.value.trim();
+
+        if (!name) {
+            showToast("Name is required!", "Please provide a project name.");
+            return;
+        }
+        if (!key) {
+            showToast("Key is required!", "Please provide a key.");
+            return;
+        }
 
         const formData = new URLSearchParams({
             'name': name
@@ -212,6 +226,9 @@
                 </div>
             `;
                     initializeTooltips(); // Re-initialize tooltips after DOM update
+
+                    // Update the dropdown with the edited project
+                    updateProjectInDropdown(data.project);
                 } else {
                     showToast('Failed to edit project!', data.error);
                     console.error('Failed to edit project!', data.error);
@@ -270,6 +287,9 @@
                         disposeTooltips(projectItem);
 
                         projectItem.remove();
+
+                        // Remove from the dropdown as well
+                        removeProjectFromDropdown(id);
                     } else {
                         showToast('Failed to delete project!', data.error);
                         console.error('Failed to delete project!', data.error);
@@ -282,21 +302,47 @@
         }
     }
 
-    function disposeTooltips(element) {
-        const tooltipElements = element.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltipElements.forEach((el) => {
-            const tooltipInstance = bootstrap.Tooltip.getInstance(el);
-            if (tooltipInstance) {
-                tooltipInstance.dispose();
-            }
-        });
+    // Function to add a project to the navbar dropdown
+    function addProjectToDropdown(project) {
+        const dropdownList = document.getElementById('project-dropdown-list');
+        if (!dropdownList) return;
+
+        const isSelected = (project.id === selected_project_id);
+
+        const li = document.createElement('li');
+        li.id = `dropdown-project-${project.id}`;
+        li.innerHTML = `
+            <a class="dropdown-item d-flex justify-content-between"
+               href="javascript:void(0);" onclick="setProject(${project.id})">
+                ${project.name}
+                ${isSelected ? '<i class="bi bi-key-fill"></i>' : '<i class="bi bi-key"></i>'}
+            </a>
+        `;
+        dropdownList.insertBefore(li, dropdownList.children[dropdownList.children.length - 3]); // Insert before "Manage keys" option
+        initializeTooltips();
     }
 
-    function initializeTooltips() {
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-            new bootstrap.Tooltip(tooltipTriggerEl);
-        });
+    // Function to update a project in the navbar dropdown
+    function updateProjectInDropdown(project) {
+        const dropdownItem = document.getElementById(`dropdown-project-${project.id}`);
+        if (!dropdownItem) return;
+
+        const isSelected = (project.id === selected_project_id);
+        dropdownItem.innerHTML = `
+            <a class="dropdown-item d-flex justify-content-between"
+               href="javascript:void(0);" onclick="setProject(${project.id})">
+                ${project.name}
+                ${isSelected ? '<i class="bi bi-key-fill"></i>' : '<i class="bi bi-key"></i>'}
+            </a>
+        `;
+        initializeTooltips();
+    }
+
+    // Function to remove a project from the navbar dropdown
+    function removeProjectFromDropdown(projectId) {
+        const dropdownItem = document.getElementById(`dropdown-project-${projectId}`);
+        if (!dropdownItem) return;
+        dropdownItem.remove();
     }
 
     // Initialize tooltips on page load

@@ -1,0 +1,18 @@
+<script>
+    function disposeTooltips(element) {
+        const tooltipElements = element.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipElements.forEach((el) => {
+            const tooltipInstance = bootstrap.Tooltip.getInstance(el);
+            if (tooltipInstance) {
+                tooltipInstance.dispose();
+            }
+        });
+    }
+
+    function initializeTooltips() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+</script>

@@ -38,14 +38,14 @@
                                 <i class="bi bi-person-square fs-5"></i>
                             </a>
 
-                            <ul class="dropdown-menu dropdown-menu-end" style="min-width: 220px;">
+                            <ul class="dropdown-menu dropdown-menu-end" id="project-dropdown-list" style="min-width: 220px;">
 
                                 <li>
                                     <h6 class="dropdown-header">Project keys</h6>
                                 </li>
 
                                 {% for project in user_projects %}
-                                    <li>
+                                    <li id="dropdown-project-{{ project.id }}">
                                         <a class="dropdown-item d-flex justify-content-between"
                                            href="javascript:void(0);" onclick="setProject({{ project.id }})">
                                             {{ project }}
@@ -61,7 +61,7 @@
                                 <li>
                                     <a class="dropdown-item d-flex justify-content-between" href="#"
                                        data-bs-toggle="modal" data-bs-target="#manageKeysModal">
-                                        <i class="text-secondary">Manage keys</i>
+                                        <i class="text-secondary small">Manage keys</i>
                                     </a>
                                 </li>
 
@@ -114,6 +114,7 @@
 {% include "modals/manage_keys_js.html" %}
 
 <script>
+    const selected_project_id = {{ selected_project.id|default:"null" }};
 
     document.addEventListener('DOMContentLoaded', function () {
         const tooltipList = new bootstrap.Tooltip(document.body, {
