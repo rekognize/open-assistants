@@ -267,39 +267,59 @@
         initializeTooltips(); // Re-initialize tooltips after DOM update
     }
 
-    function deleteProject(id) {
-        if (confirm("Are you sure you want to delete this project?")) {
-            const projectItem = document.getElementById(`project-${id}`);
+    let projectIdToDelete = null;
 
-            const deleteUrl = `/projects/${id}/delete/`;
+    function showConfirmationModal(id) {
+        projectIdToDelete = id;
+        const confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+        confirmationModal.show();
+    }
 
-            fetch(deleteUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Dispose tooltips before removing the element
-                        disposeTooltips(projectItem);
-
-                        projectItem.remove();
-
-                        // Remove from the dropdown as well
-                        removeProjectFromDropdown(id);
-                    } else {
-                        showToast('Failed to delete project!', data.error);
-                        console.error('Failed to delete project!', data.error);
-                    }
-                })
-                .catch(error => {
-                    showToast('Error:', error);
-                    console.error('Error:', error);
-                });
+    // Handle the confirmation button click
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function () {
+        if (projectIdToDelete) {
+            deleteProjectConfirmed(projectIdToDelete);
+            projectIdToDelete = null;
         }
+        const confirmationModal = bootstrap.Modal.getInstance(document.getElementById('confirmationModal'));
+        confirmationModal.hide();
+    });
+
+    function deleteProject(id) {
+        showConfirmationModal(id);
+    }
+
+    function deleteProjectConfirmed(id) {
+        const projectItem = document.getElementById(`project-${id}`);
+
+        const deleteUrl = `/projects/${id}/delete/`;
+
+        fetch(deleteUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Dispose tooltips before removing the element
+                    disposeTooltips(projectItem);
+
+                    projectItem.remove();
+
+                    // Remove from the dropdown as well
+                    removeProjectFromDropdown(id);
+                } else {
+                    showToast('Failed to delete project!', data.error);
+                    console.error('Failed to delete project!', data.error);
+                }
+            })
+            .catch(error => {
+                showToast('Error:', error);
+                console.error('Error:', error);
+            });
     }
 
     // Function to add a project to the navbar dropdown
