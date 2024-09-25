@@ -1,5 +1,6 @@
 import json
 
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
@@ -56,6 +57,8 @@ def create_project(request):
                     'partial_key': project.get_partial_key()
                 }
             })
+        except IntegrityError:
+            return JsonResponse({'success': False, 'error': 'The key provided is already in use. Please enter a different key.'})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
@@ -91,6 +94,8 @@ def edit_project(request, project_id):
                     'partial_key': project.get_partial_key()
                 }
             })
+        except IntegrityError:
+            return JsonResponse({'success': False, 'error': 'The key provided is already in use. Please enter a different key.'})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
