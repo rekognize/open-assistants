@@ -1,0 +1,38 @@
+<div class="col">
+    <div class="card">
+        <div class="card-body" id="vs-${tempId}">
+
+            <!-- Edit Form (Initially Visible) -->
+            <div class="edit-mode">
+                <form>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="name-${tempId}" placeholder="Name">
+                        <label for="name-${tempId}" class="form-label">Name</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="expiration-days-${tempId}" placeholder="Never">
+                        <label for="expiration-days-${tempId}" class="form-label">Expiration after days of inactivity</label>
+                    </div>
+
+                </form>
+            </div>
+
+        </div>
+
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="edit-mode">
+                <button type="button" class="btn btn-sm btn-outline-success btnModifyVectorStore"
+                        data-vector-store-id="${tempId}"
+                        onclick="saveNewVectorStore('${tempId}')">
+                    <span class="button-text"><i class="bi bi-check-lg"></i></span>
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        onclick="removeVectorStoreCard('${tempId}')">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

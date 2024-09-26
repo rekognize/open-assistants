@@ -1,0 +1,123 @@
+<div class="col">
+    <div class="card">
+
+        <div class="card-body" id="${store.id}">
+
+            <!-- Info -->
+
+            <div class="brief-info">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <h6 class="card-title my-0">
+                        ${store.name ?? 'Untitled'}
+                    </h6>
+
+                    <div>
+                        <small class="small text-secondary"
+                               data-bs-toggle="tooltip" data-bs-title="${store.status}">
+                            ${getVectorStoreStatusIcon(store.status)}
+                        </small>
+                    </div>
+
+                </div>
+
+                <div class="collapse show">
+
+                    <div class="info-box mt-4">
+                        <span class="info-label">${bytesToSize(store.usage_bytes)} vectorized total</span>
+                        <p class="info-value">${listFileCounts(store.file_counts) || 'No files'}</p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label">Created ${timeSince(store.created_at * 1000)} ago</span>
+                        <p class="info-value">${new Date(store.created_at * 1000).toLocaleString()}</p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label">Last active ${timeSince(store.last_active_at * 1000)} ago</span>
+                        <p class="info-value">${new Date(store.last_active_at * 1000).toLocaleString()}</p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label" id="label-expiration-${store.id}">Expires in ${store.expires_at && timeUntil(store.expires_at * 1000) || ''}</span>
+                        <p class="info-value" id="info-expiration-${store.id}">${store.expires_at && new
+                            Date(store.expires_at * 1000).toLocaleString() || 'Does not expire'}</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Edit Form (Initially Hidden) -->
+
+            <div class="edit-mode d-none">
+
+                <form>
+
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="name-${store.id}" value="${store.name ?? ''}">
+                        <label for="name-${store.id}" class="form-label">Name</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="expiration-days-${store.id}"
+                               value="${store.expires_after?.days || ''}">
+                        <label for="expiration-days-${store.id}" class="form-label">Expiration after days of inactivity</label>
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-footer d-flex justify-content-between align-items-center">
+
+            <div>
+
+                <div class="brief-info">
+                    <button type="button" onclick="toggleEditMode('${store.id}')"
+                            class="btn btn-sm btn-outline-secondary"
+                            data-bs-toggle="tooltip" data-bs-title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+
+                <div class="edit-mode d-none">
+                    <button type="button" class="btn btn-sm btn-outline-success btnModifyVectorStore"
+                            onclick="modifyVectorStore('${store.id}');"
+                            data-store-id="${store.id}" data-bs-toggle="tooltip" data-bs-title="Save">
+                        <span class="button-text"><i class="bi bi-check-lg"></i></span>
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            onclick="toggleEditMode('${store.id}')"
+                            data-bs-toggle="tooltip" data-bs-title="Cancel">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+            </div>
+
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="tooltip" data-bs-title="Files">
+                    <i class="bi bi-archive"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="tooltip" data-bs-title="Duplicate this vector store">
+                    <i class="bi bi-copy"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger"
+                        data-bs-toggle="tooltip" data-bs-title="Delete" onclick="deleteVectorStore('${store.id}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+</div>

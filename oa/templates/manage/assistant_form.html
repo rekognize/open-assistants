@@ -1,0 +1,57 @@
+<div class="col">
+    <div class="card">
+        <div class="card-body" id="assistant-${tempId}">
+
+            <!-- Edit Form (Initially Visible) -->
+            <div class="edit-mode">
+                <form>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="name-${tempId}" placeholder="Name">
+                        <label for="name-${tempId}" class="form-label">Name</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="description-${tempId}" placeholder="Description"
+                                  rows="3"></textarea>
+                        <label for="description-${tempId}">Description</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        ${selectVectorStore}
+                        <label for="vs-${tempId}">Vector store</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="instructions-${tempId}" placeholder="Instructions"
+                                  style="height: 100px"></textarea>
+                        <label for="instructions-${tempId}">Instructions</label>
+                    </div>
+
+                    <div class="form-floating">
+                        <select class="form-select" id="model-${tempId}">
+                            <option value="gpt-4o">gpt-4o</option>
+                            <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        </select>
+                        <label for="model-${tempId}">Model</label>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="edit-mode">
+                <button type="button" class="btn btn-sm btn-outline-success btnModifyAssistant"
+                        data-assistant-id="${tempId}"
+                        onclick="saveNewAssistant('${tempId}')">
+                    <span class="button-text"><i class="bi bi-check-lg"></i></span>
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        onclick="removeAssistantCard('${tempId}')">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

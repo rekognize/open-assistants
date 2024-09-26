@@ -1,5 +1,4 @@
 from typing import Any
-from django.http import Http404
 from django.contrib.auth import aget_user
 from openai import AsyncOpenAI
 from oa.main.models import Project
@@ -32,7 +31,7 @@ async def aget_object_or_404(model, *args, **kwargs):
     try:
         return await model.objects.aget(*args, **kwargs)
     except model.DoesNotExist:
-        raise Http404(f"{model._meta.object_name} not found")
+        raise APIError(f"{model._meta.object_name} not found", status=401)
 
 
 async def get_authenticated_user(request):

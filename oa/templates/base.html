@@ -187,6 +187,56 @@
         });
     }
 
+    // Function for parsing OpenAI API error strings
+    function parseErrorText(errorText) {
+        try {
+            // Ensure errorText is always treated as a string
+            if (typeof errorText !== 'string') {
+                errorText = JSON.stringify(errorText);
+            }
+
+            // Extract the error code using a regular expression
+            const errorCodeMatch = errorText.match(/Error code: (\d+)/);
+            const errorCode = errorCodeMatch ? parseInt(errorCodeMatch[1], 10) : null;
+
+            // Extract the JSON-like part of the string after the error code
+            const jsonStringMatch = errorText.match(/-\s*(\{.*\})$/);
+            if (!jsonStringMatch) {
+                throw new Error('Invalid error format');
+            }
+
+            // Clean the JSON-like string part
+            let jsonString = jsonStringMatch[1];
+
+            jsonString = jsonString.replace(/'{/g, '{"')
+                .replace(/}'/g, '"}')
+                .replace(/'([a-zA-Z0-9_]+)':/g, '"$1":')  // Replace single quotes around keys only
+                .replace(/: '([^']*)'/g, ': "$1"')         // Replace single quotes around values only
+                .replace(/None/g, 'null');                  // Replace Python's None with JavaScript's null
+
+            // Parse the cleaned-up string into a JavaScript object
+            const errorObject = JSON.parse(jsonString);
+
+            // Return the parsed error details
+            return {
+                errorCode: errorCode,
+                errorMessage: errorObject.error.message || "An error occurred",
+                errorType: errorObject.error.type || "Unknown",
+                errorParam: errorObject.error.param || null,
+                errorCodeDetail: errorObject.error.code || null
+            };
+        } catch (error) {
+            console.error("Failed to parse the error message:", error);
+            return {
+                errorCode: null,
+                errorMessage: errorText,  // Return the original error text if parsing fails
+                errorType: "Unknown",
+                errorParam: null,
+                errorCodeDetail: null
+            };
+        }
+    }
+
 </script>
 
 {% block extra_scripts %}{% endblock %}
