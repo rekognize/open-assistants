@@ -93,6 +93,11 @@
 
                     // Update the dropdown with the new project
                     addProjectToDropdown(data.project);
+
+                    // If no project is selected, call setProject with the new project
+                    if (!selected_project_id) {
+                        setProject(data.project.id)
+                    }
                 } else {
                     showToast('Failed to create project!', data.error);
                     console.error('Failed to create project!', data.error);

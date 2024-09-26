@@ -1,9 +1,13 @@
 from django.contrib import admin
 from django.urls import path
+
+from oa.api.views import api
 from oa.main import views as main_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    path("api/", api.urls),
 
     path('', main_views.HomeView.as_view(), name='home'),
 
