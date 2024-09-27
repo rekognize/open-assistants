@@ -3,7 +3,7 @@ from ninja import NinjaAPI, File, Form
 from ninja.files import UploadedFile
 from typing import List
 from django.http import JsonResponse
-from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema
+from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema
 from .utils import serialize_to_dict, APIError, get_openai_client
 
 api = NinjaAPI()
@@ -445,3 +445,121 @@ async def delete_file(request, file_id):
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse(serialize_to_dict(response))
+
+
+# Threads
+
+@api.post("/threads")
+async def create_thread(request):
+    try:
+        client = await get_openai_client(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+
+    assistant_id = request.GET.get('asst')
+
+    try:
+        response = await client.beta.threads.create(metadata={
+            "_asst": assistant_id,
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse(serialize_to_dict(response))
+
+
+@api.get("/threads/{thread_id}")
+async def retrieve_thread(request, thread_id):
+    try:
+        client = await get_openai_client(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+
+    try:
+        thread = await client.beta.threads.retrieve(thread_id)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse(serialize_to_dict(thread))
+
+
+@api.post("/threads/{thread_id}")
+async def modify_thread(request, thread_id, payload: ThreadSchema):
+    try:
+        client = await get_openai_client(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+
+    # Prepare parameters for update
+    update_params = {}
+    if payload.title is not None:
+        update_params['title'] = payload.title
+    if payload.metadata is not None:
+        update_params['metadata'] = payload.metadata
+
+    if not update_params:
+        return JsonResponse({"error": "No data provided to update."}, status=400)
+
+    try:
+        thread = await client.beta.threads.update(
+            thread_id=thread_id,
+            **update_params
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse(serialize_to_dict(thread), status=200)
+
+
+@api.post("/threads/{thread_id}/messages")
+async def create_message(request, thread_id):
+    try:
+        client = await get_openai_client(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+
+    try:
+        # Parse JSON body
+        body = json.loads(request.body)
+        message_text = body.get('message')
+        attachments = body.get('attachments', [])
+
+        if not message_text:
+            return JsonResponse({"error": "Message content is missing."}, status=400)
+
+        formatted_attachments = []
+        if attachments:
+            for attachment in attachments:
+                formatted_attachment = {}
+
+                # Accessing 'file_id' using dictionary keys
+                file_id = attachment.get('file_id')
+                if file_id:
+                    formatted_attachment['file_id'] = file_id
+
+                # Accessing 'tools' using dictionary keys
+                tools = attachment.get('tools')
+                if tools:
+                    formatted_attachment['tools'] = tools
+
+                formatted_attachments.append(formatted_attachment)
+
+        message_data = {
+            "thread_id": thread_id,
+            "role": "user",
+            "content": message_text,
+        }
+
+        if formatted_attachments:
+            message_data["attachments"] = formatted_attachments
+
+        response = await client.beta.threads.messages.create(**message_data)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+    except KeyError as e:
+        return JsonResponse({"error": f"Missing key: {str(e)}"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse(serialize_to_dict(response), status=201)

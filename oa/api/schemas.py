@@ -30,3 +30,28 @@ class VectorStoreIdsSchema(Schema):
 
 class FileUploadSchema(Schema):
     vector_store_ids: Optional[List[str]] = []  # To hold selected vector store IDs
+
+
+class ThreadSchema(Schema):
+    title: Optional[str] = None
+    metadata: Optional[Dict[str, str]] = None
+
+    @field_validator('metadata')
+    @classmethod
+    def validate_metadata(cls, v):
+        if v is None:
+            return v
+        if not isinstance(v, dict):
+            raise ValueError("metadata must be a dictionary")
+        if len(v) > 16:
+            raise ValueError("metadata can contain at most 16 key-value pairs")
+        for key, value in v.items():
+            if not isinstance(key, str):
+                raise ValueError(f"metadata key '{key}' must be a string")
+            if len(key) > 64:
+                raise ValueError(f"metadata key '{key}' exceeds maximum length of 64 characters")
+            if not isinstance(value, str):
+                raise ValueError(f"metadata value for key '{key}' must be a string")
+            if len(value) > 512:
+                raise ValueError(f"metadata value for key '{key}' exceeds maximum length of 512 characters")
+        return v

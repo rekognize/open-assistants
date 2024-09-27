@@ -31,7 +31,7 @@ async def aget_object_or_404(model, *args, **kwargs):
     try:
         return await model.objects.aget(*args, **kwargs)
     except model.DoesNotExist:
-        raise APIError(f"{model._meta.object_name} not found", status=401)
+        raise APIError(f"{model._meta.object_name} not found")
 
 
 async def get_authenticated_user(request):

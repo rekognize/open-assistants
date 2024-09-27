@@ -13,6 +13,10 @@ urlpatterns = [
 
     path('manage/', main_views.manage_assistants, name='manage_assistants'),
 
+    path('chat/', main_views.thread_detail, name='thread_detail'),
+    path('chat/<str:assistant_id>/stream/<str:thread_id>/', main_views.create_stream_url, name='create_stream_url'),
+    path('chat/<str:assistant_id>/stream/<str:thread_id>/responses/', main_views.stream_responses, name='stream_responses'),
+
     path('projects/set/', main_views.set_project, name='set_project'),
     path('projects/create/', main_views.create_project, name='create_project'),
     path('projects/<int:project_id>/edit/', main_views.edit_project, name='edit_project'),

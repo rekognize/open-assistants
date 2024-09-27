@@ -1,0 +1,450 @@
+<script>
+// Define globals
+const assistantId = '{{ assistant_id }}';
+let threadId, assistantName;
+
+// Set the DOM elements
+const dropZone = document.getElementById('dropZone');
+const dataFilesInput = document.getElementById('dataFiles');
+const loadingUpload = document.getElementById('loading-upload');
+const submitButton = document.getElementById('message-submit-button');
+const messageContainer = document.getElementById('messages');
+const formContainer = document.getElementById('message-form-container');
+const awaitingResponse = document.getElementById('awaiting-response');
+const assistantResponseContent = document.getElementById('assistant-response-content');
+const streamingAssistantName = document.getElementById('streaming-assistant-name');
+const textarea = document.getElementById('autoresizing');
+const form = document.getElementById('messageForm');
+
+document.addEventListener("DOMContentLoaded", async function () {
+    // Call initializePage and wait for it to complete
+    await initializePage();
+
+    // Retrieve assistant details
+    async function retrieveAssistant(assistantId) {
+        const retrieveAssistantUrlTemplate = "{% url 'api-1.0.0:retrieve_assistant' assistant_id='ASST_ID_PLACEHOLDER' %}";
+        const retrieveAssistantUrl = retrieveAssistantUrlTemplate.replace('ASST_ID_PLACEHOLDER', assistantId);
+
+        try {
+            const response = await fetch(retrieveAssistantUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to fetch assistant!", parsedError.errorMessage);
+                console.error('Failed to fetch assistant!', parsedError);
+
+            }
+
+            const assistantData = await response.json();
+
+            // Set the global
+            assistantName = assistantData.name;
+
+            // Populate assistant details in the DOM
+            document.getElementById('assistant-name').textContent = assistantData.name;
+            if (assistantData.description) {
+                document.getElementById('assistant-description').textContent = assistantData.description;
+            }
+
+            console.log('Assistant details:', assistantData);
+            return assistantData;
+
+        } catch (error) {
+            console.error('Error fetching assistant details:', error);
+        }
+    }
+
+    // Create a new thread
+    async function createThread(assistantId) {
+        const createThreadUrl = "{% url 'api-1.0.0:create_thread' %}";
+
+        try {
+            const response = await fetch(`${createThreadUrl}?asst=${assistantId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to create thread!", parsedError.errorMessage);
+                console.error('Failed to create thread!', parsedError);
+            }
+
+            const threadData = await response.json();
+
+            // Set the global threadId
+            threadId = threadData.id;
+
+            console.log('Thread details:', threadData);
+            return threadData;
+
+        } catch (error) {
+            console.error('Error creating thread:', error);
+        }
+    }
+
+    // Initialize the page
+    async function initializePage() {
+        await retrieveAssistant(assistantId);
+        await createThread(assistantId);
+
+        // After thread is created, remove the loading messages
+        const loadingMessagesDiv = document.getElementById('loading-messages');
+        if (loadingMessagesDiv) {
+            loadingMessagesDiv.remove();
+        }
+
+        // Optionally, display a message if there are no messages
+        if (messageContainer.children.length === 0) {
+            const noMessagesDiv = document.createElement('div');
+            noMessagesDiv.id = 'no-messages';
+            noMessagesDiv.textContent = 'Start the conversation by typing a message below.';
+            messageContainer.appendChild(noMessagesDiv);
+        }
+    }
+
+    // Upload files to be attached to messages
+    let attachments = [];
+
+    async function uploadThreadFiles(files) {
+        const formData = new FormData();
+
+        for (const file of files) {
+            formData.append('files', file);
+        }
+
+        // Show the loading indicator
+        loadingUpload.style.display = 'block';
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch(`{% url 'api-1.0.0:upload_files' %}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                console.log('uploadThreadFiles', data);
+
+                if (data['uploaded_files'].length > 0) {
+                    for (const file of data['uploaded_files']) {
+                        attachments.push({
+                            'file_id': file['id'],
+                            'tools': [
+                                // TODO Check file type with isFileTypeSupported to decide to add file_search
+                                {'type': 'file_search'},
+                                {'type': 'code_interpreter'}
+                            ]
+                        });
+                    }
+                }
+                showToast("Files uploaded!", " ", "success");
+                console.log('attachments', attachments);
+
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Error uploading files!", parsedError.errorMessage);
+                console.error('Error uploading files!', parsedError);
+            }
+        } catch (error) {
+            showToast("Error uploading files:", error);
+            console.error('Error uploading files:', error);
+        } finally {
+            // Hide the loading indicator
+            loadingUpload.style.display = 'none';
+            submitButton.disabled = false;
+        }
+    }
+
+    // Post message
+    async function createMessage(message, attachments) {
+        const createMessageUrlTemplate = "{% url 'api-1.0.0:create_message' thread_id='THREAD_ID_PLACEHOLDER' %}";
+        const createMessageUrl = createMessageUrlTemplate.replace('THREAD_ID_PLACEHOLDER', threadId);
+
+        const payload = {
+            message: message,
+            attachments: attachments
+        };
+
+        try {
+            const response = await fetch(createMessageUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                console.log('createMessage', data);
+
+                return data;
+
+            } else {
+                const data = await response.json();
+                console.error('Error posting message:', data.error);
+                showToast("Error posting message!", data.error);
+            }
+        } catch (error) {
+            console.error('Error posting message:', error);
+            showToast("Error posting message:", error.message);
+        }
+    }
+
+    // Create run
+    async function createRun() {
+        const formData = new FormData();
+        formData.append('assistant_id', assistantId);
+        formData.append('thread_id', threadId);
+
+        // Dynamically construct the URL
+        const createStreamUrl = `/chat/${assistantId}/stream/${threadId}/`;
+
+        try {
+            const response = await fetch(createStreamUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                return await response.json();
+
+            } else {
+                const data = await response.json();
+                console.error('Error creating run:', data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    let eventSource = null;
+
+    if (dropZone) {
+        dropZone.addEventListener('click', function () {
+            dataFilesInput.click();
+        });
+
+        dropZone.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            dropZone.classList.add('hover');
+        });
+
+        dropZone.addEventListener('dragleave', function () {
+            dropZone.classList.remove('hover');
+        });
+
+        dropZone.addEventListener('drop', function (e) {
+            e.preventDefault();
+            dropZone.classList.remove('hover');
+            uploadThreadFiles(e.dataTransfer.files);
+        });
+
+        dataFilesInput.addEventListener('change', function (e) {
+            uploadThreadFiles(e.target.files);
+        });
+    }
+
+    // Scroll to the bottom of the message container when the page loads
+    scrollToBottom();
+
+    // Scroll to the bottom of the message container
+    function scrollToBottom() {
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+
+    function createMessageElement(role, content, assistantName = null) {
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message');
+        if (role === 'user') {
+            messageDiv.classList.add('user-message');
+        } else {
+            messageDiv.classList.add('assistant-message');
+        }
+        const displayName = assistantName || role;
+        messageDiv.innerHTML = `<p><strong>${displayName}</strong><br>${marked.parse(content)}</p>`;
+        return messageDiv;
+    }
+
+    // Submit message
+    if (form) {
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const message = textarea.value.trim();
+
+            if (message === '') {
+                console.error('Content is missing');
+                textarea.focus();
+                return;
+            }
+
+            // Remove "no messages" message if it exists
+            const noMessages = document.getElementById('no-messages');
+            if (noMessages) {
+                noMessages.remove();
+            }
+
+            // Add user's message to the container
+            const userMessageElement = createMessageElement('user', message);
+            messageContainer.appendChild(userMessageElement);
+            scrollToBottom();
+
+            // Show the "awaiting response" container and reset assistant content
+            awaitingResponse.classList.remove("d-none");
+            assistantResponseContent.innerHTML = 'Awaiting response...';
+            streamingAssistantName.textContent = assistantName;
+
+            // Hide the textarea while waiting for the response
+            formContainer.classList.add('d-none');
+
+            try {
+                await createMessage(message, attachments);
+                // Clear attachments after sending
+                attachments = [];
+            } catch(e) {
+                console.error('Error:', e)
+            }
+
+            try {
+                const runData = await createRun();
+
+                console.log('runData', runData);
+
+                // Clear the textarea
+                textarea.value = '';
+                textarea.style.height = 'auto';
+
+                // Initiate SSE
+                if (eventSource) {
+                    eventSource.close();
+                }
+                eventSource = handleSSE(runData.stream_url, assistantName);
+
+                scrollToBottom();
+
+            } catch(e) {
+                console.error('Error:', e);
+                // Handle errors, e.g., show an error message to the user
+                formContainer.classList.remove('d-none');
+                awaitingResponse.classList.add("d-none");
+                textarea.focus();
+            }
+        });
+    }
+
+    // Handle Server-Sent Events (SSE)
+    function handleSSE(url, assistantName) {
+        const eventSource = new EventSource(url);
+        let currentText = "";
+
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'text_delta' || data.type === 'text_created') {
+                currentText = data.text;
+                assistantResponseContent.innerHTML = `${marked.parse(currentText)}`;
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth'
+                });
+            } else if (data.type === 'end_of_stream') {
+                eventSource.close();
+                const assistantMessageElement = createMessageElement('assistant', currentText, assistantName);
+                messageContainer.appendChild(assistantMessageElement);
+                formContainer.classList.remove('d-none');
+                awaitingResponse.classList.add("d-none");
+                textarea.focus();
+                scrollToBottom();
+            }
+        };
+
+        eventSource.onerror = function(error) {
+            console.error('SSE error:', error);
+            eventSource.close();
+
+            // Attempt to reconnect after a delay
+            setTimeout(() => {
+                handleSSE(url, assistantName);
+            }, 3000);
+        };
+
+        eventSource.onopen = function() {
+            awaitingResponse.classList.remove('d-none');
+        };
+
+        eventSource.onclose = function() {
+            if (!eventSource.readyState) {
+                formContainer.classList.remove('d-none');
+                awaitingResponse.classList.add("d-none");
+                textarea.focus();
+            }
+        };
+
+        return eventSource;
+    }
+
+    // Auto-resize textarea
+    if (textarea) {
+        textarea.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                if (event.shiftKey) {
+                    // If Shift + Enter, insert a newline
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    this.value = this.value.substring(0, start) + '\n' + this.value.substring(end);
+                    this.selectionStart = this.selectionEnd = start + 1;
+                    event.preventDefault();
+                } else {
+                    // If only Enter, submit the form
+                    event.preventDefault();
+
+                    // Trim the value to check for any content
+                    const messageContent = textarea.value.trim();
+
+                    if (messageContent === "") {
+                        // If the message is blank, prevent submission
+                        textarea.focus();
+                    } else {
+                        // If the message is not blank, submit the form
+                        form.dispatchEvent(new Event('submit', { 'bubbles': true, 'cancelable': true }));
+                    }
+                }
+            }
+        });
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+
+        textarea.addEventListener('paste', function() {
+            setTimeout(() => {
+                this.style.height = 'auto';
+                this.style.height = this.scrollHeight + 'px';
+            }, 0);
+        });
+    }
+});
+</script>

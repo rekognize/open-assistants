@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+    body {
+        height: 100vh;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    #content {
+        flex: 1 0 auto;
+    }
+    #messages {
+        height: calc(100vh - 168px);
+        overflow-y: auto;
+        overflow-x: auto;
+        padding: 10px;
+    }
+    #loading-messages {
+        text-align: center;
+        margin: 40px;
+    }
+    .user-message {
+        background-color: #e9f7ef;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        width: fit-content;
+        max-width: 80%;
+        min-width: 20%;
+        margin-left: auto;
+    }
+    .assistant-message {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        width: 100%;
+    }
+    #autoresizing {
+        min-height: 56px;
+        max-height: 33vh;
+        overflow: auto;
+        resize: none;
+    }
+    #no-messages {
+        text-align: center;
+        color: #999;
+        margin: 40px;
+    }
+    #loading-upload {
+        display: none;
+        text-align: center;
+        margin: 20px 0;
+    }
+    #dropZone {
+        border: 2px dotted #cfe2ff;
+        border-radius: 8px;
+        background: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        color: #007bff;
+        cursor: pointer;
+    }
+    #dropZone.hover {
+        background-color: #cfe2ff;
+    }
+    .hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mt-3">
+        <!-- Left panel for assistant selection -->
+        <div class="col-md-4">
+
+            <div>
+                <div class="d-flex align-items-center">
+                    <h5 class="mb-0" id="assistant-name"></h5>
+                </div>
+
+                <div id="assistant-info" class="mt-3 text-secondary">
+                    <span id="assistant-description"></span>
+                </div>
+            </div>
+
+            <!-- Dropzone for file upload -->
+            <div class="mt-3 text-secondary">
+                <div id="dropZone" class="mt-3 text-secondary">Drop your data files here</div>
+                <input id="dataFiles" type="file" multiple class="hidden" />
+                <div id="loading-upload">
+                    <span class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Uploading...</span>
+                    </span> Uploading files...
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right panel for message streams -->
+        <div class="col-md-8" id="message-panel">
+            <div id="messages">
+                <!-- Placeholder for messages -->
+                <div id="loading-messages">
+                    <span class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </span> Loading messages...
+                </div>
+            </div>
+
+            <!-- Awaiting response -->
+            <div id="awaiting-response" class="d-none">
+                <div class="message assistant-message">
+                    <p><strong id="streaming-assistant-name"></strong>
+                        <span class="spinner-border spinner-border-sm float-end" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </span>
+                    </p>
+                    <div id="assistant-response-content">Awaiting response...</div>
+                </div>
+            </div>
+
+            <!-- Message form -->
+            <div class="container" id="message-form-container">
+                <div id="user-message-form" class="row">
+                    <div class="col-1 fs-2">
+                        <div class="d-flex justify-content-center">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card border-success mb-4">
+                            <div class="card-body p-0 d-flex justify-content-center align-items-center">
+                                <form id="messageForm" method="post" class="d-flex position-relative w-100">
+                                    {% csrf_token %}
+                                    <div class="d-flex align-items-center w-100">
+                                        <textarea id="autoresizing" class="form-control m-0 p-3 pe-5 border-0" rows="1" aria-label="Type your message..." placeholder="Type your message..."></textarea>
+                                        <button id="message-submit-button" class="btn btn-success position-absolute top-0 mt-2 end-0 me-2" type="submit">
+                                            <i class="bi bi-send"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block extra_scripts %}
+
+    {% include 'chat/chat_js.html' %}
+
+{% endblock %}

@@ -1614,7 +1614,7 @@
         const dropZone = document.getElementById('dropZone');
 
         if (fileInput.files.length === 0) {
-            alert('Please select at least one file.');
+            showToast('No file selected!', 'Please select at least one file.');
             return;
         }
 
