@@ -70,7 +70,7 @@
                                 </li>
 
                                 <li>
-                                    <a class="dropdown-item d-flex justify-content-between" href="#">
+                                    <a class="dropdown-item d-flex justify-content-between" href="{% url 'accounts:logout' %}">
                                         Logout
                                         <i class="bi bi-box-arrow-right"></i>
                                     </a>
@@ -86,10 +86,8 @@
 
                     <ul class="navbar-nav ms-auto">
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
-
+                            <a class="nav-link" href="{% url 'accounts:login_form' %}">
                                 Login / Signup
-
                             </a>
                         </li>
                     </ul>

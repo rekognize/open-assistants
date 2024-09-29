@@ -1,8 +1,11 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from oa.main import views as main_views
 
+
 urlpatterns = [
+    path('accounts/', include('accounts.urls', namespace='accounts')),
+
     path('admin/', admin.site.urls),
 
     path('', main_views.HomeView.as_view(), name='home'),

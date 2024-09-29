@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% load i18n widget_tweaks %}
+
+{% block extra_head %}
+
+    <script src="https://www.google.com/recaptcha/enterprise.js" async defer></script>
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<form action="{{ request.path }}" method="POST" class="container mt-5">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-md-6">
+
+            <p class="lead">
+                Type your email to receive the login link.
+            </p>
+
+        </div>
+        <div class="col-md-6">
+            {% with form.email as field %}
+            <div class="form-group mb-4">
+                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                {% render_field field class+="form-control" %}
+                {% if field.help_text %}
+                    <small class="form-text text-muted">{{ field.help_text }}</small>
+                {% endif %}
+                {% for error in field.errors %}
+                    <div class="invalid-feedback">
+                        {{ error }}
+                    </div>
+                {% endfor %}
+            </div>
+            {% endwith %}
+
+            {% with form.captcha as field %}
+                {% render_field field %}
+                {% for error in field.errors %}
+                    <div class="invalid-feedback">
+                        {{ error }}
+                    </div>
+                {% endfor %}
+            {% endwith %}
+
+            <button type="submit" class="btn btn-outline-primary my-4">{% trans 'Send login link' %}</button>
+
+        </div>
+
+    </div>
+</form>
+
+
+{% endblock %}
