@@ -1,12 +1,1709 @@
 {% extends "base.html" %}
 
 
+{% block extra_head %}
+<style>
+    .content-section {
+        height: 90vh;
+        overflow-x: clip;
+        overflow-y: auto;
+    }
+
+    .sticky-top {
+        z-index: 10;
+    }
+
+    .info-box {
+        position: relative;
+        margin-top: 1rem;
+    }
+
+    .info-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        position: absolute;
+        top: -12px;
+    }
+
+    .info-value {
+        padding: 0.5rem 0;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    #dropZone {
+        border: 2px dotted #cfe2ff;
+        border-radius: 8px;
+        background: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        color: #007bff;
+        cursor: pointer;
+    }
+
+    #dropZone.hover {
+        background-color: #cfe2ff;
+    }
+
+    #dropZone.disabled {
+        pointer-events: none;
+        opacity: 0.6;
+    }
+
+    #uploaded-files-list {
+        list-style-type: none;
+        padding: 0;
+    }
+
+    #uploaded-files-list li {
+        padding: 5px 0;
+    }
+
+    .file-list-container,
+    .vector-store-list-container {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e5e5e5;
+        padding: 10px;
+        border-radius: 5px;
+    }
+
+    .filename {
+        max-width: 300px; /* Set the maximum width */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: inline-block;
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+
 {% block content %}
 
-    <div class="container mt-4 mb-4">
-        <div class="row">
+<div class="container mt-4 mb-4">
+    <div class="row">
+
+        <!-- Assistants Column -->
+        <div class="col-md-4">
+
+            <div class="sticky-top">
+                <div class="mb-2 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="lead mb-0">Assistants</h5>
+                        <div>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-assistants"
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllAssistants('collapse');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-assistants"
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllAssistants('expand');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-sort-down ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Sort options"></a>
+                            <a href="#" class="text-light-emphasis bi bi-filter ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Filter options"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
+                                onclick="refreshAssistantsList();"
+                                data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
+                            <a href="#" onclick="addAssistant()" class="text-light-emphasis bi bi-plus-lg ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Create a new assistant"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="content-assistants" class="content-section pt-2">
+                <div id="assistants-list" class="row row-cols-1 g-4">
+                    <!-- Assistants will be populated here -->
+                </div>
+                {% include 'partials/loading_indicator.html' with content_id='assistants' content_name='assistants' %}
+            </div>
 
         </div>
+
+        <!-- Vector Stores Column -->
+        <div class="col-md-4">
+
+            <div class="sticky-top">
+                <div class="mb-2 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="lead mb-0">Stores</h5>
+                        <div>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-stores"
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllStores('collapse');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-stores"
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllStores('expand');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-sort-down ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Sort options"></a>
+                            <a href="#" class="text-light-emphasis bi bi-filter ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Filter options"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
+                                onclick="refreshVSList();"
+                                data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
+                            <a href="#" onclick="addVectorStore();" class="text-light-emphasis bi bi-plus-lg ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Create a new vector store"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="content-vector-stores" class="content-section pt-2">
+                <div id="vector-stores-list" class="row row-cols-1 g-4">
+                    <!-- Vector Stores will be populated here -->
+                </div>
+                {% include 'partials/loading_indicator.html' with content_id='vector-stores' content_name='vector stores' %}
+            </div>
+        </div>
+
+        <!-- Files Column -->
+        <div class="col-md-4">
+
+            <div class="sticky-top">
+                <div class="mb-2 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="lead mb-0">Files</h5>
+                        <div>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-files"
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllFiles('collapse');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-files"
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllFiles('expand');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-sort-down ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Sort options"></a>
+                            <a href="#" class="text-light-emphasis bi bi-filter ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Filter options"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
+                                onclick="refreshFilesList();"
+                                data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
+                            <a href="#" onclick="showUploadFileModal()" class="text-light-emphasis bi bi-plus-lg ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Add files"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="content-files" class="content-section pt-2">
+                <div id="files-list" class="row row-cols-1 g-4">
+                    <!-- Files will be populated here -->
+                </div>
+                {% include 'partials/loading_indicator.html' with content_id='files' content_name='files' %}
+            </div>
+        </div>
+
     </div>
+</div>
+
+{% include "modals/file_upload_modal.html" %}
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+
+<script>
+
+    /* Utility functions */
+
+    function timeSince(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+
+        let interval = Math.floor(seconds / 31536000);
+        if (interval > 1) {
+            return `${interval} yrs`;
+        }
+        interval = Math.floor(seconds / 2592000);
+        if (interval > 1) {
+            return `${interval} mos`;
+        }
+        interval = Math.floor(seconds / 86400);
+        if (interval > 1) {
+            return `${interval} days`;
+        }
+        interval = Math.floor(seconds / 3600);
+        if (interval > 1) {
+            return `${interval} hrs`;
+        }
+        interval = Math.floor(seconds / 60);
+        if (interval > 1) {
+            return `${interval} mins`;
+        }
+        return `${Math.floor(seconds)} secs`;
+    }
+
+    function timeUntil(date) {
+        const seconds = Math.floor((date - new Date()) / 1000);
+
+        if (seconds <= 0) {
+            return 'Expired';
+        }
+
+        let interval = Math.floor(seconds / 31536000);
+        if (interval > 1) {
+            return `${interval} yrs`;
+        }
+        interval = Math.floor(seconds / 2592000);
+        if (interval > 1) {
+            return `${interval} mos`;
+        }
+        interval = Math.floor(seconds / 86400);
+        if (interval > 1) {
+            return `${interval} days`;
+        }
+        interval = Math.floor(seconds / 3600);
+        if (interval > 1) {
+            return `${interval} hrs`;
+        }
+        interval = Math.floor(seconds / 60);
+        if (interval > 1) {
+            return `${interval} mins`;
+        }
+        return `${Math.floor(seconds)} secs`;
+    }
+
+    function getVectorStoreStatusIcon(status) {
+        switch(status) {
+            case 'expired':
+                return '<i class="bi bi-x-circle-fill text-danger"></i>'; // Danger icon for expired status
+            case 'in_progress':
+                return '<i class="bi bi-exclamation-triangle-fill text-warning"></i>'; // Warning icon for in_progress status
+            case 'completed':
+                return '<i class="bi bi-check-circle-fill text-success"></i>'; // Success icon for completed status
+            default:
+                return '<i class="bi bi-question-circle-fill text-secondary"></i>'; // Default icon for unknown status
+        }
+    }
+
+    function listFileCounts(fileCounts) {
+        const breakdown = [];
+
+        for (const [key, value] of Object.entries(fileCounts)) {
+            if (value > 0) {
+                // Push the key-value pair as a formatted string
+                breakdown.push(`${key}: ${value}`);
+            }
+        }
+
+        return breakdown.join(', ');
+    }
+
+    function getStatusIcon(status) {
+        switch(status) {
+            case 'expired':
+                return '<i class="bi bi-x-circle-fill text-danger"></i>'; // Danger icon for expired status
+            case 'in_progress':
+                return '<i class="bi bi-exclamation-triangle-fill text-warning"></i>'; // Warning icon for in_progress status
+            case 'completed':
+                return '<i class="bi bi-check-circle-fill text-success"></i>'; // Success icon for completed status
+            default:
+                return '<i class="bi bi-question-circle-fill text-secondary"></i>'; // Default icon for unknown status
+        }
+    }
+
+    function renderVSList(vsList) {
+        let rendered = '<div class="info-box"><span class="info-label">Vector Store(s)</span>';
+
+        if (vsList) {
+            rendered += '<p class="info-value">'
+            vsList.forEach(vsId => {
+                const vectorStore = vectorStores[vsId]; // Fetch the vector store from the global object
+                rendered += `
+                    <span class="d-block">${vectorStore.name ?? 'Untitled'}</span>
+                `;
+            });
+            rendered += '</p>'
+        } else {
+            rendered += '<p class="info-value">No vector store</p>'
+        }
+        rendered += '</div>'
+
+        return rendered;
+    }
+
+    function renderFileVSSelect(fileId) {
+        let selectedVectorStoreIds = fileVectorStores[fileId] || []
+        let checkBoxes = '<span class="text-muted small">Vector Store(s)</span>';
+        const fileName = files[fileId].filename; // Get the file name
+
+        // Check if the file type is supported
+        if (!isSupportedFileType(fileName)) {
+            checkBoxes += `
+            <div class="text-muted small">Unsupported file type</div>`;  // Display unsupported file type message
+            return checkBoxes
+        }
+
+        // First list the vector stores the file belongs to
+        for (const vsId of selectedVectorStoreIds) {
+            const vs = vectorStores[vsId];
+            checkBoxes += `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="${vsId}" id="vs-check-${vsId}" checked
+                        onchange="toggleVectorStore('${fileId}', '${vsId}', this.checked)">
+                    <label class="form-check-label" for="vs-check-${vsId}">
+                        ${vs.name ?? 'Untitled'}
+                    </label>
+                </div>
+            `;
+        }
+
+        // Then list the other vector stores
+        for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
+            if (selectedVectorStoreIds.indexOf(vsId) === -1) {
+                checkBoxes += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="${vsId}" id="vs-check-${vsId}"
+                            onchange="toggleVectorStore('${fileId}', '${vsId}', this.checked)">
+                        <label class="form-check-label" for="vs-check-${vsId}">
+                            ${vectorStore.name ?? 'Untitled'}
+                        </label>
+                    </div>
+                `;
+            }
+        }
+
+        return checkBoxes;
+    }
+
+    function bytesToSize(bytes) {
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        if (bytes === 0) return '0 Bytes';
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        const size = bytes / Math.pow(1024, i);
+        return `${size.toFixed(2)} ${sizes[i]}`;
+    }
+
+    function toggleLoading(contentId, show) {
+        const loadingElement = document.getElementById(`loading-${contentId}`);
+        if (loadingElement) {
+            loadingElement.style.display = show ? 'block' : 'none';
+        }
+    }
+
+    function toggleEditMode(id) {
+        const cardBody = document.getElementById(`${id}`);
+        const cardFooter = cardBody.closest('.card').querySelector('.card-footer');
+
+        const briefInfo = cardBody.querySelector('.brief-info');
+        const editMode = cardBody.querySelector('.edit-mode');
+
+        const briefInfoFooter = cardFooter.querySelector('.brief-info');
+        const editModeFooter = cardFooter.querySelector('.edit-mode');
+
+        // Toggle the visibility of the form and info sections
+        briefInfo.classList.toggle('d-none');
+        editMode.classList.toggle('d-none');
+
+        // Toggle the visibility of the footer buttons
+        briefInfoFooter.classList.toggle('d-none');
+        editModeFooter.classList.toggle('d-none');
+    }
+
+
+    /* Loading components and orchestration of the flow */
+
+    // Global dicts to store the current references of objects as id: object items
+
+    let vectorStores = {};
+    let assistants = {};
+    let files = {};
+    let vectorStoreFiles = {};  // {vsId: [file1, file2, ...]}
+    let fileVectorStores = {};  // {fileId: [vs1, vs2, ...]}
+    let selectedFiles = [];
+
+    async function loadAndDisplayVectorStores() {
+        const vectorStores = await fetchVectorStores();
+        displayVectorStores(vectorStores);
+        return vectorStores;
+    }
+
+    async function loadAndDisplayAssistants() {
+        const assistants = await fetchAssistants();
+        displayAssistants();
+        return assistants;
+    }
+
+    async function loadAllVectorStoreFiles() {
+        // Reset related objects
+        vectorStoreFiles = {};
+        fileVectorStores = {};
+
+        const fetchPromises = Object.keys(vectorStores).map(vectorStoreId => fetchVectorStoreFiles(vectorStoreId));
+        await Promise.all(fetchPromises);
+    }
+
+    async function loadAndDisplayFiles() {
+        const files = await fetchFiles();
+        displayFiles(files);
+    }
+
+    // Orchestrate the flow
+    async function initializePage() {
+        // Show loading indicator initially for all
+        toggleLoading('vector-stores', true);
+        toggleLoading('assistants', true);
+        toggleLoading('files', true);
+
+        vectorStores = await loadAndDisplayVectorStores();
+        loadAndDisplayAssistants();  // Runs in parallel with loadAllVectorStoreFiles
+        await loadAllVectorStoreFiles();
+        loadAndDisplayFiles();
+    }
+
+    initializePage();
+
+
+    /* List utility functions */
+
+    async function refreshAssistantsList() {
+        const assistantsList = document.getElementById('assistants-list');
+        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
+        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
+        assistantsList.innerHTML = ''; // Clear any existing assistants
+        toggleLoading('assistants', true);
+        loadAndDisplayAssistants();
+        // Refresh collapse all button
+        btnCollapseAllAssistants.classList.remove('d-none');
+        btnExpandAllAssistants.classList.add('d-none');
+    }
+
+    async function refreshVSList() {
+        const vectorStoresList = document.getElementById('vector-stores-list');
+        const btnCollapseAllStores = document.getElementById('collapse-all-stores');
+        const btnExpandAllStores = document.getElementById('expand-all-stores');
+        vectorStoresList.innerHTML = ''; // Clear any existing vector stores
+        toggleLoading('vector-stores', true);
+        await loadAndDisplayVectorStores();
+        // Refresh collapse all button
+        btnCollapseAllStores.classList.remove('d-none');
+        btnExpandAllStores.classList.add('d-none');
+        loadAllVectorStoreFiles(); // Also refresh vector store files
+    }
+
+    async function refreshFilesList() {
+        const vectorStoresList = document.getElementById('files-list');
+        const btnCollapseAllFiles = document.getElementById('collapse-all-files');
+        const btnExpandAllFiles = document.getElementById('expand-all-files');
+        vectorStoresList.innerHTML = ''; // Clear any existing files
+        toggleLoading('files', true);
+        loadAndDisplayFiles();
+        // Refresh collapse all button
+        btnCollapseAllFiles.classList.remove('d-none');
+        btnExpandAllFiles.classList.add('d-none');
+    }
+
+    function toggleAllAssistants(action) {
+        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
+        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
+        const collapsibleItems = document.querySelectorAll('#assistants-list .collapse');
+        collapsibleItems.forEach(item => {
+            const bsCollapse = new bootstrap.Collapse(item, {
+                toggle: false
+            });
+            if (action === 'collapse') bsCollapse.hide();
+            else bsCollapse.show();
+        });
+        if (action === 'collapse') {
+            btnCollapseAllAssistants.classList.add('d-none');
+            btnExpandAllAssistants.classList.remove('d-none');
+        } else {  // expand
+            btnCollapseAllAssistants.classList.remove('d-none');
+            btnExpandAllAssistants.classList.add('d-none');
+        }
+    }
+
+    function toggleAllStores(action) {
+        const btnCollapseAllStores = document.getElementById('collapse-all-stores');
+        const btnExpandAllStores = document.getElementById('expand-all-stores');
+        const collapsibleItems = document.querySelectorAll('#vector-stores-list .collapse');
+        collapsibleItems.forEach(item => {
+            const bsCollapse = new bootstrap.Collapse(item, {
+                toggle: false
+            });
+            if (action === 'collapse') bsCollapse.hide();
+            else bsCollapse.show();
+        });
+        if (action === 'collapse') {
+            btnCollapseAllStores.classList.add('d-none');
+            btnExpandAllStores.classList.remove('d-none');
+        } else {  // expand
+            btnCollapseAllStores.classList.remove('d-none');
+            btnExpandAllStores.classList.add('d-none');
+        }
+    }
+
+    function toggleAllFiles(action) {
+        const btnCollapseAllFiles = document.getElementById('collapse-all-files');
+        const btnExpandAllFiles = document.getElementById('expand-all-files');
+        const collapsibleItems = document.querySelectorAll('#files-list .collapse');
+        collapsibleItems.forEach(item => {
+            const bsCollapse = new bootstrap.Collapse(item, {
+                toggle: false
+            });
+            if (action === 'collapse') bsCollapse.hide();
+            else bsCollapse.show();
+        });
+        if (action === 'collapse') {
+            btnCollapseAllFiles.classList.add('d-none');
+            btnExpandAllFiles.classList.remove('d-none');
+        } else {  // expand
+            btnCollapseAllFiles.classList.remove('d-none');
+            btnExpandAllFiles.classList.add('d-none');
+        }
+    }
+
+
+    /* Vector stores */
+
+    async function fetchVectorStores() {
+        try {
+            const response = await fetch('{% url "api-1.0.0:list_vector_stores" %}');
+            const data = await response.json();
+
+            if (data.vector_stores) {
+                // Clear the global vectorStores object
+                vectorStores = {};
+
+                // Populate the global vectorStores object
+                data.vector_stores.forEach(store => {
+                    vectorStores[store.id] = store;
+
+                });
+
+                // Return the global vectorStores object
+                return vectorStores;
+            } else {
+                const parsedError = parseErrorText(data.error);
+                showToast("Failed to fetch vector stores!", parsedError.errorMessage);
+                console.error('Failed to fetch vector stores!', parsedError);
+                return {};
+            }
+        } catch (error) {
+            showToast("Error fetching vector stores:", error);
+            console.error('Error fetching vector stores:', error);
+            return {};
+        } finally {
+            toggleLoading('vector-stores', false);
+        }
+    }
+
+    function renderVectorStore(store) {
+        const vectorStoreItem = document.createElement('div');
+        vectorStoreItem.className = 'vector-store-item';
+        vectorStoreItem.id = `vector-store-${store.id}`;
+
+        vectorStoreItem.innerHTML = `{% include "manage/vector_store_item.html" %}`;
+
+        return vectorStoreItem;
+    }
+
+    function displayVectorStores(vectorStores) {
+        const vectorStoresList = document.getElementById('vector-stores-list');
+        vectorStoresList.innerHTML = ''; // Clear any existing vector stores
+
+        // Iterate over the vectorStores object and append each item
+        for (const [id, store] of Object.entries(vectorStores)) {
+            const vectorStoreItem = renderVectorStore(store);
+            vectorStoresList.appendChild(vectorStoreItem); // Append each item as it's processed
+        }
+    }
+
+    async function fetchVectorStoreFiles(vectorStoreId) {
+        // Fetch the files of a vectorStore and update vectorStoreFiles and fileVectorStores objects
+
+        const listVSFilesUrlTemplate = "{% url 'api-1.0.0:list_vector_store_files' vector_store_id='VS_ID_PLACEHOLDER' %}";
+        const url = listVSFilesUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.files) {
+
+                // Update the global files object
+                data.files.forEach(vsFile => {
+
+                    if (!vectorStoreFiles[vectorStoreId]) {
+                        vectorStoreFiles[vectorStoreId] = [];
+                    }
+                    vectorStoreFiles[vectorStoreId].push(vsFile.id);
+
+                    if (!fileVectorStores[vsFile.id]) {
+                        fileVectorStores[vsFile.id] = [];
+                    }
+                    fileVectorStores[vsFile.id].push(vectorStoreId);
+
+                });
+
+            } else {
+                const parsedError = parseErrorText(data.error);
+                showToast("Failed to fetch files!", parsedError.errorMessage);
+                console.error('Failed to fetch files!', parsedError);
+                return {};
+            }
+        } catch (error) {
+            showToast("Error fetching files:", error);
+            console.error('Error fetching files:', error);
+            return {};
+        }
+    }
+
+    async function addVectorStore() {
+        const tempId = `temp_${Date.now()}`; // Temporary ID based on timestamp for uniqueness
+
+        // Create a new vector store item element
+        const vectorStoreItem = document.createElement('div');
+        vectorStoreItem.className = 'vector-store-item';
+        vectorStoreItem.id = `temp-card-${tempId}`;
+
+        // Create the inner HTML for the vector store item (in edit mode)
+        vectorStoreItem.innerHTML = `{% include "manage/vector_store_form.html" %}`;
+
+        // Append the new vector store item to the vector stores list
+        const vectorStoresList = document.getElementById('vector-stores-list');
+        if (vectorStoresList.firstChild) {
+            vectorStoresList.insertBefore(vectorStoreItem, vectorStoresList.firstChild);
+        } else {
+            vectorStoresList.appendChild(vectorStoreItem);
+        }
+    }
+
+    function removeVectorStoreCard(vsId) {
+        // To remove the add form when vector store addition is cancelled
+        const vsCard = document.getElementById(`vs-${vsId}`).closest('.vector-store-item');
+        vsCard.remove();
+    }
+
+    async function saveNewVectorStore(vectorStoreId) {
+        const button = document.querySelector(`.btnModifyVectorStore[data-vector-store-id="${vectorStoreId}"]`);
+        const buttonText = button.querySelector('.button-text');
+        const spinner = button.querySelector('.spinner-border');
+
+        // Show spinner and disable button
+        buttonText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+        button.disabled = true;
+
+        const url = "{% url 'api-1.0.0:create_vector_store' %}";
+
+        const payload = {
+            name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
+            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // Update the vector store's ID and other info in the UI
+                document.getElementById(`vs-${vectorStoreId}`).id = `vs-${data.id}`;
+                button.dataset.vectorStoreId = data.id;
+
+                // Update the global vector_stores object and display the vector store in the list
+                vectorStores[data.id] = data;
+
+                // Remove the form card and prepend the new vector store to the list
+                const tempCard = document.getElementById(`temp-card-${vectorStoreId}`);
+                if (tempCard) {
+                    tempCard.remove();
+                }
+
+                vectorStoreItem = renderVectorStore(data, vectorStores);
+
+                const vectorStoresList = document.getElementById('vector-stores-list');
+                if (vectorStoresList.firstChild) {
+                    vectorStoresList.insertBefore(vectorStoreItem, vectorStoresList.firstChild);
+                } else {
+                    vectorStoresList.appendChild(vectorStoreItem);
+                }
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to save new vector store!", parsedError.errorMessage);
+                console.error('Failed to save new vector store!', parsedError);
+                // Handle error (e.g., show error message)
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+            // Handle unexpected errors (e.g., network issues)
+        } finally {
+            // Hide spinner and enable button
+            spinner.classList.add('d-none');
+            buttonText.classList.remove('d-none');
+            button.disabled = false;
+        }
+    }
+
+    async function modifyVectorStore(vectorStoreId) {
+        const button = document.querySelector(`.btnModifyVectorStore[data-store-id="${vectorStoreId}"]`);
+        const buttonText = button.querySelector('.button-text');
+        const spinner = button.querySelector('.spinner-border');
+
+        // Show spinner and disable button
+        buttonText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+        button.disabled = true;
+
+        const modifyVectorStoreUrlTemplate = "{% url 'api-1.0.0:modify_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}";
+        const url = modifyVectorStoreUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
+
+        const payload = {
+            name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
+            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                updateVectorStoreInfo(vectorStoreId, data);
+
+                toggleEditMode(vectorStoreId);
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to update vector store!", parsedError.errorMessage);
+                console.error('Failed to update vector store!', parsedError);
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        } finally {
+            // Hide spinner and enable button
+            spinner.classList.add('d-none');
+            buttonText.classList.remove('d-none');
+            button.disabled = false;
+        }
+    }
+
+    function updateVectorStoreInfo(vectorStoreId, updatedVectorStore) {
+        // Replace the card with the new one
+        const vectorStoresList = document.getElementById('vector-stores-list');
+
+        const oldCard = document.getElementById(`vector-store-${vectorStoreId}`);
+        const newCard = renderVectorStore(updatedVectorStore);
+
+        vectorStoresList.replaceChild(newCard, oldCard);
+        toggleEditMode(vectorStoreId);
+    }
+
+    async function deleteVectorStore(vectorStoreId) {
+        const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
+        const url = "{% url 'api-1.0.0:delete_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}".replace('VS_ID_PLACEHOLDER', vectorStoreId);
+
+        // Show a confirmation dialog
+        if (!confirm('Are you sure you want to delete this vector store?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            if (response.ok) {
+                // If the API call is successful, remove the card from the UI
+                vectorStoreCard.remove();
+                // Update client-side state
+                delete(vectorStores[vectorStoreId])
+                console.log(`Vector Store with ID ${vectorStoreId} deleted successfully.`);
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to delete vector store!", parsedError.errorMessage);
+                console.error('Failed to delete vector store!', parsedError);
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        }
+    }
+
+
+    /* Assistants */
+
+    async function fetchAssistants() {
+        try {
+            const response = await fetch('{% url "api-1.0.0:list_assistants" %}');
+            const data = await response.json();
+
+            if (data.assistants) {
+                // Clear the global assistants object
+                assistants = {};
+
+                // Populate the global assistants object
+                data.assistants.forEach(assistant => {
+                    assistants[assistant.id] = assistant;
+                });
+
+                // Return the global assistants object
+                return assistants;
+            } else {
+                const parsedError = parseErrorText(data.error);
+                showToast("Failed to fetch assistants!", parsedError.errorMessage);
+                console.error('Failed to fetch assistants!', parsedError);
+                return {};
+            }
+        } catch (error) {
+            showToast("Error fetching assistants:", error);
+            console.error('Error fetching assistants:', error);
+            return {};
+        } finally {
+            toggleLoading('assistants', false);
+        }
+    }
+
+    function renderAssistantVSSelect(assistantId) {
+        let selectedVectorStoreId = null;
+        if (assistantId && assistants[assistantId])
+            selectedVectorStoreId = assistants[assistantId].tool_resources?.file_search?.vector_store_ids?.[0] || null;
+
+        // Start building the HTML for the select element
+        let selectHtml = `<select class="form-select vector-store" id="vs-${assistantId}">`;
+
+        // Add the null option
+        selectHtml += '<option value="">No vector store assigned</option>';
+
+        // Iterate over the global vectorStores object to create options
+        for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
+            const isSelected = vsId === selectedVectorStoreId ? 'selected' : '';
+            selectHtml += `<option value="${vsId}" ${isSelected}>${vectorStore.name ?? 'Untitled'}</option>`;
+        }
+
+        // Close the select element
+        selectHtml += '</select>';
+
+        return selectHtml;
+    }
+
+    function renderAssistant(assistant) {
+        const assistantItem = document.createElement('div');
+        assistantItem.className = 'assistant-item';
+        assistantItem.id = `assistant-${assistant.id}`;
+
+        // Get the vector store name
+        let vs_name = 'No vector store assigned';  // Default if not assigned
+        const vs_id = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || null;
+
+        if (vs_id && vectorStores[vs_id]) {
+            vs_name = vectorStores[vs_id].name;
+        }
+
+        const selectVectorStore = renderAssistantVSSelect(assistant.id);
+
+        // Create the inner HTML for the assistant item
+        assistantItem.innerHTML = `{% include "manage/assistant_item.html" %}`;
+
+        return assistantItem;
+    }
+
+    function displayAssistants() {
+        const assistantsList = document.getElementById('assistants-list');
+        assistantsList.innerHTML = ''; // Clear any existing assistants
+
+        // Iterate over the assistants object and append each item
+        for (const [id, assistant] of Object.entries(assistants)) {
+            assistantItem = renderAssistant(assistant, vectorStores);
+            assistantsList.appendChild(assistantItem); // Append each assistant item as it's processed
+        }
+    }
+
+    async function addAssistant() {
+        const tempId = `temp_${Date.now()}`; // Temporary ID based on timestamp for uniqueness
+
+        // Create a new assistant item element
+        const assistantItem = document.createElement('div');
+        assistantItem.className = 'assistant-item';
+        assistantItem.id = `temp-card-${tempId}`;
+
+        // Render the vector store select element for the new assistant
+        const selectVectorStore = renderAssistantVSSelect(tempId);
+
+        // Create the inner HTML for the assistant item (in edit mode)
+        assistantItem.innerHTML = `{% include "manage/assistant_form.html" %}`;
+
+        // Append the new assistant item to the assistants list
+        const assistantsList = document.getElementById('assistants-list');
+        if (assistantsList.firstChild) {
+            assistantsList.insertBefore(assistantItem, assistantsList.firstChild);
+        } else {
+            assistantsList.appendChild(assistantItem);
+        }
+    }
+
+    function removeAssistantCard(assistantId) {
+        // To remove the add form when assistant addition is cancelled
+        const assistantCard = document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
+        assistantCard.remove();
+    }
+
+    async function saveNewAssistant(assistantId) {
+        const button = document.querySelector(`.btnModifyAssistant[data-assistant-id="${assistantId}"]`);
+        const buttonText = button.querySelector('.button-text');
+        const spinner = button.querySelector('.spinner-border');
+
+        // Show spinner and disable button
+        buttonText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+        button.disabled = true;
+
+        const url = "{% url 'api-1.0.0:create_assistant' %}";
+
+        const payload = {
+            name: document.getElementById(`name-${assistantId}`).value,
+            instructions: document.getElementById(`instructions-${assistantId}`).value,
+            description: document.getElementById(`description-${assistantId}`).value,
+            vector_store_id: document.getElementById(`vs-${assistantId}`).value,
+            model: document.getElementById(`model-${assistantId}`).value
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // Update the assistant's ID and other info in the UI
+                document.getElementById(`assistant-${assistantId}`).id = `assistant-${data.id}`;
+                button.dataset.assistantId = data.id;
+
+                // Update the global assistants object and display the assistant in the list
+                assistants[data.id] = data;
+
+                // Remove the form card and prepend the new assistant to the list
+                const tempCard = document.getElementById(`temp-card-${assistantId}`);
+                if (tempCard) {
+                    tempCard.remove();
+                }
+
+                assistantItem = renderAssistant(data, vectorStores);
+
+                const assistantsList = document.getElementById('assistants-list');
+                if (assistantsList.firstChild) {
+                    assistantsList.insertBefore(assistantItem, assistantsList.firstChild);
+                } else {
+                    assistantsList.appendChild(assistantItem);
+                }
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to save new assistant!", parsedError.errorMessage);
+                console.error('Failed to save new assistant!', parsedError);
+                // Handle error (e.g., show error message)
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+            // Handle unexpected errors (e.g., network issues)
+        } finally {
+            // Hide spinner and enable button
+            spinner.classList.add('d-none');
+            buttonText.classList.remove('d-none');
+            button.disabled = false;
+        }
+    }
+
+    async function modifyAssistant(assistantId) {
+        const button = document.querySelector(`.btnModifyAssistant[data-assistant-id="${assistantId}"]`);
+        const buttonText = button.querySelector('.button-text');
+        const spinner = button.querySelector('.spinner-border');
+
+        // Show spinner and disable button
+        buttonText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+        button.disabled = true;
+
+        const modifyAssistantUrlTemplate = "{% url 'api-1.0.0:modify_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
+        const url = modifyAssistantUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+
+        const payload = {
+            name: document.getElementById(`name-${assistantId}`).value,
+            instructions: document.getElementById(`instructions-${assistantId}`).value,
+            description: document.getElementById(`description-${assistantId}`).value,
+            vector_store_id: document.getElementById(`vs-${assistantId}`).value,
+            model: document.getElementById(`model-${assistantId}`).value
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                updateAssistantInfo(assistantId, data);
+
+                toggleEditMode(assistantId);
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to update assistant!", parsedError.errorMessage);
+                console.error('Failed to update assistant!', parsedError);
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        } finally {
+            // Hide spinner and enable button
+            spinner.classList.add('d-none');
+            buttonText.classList.remove('d-none');
+            button.disabled = false;
+        }
+    }
+
+    function updateAssistantInfo(assistantId, updatedAssistant) {
+        // Replace the card with the new one
+        const vectorStoresList = document.getElementById('assistants-list');
+
+        const oldCard = document.getElementById(`assistant-${assistantId}`);
+        const newCard = renderAssistant(updatedAssistant);
+
+        vectorStoresList.replaceChild(newCard, oldCard);
+        toggleEditMode(assistantId);
+    }
+
+    async function deleteAssistant(assistantId) {
+        const assistantCard = document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
+        const url = "{% url 'api-1.0.0:delete_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}".replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+
+        // Show a confirmation dialog
+        if (!confirm('Are you sure you want to delete this assistant?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            if (response.ok) {
+                // If the API call is successful, remove the assistant card from the UI
+                assistantCard.remove();
+                // Update client-side state
+                delete(assistants[assistantId])
+                console.log(`Assistant with ID ${assistantId} deleted successfully.`);
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to delete assistant!", parsedError.errorMessage);
+                console.error('Failed to delete assistant!', parsedError);
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        }
+    }
+
+
+    /* Files */
+
+    async function fetchFiles() {
+        try {
+            const response = await fetch('{% url "api-1.0.0:list_files" %}');
+            const data = await response.json();
+
+            if (data.files) {
+                // Clear the global files object
+                files = {};
+
+                // Populate the global files object
+                data.files.forEach(file => {
+                    files[file.id] = file;
+                });
+
+                // Return the global files object
+                return files;
+            } else {
+                const parsedError = parseErrorText(data.error);
+                showToast("Failed to fetch files!", parsedError.errorMessage);
+                console.error('Failed to fetch files!', parsedError);
+                return {};
+            }
+        } catch (error) {
+            showToast("Error fetching files:", error);
+            console.error('Error fetching files:', error);
+            return {};
+        } finally {
+            toggleLoading('files', false);
+        }
+    }
+
+    function renderFile(file) {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.id = `file-${file.id}`;
+
+        // File's vector stores
+        const vectorStoresHtml = renderVSList(fileVectorStores[file.id]);
+
+        // All vector stores to be displayed in the edit mode
+        const vectorStoresForm = renderFileVSSelect(file.id);
+
+        // Create the inner HTML for the file item
+        fileItem.innerHTML = `{% include "manage/file_item.html" %}`;
+
+        return fileItem;
+    }
+
+    function displayFiles(files) {
+        const filesList = document.getElementById('files-list');
+        filesList.innerHTML = ''; // Clear any existing files
+
+        // Iterate over the files object and append each item
+        for (const [id, file] of Object.entries(files)) {
+            fileItem = renderFile(file);
+            filesList.appendChild(fileItem); // Append each file item as it's processed
+        }
+    }
+
+    let fileVectorStoreChanges = {};
+
+    function toggleVectorStore(fileId, vectorStoreId, isSelected) {
+        // Updates the state of the file vector store changes
+
+        // Initialize if not already initialized
+        if (!fileVectorStoreChanges[fileId]) {
+            fileVectorStoreChanges[fileId] = {
+                toAdd: [],
+                toRemove: []
+            };
+        }
+
+        const { toAdd, toRemove } = fileVectorStoreChanges[fileId];
+        const initialVectorStoreIds = fileVectorStores[fileId] || [];
+
+        if (isSelected) {
+            // If it's checked and was in `toRemove`, remove it from `toRemove`
+            if (toRemove.includes(vectorStoreId)) {
+                fileVectorStoreChanges[fileId].toRemove = toRemove.filter(id => id !== vectorStoreId);
+            }
+            // If it's checked and not in `initialVectorStoreIds`, add it to `toAdd`
+            else if (!initialVectorStoreIds.includes(vectorStoreId)) {
+                fileVectorStoreChanges[fileId].toAdd.push(vectorStoreId);
+            }
+        } else {
+            // If it's unchecked and was in `toAdd`, remove it from `toAdd`
+            if (toAdd.includes(vectorStoreId)) {
+                fileVectorStoreChanges[fileId].toAdd = toAdd.filter(id => id !== vectorStoreId);
+            }
+            // If it's unchecked and is in `initialVectorStoreIds`, add it to `toRemove`
+            else if (initialVectorStoreIds.includes(vectorStoreId)) {
+                fileVectorStoreChanges[fileId].toRemove.push(vectorStoreId);
+            }
+        }
+    }
+
+    async function modifyFileVectorStores(fileId) {
+        const button = document.querySelector(`.btnModifyFile[data-file-id="${fileId}"]`);
+        const buttonText = button.querySelector('.button-text');
+        const spinner = button.querySelector('.spinner-border');
+
+        // Show spinner and disable button
+        buttonText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+        button.disabled = true;
+
+        const changes = fileVectorStoreChanges[fileId]; // Get changes for the file
+
+        console.log('Changes:', changes); // Log changes
+
+        if (changes && changes.toAdd.length > 0) {
+            // Assign the file to the given vector stores
+
+            const addFileVectorStoreUrlTemplate = "{% url 'api-1.0.0:add_file_to_vector_stores' file_id='FILE_ID_PLACEHOLDER' %}";
+            const url = addFileVectorStoreUrlTemplate.replace('FILE_ID_PLACEHOLDER', fileId);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        vector_store_ids: changes.toAdd
+                    })
+                });
+
+                if (response.ok) {
+                    const addStatus = await response.json();
+                    console.log('Add Status:', addStatus);
+
+                    console.log('changes.toAdd before reset:', changes.toAdd); // Log changes.toAdd before resetting
+
+                    // Update client-side state
+                    changes.toAdd.forEach(vectorStoreId => {
+                        console.log('2');  // Debugging log
+                        // Update `fileVectorStores`
+                        if (!fileVectorStores[fileId]) {
+                            fileVectorStores[fileId] = [];
+                        }
+                        if (!fileVectorStores[fileId].includes(vectorStoreId)) {
+                            fileVectorStores[fileId].push(vectorStoreId);
+                        }
+
+                        // Update `vectorStoreFiles`
+                        if (!vectorStoreFiles[vectorStoreId]) {
+                            vectorStoreFiles[vectorStoreId] = [];
+                        }
+                        if (!vectorStoreFiles[vectorStoreId].includes(fileId)) {
+                            vectorStoreFiles[vectorStoreId].push(fileId);
+                        }
+                    });
+
+                    fileVectorStoreChanges[fileId].toAdd = []; // Reset `toAdd` list
+
+                } else {
+                    const errorData = await response.json();
+                    const parsedError = parseErrorText(errorData.error);
+                    showToast("Failed to update vector store!", parsedError.errorMessage);
+                    console.error('Failed to update vector store!', parsedError);
+                }
+
+            } catch (error) {
+                showToast("Unexpected error:", error);
+                console.error('Unexpected error:', error);
+            }
+        }
+
+        if (changes && changes.toRemove.length > 0) {
+            // Remove the file from the given vector stores
+
+            const removeFileVectorStoreUrlTemplate = "{% url 'api-1.0.0:remove_file_from_vector_stores' file_id='FILE_ID_PLACEHOLDER' %}";
+            const url = removeFileVectorStoreUrlTemplate.replace('FILE_ID_PLACEHOLDER', fileId);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        vector_store_ids: changes.toRemove
+                    })
+                });
+
+                if (response.ok) {
+                    const removeStatus = await response.json();
+                    console.log('Remove Status:', removeStatus);
+
+                    console.log('changes.toRemove before reset:', changes.toRemove); // Log changes.toRemove before resetting
+
+                    // Update client-side state
+                    changes.toRemove.forEach(vectorStoreId => {
+                        console.log('4');  // Debugging log
+                        // Update `fileVectorStores`
+                        if (fileVectorStores[fileId]) {
+                            fileVectorStores[fileId] = fileVectorStores[fileId].filter(id => id !== vectorStoreId);
+                        }
+
+                        // Update `vectorStoreFiles`
+                        if (vectorStoreFiles[vectorStoreId]) {
+                            vectorStoreFiles[vectorStoreId] = vectorStoreFiles[vectorStoreId].filter(id => id !== fileId);
+                        }
+                    });
+
+                    fileVectorStoreChanges[fileId].toRemove = []; // Reset `toRemove` list
+
+                } else {
+                    const errorData = await response.json();
+                    const parsedError = parseErrorText(errorData.error);
+                    showToast("Failed to update vector store!", parsedError.errorMessage);
+                    console.error('Failed to update vector store!', parsedError);
+                }
+
+            } catch (error) {
+                showToast("Unexpected error:", error);
+                console.error('Unexpected error:', error);
+            }
+        }
+
+        // Hide spinner and enable button
+        spinner.classList.add('d-none');
+        buttonText.classList.remove('d-none');
+        button.disabled = false;
+
+        updateFileInfo(fileId, files[fileId]);  // The core file info, i.e. name & created is the same as the original
+    }
+
+    function updateFileInfo(fileId, updatedFile) {
+        // Replace the card with the new one
+        const filesList = document.getElementById('files-list');
+
+        const oldCard = document.getElementById(`file-${fileId}`);
+        const newCard = renderFile(updatedFile);
+
+        filesList.replaceChild(newCard, oldCard);
+    }
+
+    async function deleteFile(fileId) {
+        const fileCard = document.getElementById(`file-${fileId}`);
+        const url = "{% url 'api-1.0.0:delete_file' file_id='FILE_ID_PLACEHOLDER' %}".replace('FILE_ID_PLACEHOLDER', fileId);
+
+        // Show a confirmation dialog
+        if (!confirm('Are you sure you want to delete this file?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            if (response.ok) {
+                // If the API call is successful, remove the card from the UI
+                fileCard.remove();
+                // Update client-side state
+                delete(files[fileId]);
+                console.log(`File with ID ${fileId} deleted successfully.`);
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to delete file!", parsedError.errorMessage);
+                console.error('Failed to delete file!', parsedError);
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        }
+    }
+
+
+    /* File Uploads */
+
+    async function showUploadFileModal() {
+        const vectorStoreCheckboxes = document.getElementById('vectorStoreCheckboxes');
+        vectorStoreCheckboxes.innerHTML = ''; // Clear previous checkboxes
+
+        if (Object.keys(vectorStores).length === 0) {
+            vectorStoreCheckboxes.innerHTML = '<p class="text-muted small">No vector store available</p>';
+        } else {
+            // Dynamically generate checkboxes for each vector store
+            for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
+                const checkbox = document.createElement('div');
+                checkbox.classList.add('form-check');
+
+                const input = document.createElement('input');
+                input.classList.add('form-check-input');
+                input.type = 'checkbox';
+                input.value = vsId;
+                input.id = `vs-${vsId}`;
+
+                const label = document.createElement('label');
+                label.classList.add('form-check-label');
+                label.setAttribute('for', `vs-${vsId}`);
+                label.textContent = vectorStore.name ?? 'Untitled';
+
+                checkbox.appendChild(input);
+                checkbox.appendChild(label);
+                vectorStoreCheckboxes.appendChild(checkbox);
+            }
+        }
+
+        const uploadFileModal = new bootstrap.Modal(document.getElementById('uploadFileModal'));
+        uploadFileModal.show();
+    }
+
+    // Handle file selection when the user clicks the input
+    function handleFileSelect(event) {
+        const files = event.target.files;
+        addFilesToList(files);
+    }
+
+    // Handle drop event
+    function handleDrop(event) {
+        event.preventDefault();
+        event.target.classList.remove('hover');
+        const files = event.dataTransfer.files;
+        addFilesToList(files);
+    }
+
+    // Handle dragover event
+    function handleDragOver(event) {
+        event.preventDefault();
+        event.target.classList.add('hover');
+    }
+
+    // Handle dragleave event
+    function handleDragLeave(event) {
+        event.target.classList.remove('hover');
+    }
+
+    // Helper function to check if the file type is supported
+    function isSupportedFileType(fileName) {
+        const supportedFileTypes = {
+            ".c": "text/x-c",
+            ".cpp": "text/x-c++",
+            ".css": "text/css",
+            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".html": "text/html",
+            ".java": "text/x-java",
+            ".js": "text/javascript",
+            ".json": "application/json",
+            ".md": "text/markdown",
+            ".pdf": "application/pdf",
+            ".php": "text/x-php",
+            ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ".py": ["text/x-python", "text/x-script.python"],
+            ".rb": "text/x-ruby",
+            ".tex": "text/x-tex",
+            ".ts": "application/typescript",
+            ".txt": "text/plain"
+        };
+        const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+        return supportedFileTypes.hasOwnProperty(extension);
+    }
+
+    // Add selected or dropped files to the list
+    function addFilesToList(files) {
+        const uploadedFilesList = document.getElementById('uploaded-files-list');
+        const uploadedFilesSection = document.getElementById('uploaded-files-section');
+
+        // Show "Selected Files" section if files are selected
+        uploadedFilesSection.classList.remove('d-none');
+
+        // Add each selected file to the list and the selectedFiles array
+        for (const file of files) {
+            selectedFiles.push(file);
+
+            // Create a list item for each file
+            const li = document.createElement('li');
+            li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+
+            // Create a container for filename and file size
+            const fileInfoDiv = document.createElement('div');
+            fileInfoDiv.classList.add('d-flex', 'align-items-center');
+
+            // Check if the file type is supported
+            const isSupported = isSupportedFileType(file.name);
+
+            // Add an icon for unsupported files
+            const icon = document.createElement('i');
+            if (!isSupported) {
+                // For unsupported files, add "x-circle" icon
+                icon.classList.add('bi', 'bi-x-circle-fill', 'text-danger', 'me-2', 'ms-2');
+            } else {
+                // For supported files, add spacing classes (no icon)
+                icon.classList.add('me-2', 'ms-2');
+            }
+            fileInfoDiv.appendChild(icon);
+
+            // Truncate filename if it's too long
+            const maxLength = 30;
+            let displayedName = file.name;
+            if (file.name.length > maxLength) {
+                displayedName = file.name.substring(0, maxLength) + '...';
+            }
+
+            // Create a span to display the filename with tooltip for the full name
+            const filenameSpan = document.createElement('span');
+            filenameSpan.classList.add('filename', 'small');
+            filenameSpan.textContent = displayedName;
+            filenameSpan.setAttribute('title', file.name);  // Tooltip with the full filename
+
+            // Add the filename to the div
+            fileInfoDiv.appendChild(filenameSpan);
+
+            // Create a span to display the file size
+            const fileSizeSpan = document.createElement('span');
+            fileSizeSpan.classList.add('small', 'ms-2');
+            fileSizeSpan.textContent = bytesToSize(file.size);
+
+            // Add the file size span to the file info div
+            fileInfoDiv.appendChild(fileSizeSpan);
+
+            // Append the file info div to the list item
+            li.appendChild(fileInfoDiv);
+
+            // Create a remove icon on the right side
+            const removeIcon = document.createElement('i');
+            removeIcon.classList.add('bi', 'bi-x', 'text-muted', 'me-2', 'ms-2');
+            removeIcon.style.cursor = 'pointer';
+            li.appendChild(removeIcon);
+
+            // Add click event listener to remove the file
+            removeIcon.addEventListener('click', function() {
+                // Find the index of the file in the selectedFiles array and remove it
+                const fileIndex = selectedFiles.indexOf(file);
+                if (fileIndex > -1) {
+                    selectedFiles.splice(fileIndex, 1);
+                }
+
+                // Remove the list item from the DOM
+                li.remove();
+
+                // If no files are left, hide the "Selected Files" section
+                if (selectedFiles.length === 0) {
+                    uploadedFilesSection.classList.add('d-none');
+                }
+
+                // Update the hidden file input with the updated list of selected files
+                const fileInput = document.getElementById('fileUploadInput');
+                fileInput.files = new FileListItems(selectedFiles);
+            });
+
+            // Append the list item to the uploaded files list
+            uploadedFilesList.appendChild(li);
+
+            // Initialize the tooltip for this file
+            new bootstrap.Tooltip(filenameSpan);
+        }
+
+        // Update hidden file input with selected files
+        const fileInput = document.getElementById('fileUploadInput');
+        fileInput.files = new FileListItems(selectedFiles);
+    }
+
+    // Create a FileList object from array
+    function FileListItems(files) {
+        const b = new ClipboardEvent("").clipboardData || new DataTransfer();
+        for (let i = 0, len = files.length; i < len; i++) b.items.add(files[i]);
+        return b.files;
+    }
+
+    // Handle the actual upload when the "Upload Files" button is clicked
+    async function uploadFiles() {
+        const fileInput = document.getElementById('fileUploadInput');
+        const vectorStoreCheckboxes = document.querySelectorAll('#vectorStoreCheckboxes .form-check-input');
+        const selectedVectorStores = Array.from(vectorStoreCheckboxes)
+            .filter(checkbox => checkbox.checked)
+            .map(checkbox => checkbox.value);
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadSpinner = document.getElementById('upload-spinner');
+        const dropZone = document.getElementById('dropZone');
+
+        if (fileInput.files.length === 0) {
+            showToast('No file selected!', 'Please select at least one file.');
+            return;
+        }
+
+        const formData = new FormData();
+
+        // Append files to the FormData object
+        for (let i = 0; i < fileInput.files.length; i++) {
+            formData.append('files', fileInput.files[i]);
+        }
+
+        // Append selected vector stores
+        selectedVectorStores.forEach(vsId => {
+            formData.append('vector_store_ids', vsId);
+        });
+
+        // Show spinner and disable button/dropzone
+        uploadSpinner.classList.remove('d-none');
+        uploadBtn.disabled = true;
+        dropZone.classList.add('disabled');
+
+        try {
+            const response = await fetch('{% url "api-1.0.0:upload_files" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+
+                console.log(result);
+
+                // Update the global files and vector store relation states
+                result.uploaded_files.forEach(file => {
+                    // Add the uploaded files to the global files dict
+                    files[file.id] = file;
+
+                    // Update fileVectorStores
+                    fileVectorStores[file.id] = selectedVectorStores;  // Set the selected vector stores for the uploaded file
+
+                    // Update vectorStoreFiles
+                    selectedVectorStores.forEach(vsId => {
+                        if (!vectorStoreFiles[vsId]) {
+                            vectorStoreFiles[vsId] = [];
+                        }
+                        vectorStoreFiles[vsId].push(file.id);  // Add the file to the vector store
+                    });
+                });
+
+                console.log('fileVectorStores:', fileVectorStores);
+                console.log('vectorStoreFiles:', vectorStoreFiles);
+
+                // Display the updated files, keeping existing files intact
+                displayFiles(files);  // Re-render the entire file list based on the global `files`
+
+                // Hide the modal after successful upload
+                const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
+                modal.hide();
+
+                // Clear the file input and reset the form
+                selectedFiles = [];
+                document.getElementById('uploaded-files-list').innerHTML = "";
+                document.getElementById('fileUploadInput').value = "";
+                document.getElementById('dropzone-text').textContent = 'Drop your files here';
+                document.getElementById('uploaded-files-section').classList.add('d-none');
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to upload files!", parsedError.errorMessage);
+                console.error('Failed to upload files!', parsedError);
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        } finally {
+            // Hide spinner and re-enable button/dropzone
+            uploadSpinner.classList.add('d-none');
+            uploadBtn.disabled = false;
+            dropZone.classList.remove('disabled');
+        }
+    }
+
+    // Trigger the file selection dialog when the dropzone is clicked
+    document.getElementById('dropZone').addEventListener('click', () => {
+        document.getElementById('fileUploadInput').click();
+    });
+
+</script>
 
 {% endblock %}

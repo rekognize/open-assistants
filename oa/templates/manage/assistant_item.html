@@ -1,0 +1,133 @@
+<div class="col">
+    <div class="card">
+
+        <div class="card-body" id="${assistant.id}">
+
+            <!-- Info -->
+
+            <div class="brief-info">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <h6 class="card-title my-0">
+                        ${assistant.name}
+                    </h6>
+
+                    <div>
+                        <small class="small text-secondary"
+                               data-bs-toggle="tooltip"
+                               data-bs-title="created at ${new Date(assistant.created_at * 1000).toLocaleString()}">
+                            ${timeSince(assistant.created_at * 1000)} ago
+                        </small>
+                    </div>
+
+                </div>
+
+                <div class="collapse show">
+
+                    <div class="info-box mt-4">
+                        <span class="info-label">Description</span>
+                        <p class="info-value" id="info-description-${assistant.id}">${assistant.description || 'No description given'}</p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label">Vector Store</span>
+                        <p class="info-value" id="info-vs-${assistant.id}">${vs_name}</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Edit Form (Initially Hidden) -->
+
+            <div class="edit-mode d-none">
+
+                <form>
+
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="name-${assistant.id}" value="${assistant.name}">
+                        <label for="name-${assistant.id}" class="form-label">Name</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="description-${assistant.id}" placeholder="Description"
+                                  rows="3">${assistant.description || ''}</textarea>
+                        <label for="description-${assistant.id}">Description</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        ${selectVectorStore}
+                        <label for="vs-${assistant.id}">Vector store</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="instructions-${assistant.id}" placeholder="Instructions"
+                                  style="height: 100px">${assistant.instructions || ''}</textarea>
+                        <label for="instructions-${assistant.id}">Instructions</label>
+                    </div>
+
+                    <div class="form-floating">
+                        <select class="form-select" id="model-${assistant.id}">
+                            <option value="gpt-4o">gpt-4o</option>
+                            <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        </select>
+                        <label for="model-${assistant.id}">Model</label>
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-footer d-flex justify-content-between align-items-center">
+
+            <div>
+
+                <div class="brief-info">
+                    <button type="button" onclick="toggleEditMode('${assistant.id}')"
+                            class="btn btn-sm btn-outline-secondary"
+                            data-bs-toggle="tooltip" data-bs-title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+
+                <div class="edit-mode d-none">
+                    <button type="button" class="btn btn-sm btn-outline-success btnModifyAssistant"
+                            onclick="modifyAssistant('${assistant.id}');"
+                            data-assistant-id="${assistant.id}"
+                            data-bs-toggle="tooltip" data-bs-title="Save">
+                        <span class="button-text"><i class="bi bi-check-lg"></i></span>
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            onclick="toggleEditMode('${assistant.id}')"
+                            data-bs-toggle="tooltip" data-bs-title="Cancel">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+            </div>
+
+            <div>
+                <a class="btn btn-sm btn-outline-secondary"
+                   href="{% url 'thread_detail' %}?a=${assistant.id}" target="_blank"
+                   data-bs-toggle="tooltip" data-bs-title="Start a conversation">
+                    <i class="bi bi-chat"></i>
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="tooltip" data-bs-title="Duplicate this assistant">
+                    <i class="bi bi-copy"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger"
+                        data-bs-toggle="tooltip" data-bs-title="Delete" onclick="deleteAssistant('${assistant.id}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+</div>

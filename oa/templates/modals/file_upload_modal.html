@@ -1,0 +1,48 @@
+<!-- File Upload Modal -->
+<div class="modal fade" id="uploadFileModal" tabindex="-1" aria-labelledby="uploadFileModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadFileModalLabel">Upload Files</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Custom Dropzone Area -->
+                <div id="dropZone" class="dropzone text-center p-4"
+                     ondrop="handleDrop(event)"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)">
+                    <h1 class="bi bi-cloud-arrow-up"></h1>
+                    <p id="dropzone-text" class="text-muted mt-3">Drop your files here</p>
+                    <input id="fileUploadInput" class="form-control d-none" type="file" multiple onchange="handleFileSelect(event)">
+                </div>
+
+                <!-- Display selected files (hidden by default) -->
+                <div id="uploaded-files-section" class="mt-3 d-none">
+                    <p>Selected Files</p>
+                    <div class="file-list-container" style="max-height: 200px; overflow-y: auto;">
+                        <ul id="uploaded-files-list" class="list-group"></ul>
+                    </div>
+                </div>
+
+                <!-- Vector Store Selection -->
+                <div class="mb-3 mt-3">
+                    <label for="vectorStoreSelect" class="form-label">Assign to Vector Stores (optional)</label>
+                    <div class="vector-store-list-container" style="max-height: 200px; overflow-y: auto;">
+                        <div id="vectorStoreCheckboxes">
+                            <!-- Checkboxes will be dynamically populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="uploadBtn" class="btn btn-outline-primary" onclick="uploadFiles()">
+                    <span id="upload-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    Upload Files
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
