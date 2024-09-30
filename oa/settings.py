@@ -121,6 +121,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SECRET_KEY = '621mr=g-bw*ojnya^d#0dsj$$k^1bup=mh3jl^+6-i2841&oj$!/&T5*=|-R3<'
 
 
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db-private.sqlite3',
+    }
+}
+
+
 INSTALLED_APPS += [
     "django_recaptcha",
     "widget_tweaks",
