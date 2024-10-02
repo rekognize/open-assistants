@@ -1,6 +1,6 @@
 <script>
 // Define globals
-const assistantId = '{{ assistant_id }}';
+let assistantId = getURLParameter('a');
 let threadId, assistantName;
 
 // Set the DOM elements
@@ -16,9 +16,65 @@ const streamingAssistantName = document.getElementById('streaming-assistant-name
 const textarea = document.getElementById('autoresizing');
 const form = document.getElementById('messageForm');
 
+function getURLParameter(name) {
+    return new URLSearchParams(window.location.search).get(name);
+}
+
 document.addEventListener("DOMContentLoaded", async function () {
     // Call initializePage and wait for it to complete
     await initializePage();
+
+    // Initialize the page
+    async function initializePage() {
+        if (!assistantId || assistantId === 'None') {
+            showToast("Error!", "No assistant info found.");
+            return;
+        }
+
+        try {
+            await retrieveAssistant(assistantId);
+        } catch (error) {
+            console.error('Assistant retrieval failed:', error);
+            // Do not proceed to create a thread
+            return;
+        }
+
+        let threadIdFromURL = getURLParameter('t');
+
+        if (threadIdFromURL) {
+            try {
+                const threadData = await retrieveThread(threadIdFromURL);
+                threadId = threadData.id;
+            } catch (error) {
+                console.error('Error retrieving thread:', error);
+                // await createThread(assistantId);
+                // updateURLWithThreadId();
+            }
+        } else {
+            await createThread(assistantId);
+            updateURLWithThreadId();
+        }
+
+        // After thread is created or retrieved, remove the loading messages
+        const loadingMessagesDiv = document.getElementById('loading-messages');
+        if (loadingMessagesDiv) {
+            loadingMessagesDiv.remove();
+        }
+
+        // Optionally, display a message if there are no messages
+        if (messageContainer.children.length === 0) {
+            const noMessagesDiv = document.createElement('div');
+            noMessagesDiv.id = 'no-messages';
+            noMessagesDiv.textContent = 'Start the conversation by typing a message below.';
+            messageContainer.appendChild(noMessagesDiv);
+        }
+    }
+
+    // Helper function to update the URL with thread_id
+    function updateURLWithThreadId() {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?a=' + assistantId + '&t=' + threadId;
+        window.history.replaceState({path: newUrl}, '', newUrl);
+    }
 
     // Retrieve assistant details
     async function retrieveAssistant(assistantId) {
@@ -39,25 +95,26 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const parsedError = parseErrorText(errorData.error);
                 showToast("Failed to fetch assistant!", parsedError.errorMessage);
                 console.error('Failed to fetch assistant!', parsedError);
+                throw new Error('Failed to retrieve assistant');
 
+            } else {
+                const assistantData = await response.json();
+
+                // Set the global
+                assistantName = assistantData.name;
+
+                // Populate assistant details in the DOM
+                document.getElementById('assistant-name').textContent = assistantData.name;
+                if (assistantData.description) {
+                    document.getElementById('assistant-description').textContent = assistantData.description;
+                }
+
+                console.log('Assistant details:', assistantData);
+                return assistantData;
             }
-
-            const assistantData = await response.json();
-
-            // Set the global
-            assistantName = assistantData.name;
-
-            // Populate assistant details in the DOM
-            document.getElementById('assistant-name').textContent = assistantData.name;
-            if (assistantData.description) {
-                document.getElementById('assistant-description').textContent = assistantData.description;
-            }
-
-            console.log('Assistant details:', assistantData);
-            return assistantData;
-
         } catch (error) {
             console.error('Error fetching assistant details:', error);
+            throw error; // Re-throw the error to be caught in initializePage
         }
     }
 
@@ -79,38 +136,50 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const parsedError = parseErrorText(errorData.error);
                 showToast("Failed to create thread!", parsedError.errorMessage);
                 console.error('Failed to create thread!', parsedError);
-            }
+                throw new Error('Failed to create thread');
+            } else {
+                const threadData = await response.json();
 
-            const threadData = await response.json();
+                // Set the global threadId
+                threadId = threadData.id;
 
-            // Set the global threadId
-            threadId = threadData.id;
-
-            console.log('Thread details:', threadData);
-            return threadData;
-
+                console.log('Thread details:', threadData);
+                return threadData;
+                }
         } catch (error) {
             console.error('Error creating thread:', error);
+            throw error;
         }
     }
 
-    // Initialize the page
-    async function initializePage() {
-        await retrieveAssistant(assistantId);
-        await createThread(assistantId);
+    async function retrieveThread(threadId) {
+        const retrieveThreadUrlTemplate = "{% url 'api-1.0.0:retrieve_thread' thread_id='THREAD_ID_PLACEHOLDER' %}";
+        const retrieveThreadUrl = retrieveThreadUrlTemplate.replace('THREAD_ID_PLACEHOLDER', threadId);
 
-        // After thread is created, remove the loading messages
-        const loadingMessagesDiv = document.getElementById('loading-messages');
-        if (loadingMessagesDiv) {
-            loadingMessagesDiv.remove();
-        }
+        try {
+            const response = await fetch(retrieveThreadUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
 
-        // Optionally, display a message if there are no messages
-        if (messageContainer.children.length === 0) {
-            const noMessagesDiv = document.createElement('div');
-            noMessagesDiv.id = 'no-messages';
-            noMessagesDiv.textContent = 'Start the conversation by typing a message below.';
-            messageContainer.appendChild(noMessagesDiv);
+            if (!response.ok) {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to retrieve thread!", parsedError.errorMessage);
+                console.error('Failed to retrieve thread!', parsedError);
+                throw new Error('Failed to retrieve thread');
+            } else {
+                const threadData = await response.json();
+
+                console.log('Retrieve thread:', threadData);
+                return threadData;
+            }
+        } catch (error) {
+            console.error('Error retrieving thread:', error);
+            throw error; // Re-throw the error to be caught in initializePage
         }
     }
 
