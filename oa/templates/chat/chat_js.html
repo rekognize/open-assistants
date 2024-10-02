@@ -55,19 +55,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             updateURLWithThreadId();
         }
 
-        // After thread is created or retrieved, remove the loading messages
-        const loadingMessagesDiv = document.getElementById('loading-messages');
-        if (loadingMessagesDiv) {
-            loadingMessagesDiv.remove();
-        }
-
-        // Optionally, display a message if there are no messages
-        if (messageContainer.children.length === 0) {
-            const noMessagesDiv = document.createElement('div');
-            noMessagesDiv.id = 'no-messages';
-            noMessagesDiv.textContent = 'Start the conversation by typing a message below.';
-            messageContainer.appendChild(noMessagesDiv);
-        }
+        // After thread is created or retrieved
+        await fetchMessages(threadId)
     }
 
     // Helper function to update the URL with thread_id
@@ -310,8 +299,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     }
 
-    let eventSource = null;
-
     if (dropZone) {
         dropZone.addEventListener('click', function () {
             dataFilesInput.click();
@@ -337,6 +324,48 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     }
 
+    async function fetchMessages(threadId) {
+        try {
+            const url = `/t/${threadId}/messages/`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            messageContainer.innerHTML = '';
+
+            if (data.success) {
+                if (data.messages.length === 0) {
+                    const noMessages = document.createElement('div');
+                    noMessages.id = 'no-messages';
+                    noMessages.innerHTML = `
+                        <p>Start the conversation by typing a message below.</p>
+                    `;
+                    messageContainer.appendChild(noMessages);
+                } else {
+                    messageContainer.style.justifyContent = 'flex-start';
+                    data.messages.forEach(message => {
+                        const messageElement = createMessageElement(message.role, message.message, message.name);
+                        messageContainer.appendChild(messageElement);
+                    });
+                }
+            } else {
+                console.error('Error fetching messages:', data.error);
+                const errorMessage = document.createElement('div');
+                errorMessage.textContent = 'Error loading messages.';
+                messageContainer.appendChild(errorMessage);
+            }
+
+            scrollToBottom();
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+        }
+    }
+
     // Scroll to the bottom of the message container when the page loads
     scrollToBottom();
 
@@ -357,6 +386,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         messageDiv.innerHTML = `<p><strong>${displayName}</strong><br>${marked.parse(content)}</p>`;
         return messageDiv;
     }
+
+    let eventSource = null;
 
     // Submit message
     if (form) {
@@ -432,7 +463,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         eventSource.onmessage = function(event) {
             const data = JSON.parse(event.data);
-            if (data.type === 'text_delta' || data.type === 'text_created') {
+            if (['text_delta', 'text_created', 'image_file'].includes(data.type)) {
                 currentText = data.text;
                 assistantResponseContent.innerHTML = `${marked.parse(currentText)}`;
                 window.scrollTo({

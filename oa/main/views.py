@@ -1,20 +1,26 @@
 import asyncio
 import base64
 import json
+import logging
+import os
 import time
 
 from django.db import IntegrityError
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
+from django.views import View
 from django.views.generic import TemplateView
-from openai import AssistantEventHandler, AsyncOpenAI
+from openai import AssistantEventHandler, OpenAIError
 from openai.types.beta.threads import Text, TextDelta, ImageFile
 
 from .models import Project
-from .utils import get_openai_client_sync
-from ..api.utils import APIError
+from .utils import get_openai_client_sync, format_time
+from ..api.utils import APIError, get_openai_client
+
+
+logger = logging.getLogger(__name__)
 
 
 class HomeView(TemplateView):
@@ -44,12 +50,11 @@ class EventHandler(AssistantEventHandler):
         self.response_data.append({"type": "text_delta", "text": self.current_message})
 
     def on_image_file_done(self, image_file: ImageFile) -> None:
-        image_data = asyncio.run(fetch_image_file(image_file.file_id))
-        if image_data:
-            self.current_message += f'<p><img src="{image_data}" style="max-width: 100%;"></p>'
+        image_url = reverse('serve_image_file', args=[image_file.file_id])
+        self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
         self.response_data.append({
             "type": "image_file",
-            "image_data": image_data
+            "text": self.current_message
         })
 
     def on_end(self):
@@ -64,6 +69,21 @@ class EventHandler(AssistantEventHandler):
                 if data.get("type") == "end_of_stream":
                     break
             time.sleep(0.1)
+
+
+def serve_image_file(request, file_id):
+    try:
+        client = get_openai_client_sync(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+
+    try:
+        content_response = client.files.content(file_id)
+        image_binary = content_response.read()
+        return HttpResponse(image_binary, content_type='image/png')
+    except OpenAIError as e:
+        logger.error(f"Error fetching image file: {e}")
+        return HttpResponseNotFound('Image not found')
 
 
 def thread_detail(request):
@@ -122,20 +142,169 @@ def create_run(request, thread_id, assistant_id, event_handler):
     return JsonResponse({"status": "success", "message": "Run created successfully"}, status=200)
 
 
-async def fetch_image_file(file_id):
-    async with AsyncOpenAI() as client:
-        content_response = await client.files.content(file_id)
+async def get_messages(request, thread_id):
+    try:
+        client = await get_openai_client(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
 
-        # Read the binary content from the response
-        image_binary = content_response.read()
+    messages = await fetch_messages(client, thread_id)
+    return JsonResponse({'success': True, 'messages': messages})
 
-        # Convert the binary content to a base64 encoded string
-        image_base64 = base64.b64encode(image_binary).decode('utf-8')
 
-        # Create a data URL
-        image_data_url = f"data:image/png;base64,{image_base64}"
+async def fetch_messages(client, thread_id):
+    try:
+        response = await client.beta.threads.messages.list(
+            thread_id=thread_id,
+            order='asc',
+        )
+        messages = response.data
 
-        return image_data_url
+        async def format_message(message):
+            role = message.role
+            content = ""
+            if message.content:
+                for content_item in message.content:
+                    if content_item.type == "text":
+                        text_content = content_item.text.value
+                        annotations = content_item.text.annotations
+
+                        for index, annotation in enumerate(annotations):
+                            # Fetch file citation
+                            if file_citation := getattr(annotation, 'file_citation', None):
+                                citation_file_id = getattr(file_citation, 'file_id', None)
+                                try:
+                                    cited_file = await client.files.retrieve(citation_file_id)
+                                    file_info = f'({cited_file.filename})'
+                                except OpenAIError as e:
+                                    logger.warning(f"File with id {citation_file_id} not found: {e}")
+                                    file_info = '(Reference file is not available)'
+
+                                # Replace the annotation text with the file info
+                                text_content = text_content.replace(annotation.text, f' [{index + 1}] {file_info}')
+
+                            # Fetch file path
+                            if file_path := getattr(annotation, 'file_path', None):
+                                file_path_file_id = getattr(file_path, 'file_id', None)
+                                download_link = reverse('download_file', args=[thread_id, file_path_file_id])
+
+                                # Replace the annotation text with the download link
+                                text_content = text_content.replace(annotation.text, download_link)
+
+                        content += f"<p>{text_content}</p>"
+
+                    elif content_item.type == "image_file":
+                        image_file_id = content_item.image_file.file_id
+                        try:
+                            image_data = await fetch_image_file(client, image_file_id)
+                            content += f'<p><img src="{image_data}" style="max-width: 100%;"></p>'
+                        except OpenAIError as e:
+                            logger.warning(f"Error fetching image file with id {image_file_id}: {e}")
+                            content += f"<p>(Error fetching image file)</p>"
+                    else:
+                        content += f"<p>Unsupported content type: {content_item.type}</p>"
+
+            # Fetch assistant name if role is 'assistant'
+            if role == 'assistant':
+                try:
+                    assistant_response = await client.beta.assistants.retrieve(assistant_id=message.assistant_id)
+                    name = assistant_response.name
+                except OpenAIError as e:
+                    logger.warning(f"Assistant with id {message.assistant_id} not found: {e}")
+                    name = "assistant"
+            else:
+                name = role
+
+            return {
+                "role": role,
+                "name": name,
+                "message": content
+            }
+
+        # Run the formatting tasks concurrently
+        formatted_messages_tasks = [format_message(message) for message in messages]
+        formatted_messages = await asyncio.gather(*formatted_messages_tasks)
+
+        return formatted_messages
+    except Exception as e:
+        logger.error(f"Error fetching messages: {e}")
+        return []
+
+
+async def fetch_image_file(client, file_id):
+    content_response = await client.files.content(file_id)
+
+    # Read the binary content from the response
+    image_binary = content_response.read()
+
+    # Convert the binary content to a base64 encoded string
+    image_base64 = base64.b64encode(image_binary).decode('utf-8')
+
+    # Create a data URL
+    image_data_url = f"data:image/png;base64,{image_base64}"
+
+    return image_data_url
+
+
+async def get_thread_files(request, thread_id):
+    try:
+        client = await get_openai_client(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+
+    try:
+        # Retrieve the thread details from OpenAI
+        response = await client.beta.threads.retrieve(thread_id=thread_id)
+        file_ids = response.tool_resources.code_interpreter.file_ids
+    except Exception as e:
+        logger.error(f"Error retrieving file IDs from OpenAI: {e}")
+        return JsonResponse({'success': False, 'error': 'Error retrieving file IDs from OpenAI'}, status=500)
+
+    async def fetch_file(file_id):
+        try:
+            file_response = await client.files.retrieve(file_id=file_id)
+            return {
+                "file_id": file_id,
+                "file_name": file_response.filename,
+                "created_at": format_time(file_response.created_at),
+                "bytes": file_response.bytes,
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving file from OpenAI: {e}")
+            return None
+
+    # Run the file retrieval tasks concurrently
+    file_tasks = [fetch_file(file_id) for file_id in file_ids]
+    files_responses = await asyncio.gather(*file_tasks)
+
+    # Filter out any failed file retrievals
+    files = [file for file in files_responses if file is not None]
+
+    return JsonResponse({'success': True, 'files': files})
+
+
+class DownloadFileView(View):
+    async def get(self, request, thread_id, file_id):
+        try:
+            client = await get_openai_client(request)
+        except APIError as e:
+            return JsonResponse({"error": e.message}, status=e.status)
+
+        try:
+            # Retrieve file metadata
+            file_info = await client.files.retrieve(file_id)
+            # Retrieve file content
+            file_content_response = await client.files.content(file_id)
+            file_content = file_content_response.read()  # Read the content as bytes
+
+            # Extract the filename from the full path
+            filename = os.path.basename(file_info.filename)
+
+            response = HttpResponse(file_content, content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+        except OpenAIError as e:
+            raise Http404(f"File not found: {e}")
 
 
 # Projects
