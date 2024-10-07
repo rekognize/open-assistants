@@ -233,6 +233,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Post message
     async function createMessage(message, attachments) {
+        console.log("Creating message with content:", message);
+        console.log("Attachments:", attachments);
+
         const createMessageUrlTemplate = "{% url 'api-1.0.0:create_message' thread_id='THREAD_ID_PLACEHOLDER' %}";
         const createMessageUrl = createMessageUrlTemplate.replace('THREAD_ID_PLACEHOLDER', threadId);
 
@@ -325,6 +328,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     async function fetchMessages(threadId) {
+        console.log("Fetching messages for threadId:", threadId);
         try {
             const url = `/t/${threadId}/messages/`;
             const response = await fetch(url, {
@@ -383,7 +387,10 @@ document.addEventListener("DOMContentLoaded", async function () {
             messageDiv.classList.add('assistant-message');
         }
         const displayName = assistantName || role;
-        messageDiv.innerHTML = `<p><strong>${displayName}</strong><br>${marked.parse(content)}</p>`;
+        messageDiv.innerHTML = `
+            <p><strong>${displayName}</strong></p>
+            <div class="message-content">${marked.parse(content)}</div>
+        `;
         return messageDiv;
     }
 
@@ -460,42 +467,68 @@ document.addEventListener("DOMContentLoaded", async function () {
     function handleSSE(url, assistantName) {
         const eventSource = new EventSource(url);
         let currentText = "";
+        let assistantMessageElement = null;
+        let assistantResponseContent = null;
+        let currentAnnotations = [];
 
-        eventSource.onmessage = function(event) {
+        eventSource.onmessage = async function(event) {
             const data = JSON.parse(event.data);
-            if (['text_delta', 'text_created', 'image_file'].includes(data.type)) {
-                currentText = data.text;
-                assistantResponseContent.innerHTML = `${marked.parse(currentText)}`;
-                window.scrollTo({
-                    top: document.body.scrollHeight,
-                    behavior: 'smooth'
-                });
-            } else if (data.type === 'end_of_stream') {
-                eventSource.close();
-                const assistantMessageElement = createMessageElement('assistant', currentText, assistantName);
+            console.log("Received SSE data:", data);
+
+            if (data.type === 'message_created') {
+                console.log("message_created event received");
+                // Create a new message element
+                assistantMessageElement = createMessageElement('assistant', '', assistantName);
                 messageContainer.appendChild(assistantMessageElement);
+                assistantResponseContent = assistantMessageElement.querySelector('.message-content');
+                currentText = '';
+                currentAnnotations = [];
+                scrollToBottom();
+            } else if (['text_delta', 'text_created', 'image_file'].includes(data.type)) {
+                currentText = data.text;
+                currentAnnotations = data.annotations || [];
+                const processedContent = await processAnnotations(currentText, currentAnnotations);
+                if (assistantResponseContent) {
+                    assistantResponseContent.innerHTML = `${marked.parse(processedContent)}`;
+                }
+                scrollToBottom();
+            } else if (data.type === 'message_completed') {
+                console.log("message_completed event received");
+                currentText = data.text;
+                currentAnnotations = data.annotations || [];
+                const processedContent = processAnnotations(currentText, currentAnnotations);
+                if (assistantResponseContent) {
+                    assistantResponseContent.innerHTML = `${marked.parse(processedContent)}`;
+                }
+            } else if (data.type === 'end_of_stream') {
+                console.log("end_of_stream event received");
+                eventSource.close();
                 formContainer.classList.remove('d-none');
                 awaitingResponse.classList.add("d-none");
                 textarea.focus();
                 scrollToBottom();
+            } else if (data.type === 'error') {
+                console.error("Error received:", data.message);
+                eventSource.close();
+                formContainer.classList.remove('d-none');
+                awaitingResponse.classList.add("d-none");
+                showToast("Error", data.message);
+                textarea.focus();
             }
         };
 
         eventSource.onerror = function(error) {
             console.error('SSE error:', error);
             eventSource.close();
-
-            // Attempt to reconnect after a delay
-            setTimeout(() => {
-                handleSSE(url, assistantName);
-            }, 3000);
         };
 
         eventSource.onopen = function() {
+            console.log("SSE connection opened");
             awaitingResponse.classList.remove('d-none');
         };
 
         eventSource.onclose = function() {
+            console.log("SSE connection closed");
             if (!eventSource.readyState) {
                 formContainer.classList.remove('d-none');
                 awaitingResponse.classList.add("d-none");
@@ -504,6 +537,48 @@ document.addEventListener("DOMContentLoaded", async function () {
         };
 
         return eventSource;
+    }
+
+    async function fetchFileName(fileId) {
+        console.log("Fetching filename for fileId:", fileId);
+        try {
+            const response = await fetch(`/files/${fileId}/`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (response.ok) {
+                const fileData = await response.json();
+                return fileData.filename || 'Unknown File';
+            } else {
+                console.error("Failed to fetch filename");
+                return 'Unknown File';
+            }
+        } catch (error) {
+            console.error("Error fetching filename:", error);
+            return 'Unknown File';
+        }
+    }
+
+    async function processAnnotations(content, annotations) {
+        console.log("Processing annotations:", annotations);
+        for (let index = 0; index < annotations.length; index++) {
+            const annotation = annotations[index];
+            if (annotation.file_citation) {
+                const fileId = annotation.file_citation.file_id;
+                const filename = await fetchFileName(fileId);
+                const replacementText = ` [${index + 1}] (${filename})`;
+                content = content.replace(annotation.text, replacementText);
+            } else if (annotation.file_path) {
+                const fileId = annotation.file_path.file_id;
+                const downloadUrl = `/t/${threadId}/download/${fileId}/`;
+                const replacementText = `<a href="${downloadUrl}">Download File</a>`;
+                content = content.replace(annotation.text, replacementText);
+            }
+        }
+        return content;
     }
 
     // Auto-resize textarea

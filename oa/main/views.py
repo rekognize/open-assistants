@@ -40,24 +40,63 @@ class EventHandler(AssistantEventHandler):
         self.current_message = ""
         self.response_data = []
         self.stream_done = False
+        self.current_annotations = []
 
-    def on_text_created(self, text: Text) -> None:
-        self.response_data.append({"type": "text_created", "text": self.current_message})
+    def on_message_created(self, message):
+        print("on_message_created called")
+        self.current_message = ""
+        self.current_annotations = []
+        self.response_data.append({"type": "message_created"})
 
     def on_text_delta(self, delta: TextDelta, snapshot: Text):
+        print(f"on_text_delta called with delta: {delta.value}")
+
         if delta.value:
             self.current_message += delta.value
-        self.response_data.append({"type": "text_delta", "text": self.current_message})
+
+        # Collect annotations from the snapshot
+        self.current_annotations = []
+        if snapshot.annotations:
+            print(f"Annotations found: {snapshot.annotations}")
+            for annotation in snapshot.annotations:
+                annotation_dict = annotation.to_dict()
+
+                if hasattr(annotation, 'file_citation') and annotation.file_citation:
+                    # Don't have access to the client, use a placeholder
+                    annotation_dict['file_citation']['filename'] = 'Unknown File'  # Placeholder
+
+                self.current_annotations.append(annotation_dict)
+
+        # Send the updated message and annotations to the client
+        self.response_data.append({
+            "type": "text_delta",
+            "text": self.current_message,
+            "annotations": self.current_annotations
+        })
+
+    def on_message_completed(self, message):
+        print("on_message_completed called")
+        # Send the final message content and annotations to the client
+        self.response_data.append({
+            "type": "message_completed",
+            "text": self.current_message,
+            "annotations": self.current_annotations
+        })
 
     def on_image_file_done(self, image_file: ImageFile) -> None:
+        print(f"on_image_file_done called with file_id: {image_file.file_id}")
         image_url = reverse('serve_image_file', args=[image_file.file_id])
         self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
+
+        # No annotations for images
         self.response_data.append({
             "type": "image_file",
-            "text": self.current_message
+            "text": self.current_message,
+            "annotations": []
         })
 
     def on_end(self):
+        print("on_end called")
         self.stream_done = True
         self.response_data.append({"type": "end_of_stream"})
 
@@ -65,6 +104,7 @@ class EventHandler(AssistantEventHandler):
         while True:
             if self.response_data:
                 data = self.response_data.pop(0)
+                print(f"Streaming data: {data}")
                 yield f"data: {json.dumps(data)}\n\n"
                 if data.get("type") == "end_of_stream":
                     break
@@ -109,37 +149,31 @@ def create_stream_url(request, thread_id, assistant_id):
 
 def stream_responses(request, thread_id, assistant_id):
     try:
-        event_handler = EventHandler()
-        create_run(request, thread_id, assistant_id, event_handler)
-        response = StreamingHttpResponse(event_handler.stream_response(), content_type='text/event-stream')
-        response['Cache-Control'] = 'no-cache'
-        response['X-Accel-Buffering'] = 'no'  # For Nginx
-        return response
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-def create_run(request, thread_id, assistant_id, event_handler):
-    try:
         client = get_openai_client_sync(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
 
-    try:
-        with client.beta.threads.runs.stream(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-            event_handler=event_handler,
-        ) as stream:
-            stream.until_done()
+    def event_stream():
+        event_handler = EventHandler()
+        try:
+            with client.beta.threads.runs.stream(
+                thread_id=thread_id,
+                assistant_id=assistant_id,
+                event_handler=event_handler,
+            ) as stream:
+                stream.until_done()
+            # Yield events to the client
+            for data in event_handler.stream_response():
+                yield data
+        except Exception as e:
+            # Yield an error message to the client
+            error_data = {"type": "error", "message": str(e)}
+            yield f"data: {json.dumps(error_data)}\n\n"
 
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"status": "success", "message": "Run created successfully"}, status=200)
+    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'  # For Nginx
+    return response
 
 
 async def get_messages(request, thread_id):
