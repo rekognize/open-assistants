@@ -3,7 +3,6 @@ import base64
 import json
 import logging
 import os
-import time
 
 from django.db import IntegrityError
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
@@ -74,11 +73,11 @@ class EventHandler(AssistantEventHandler):
             "annotations": self.current_annotations
         })
 
-    def on_message_completed(self, message):
-        print("on_message_completed called")
+    def on_message_done(self, message):
+        print("on_message_done called")
         # Send the final message content and annotations to the client
         self.response_data.append({
-            "type": "message_completed",
+            "type": "message_done",
             "text": self.current_message,
             "annotations": self.current_annotations
         })
@@ -99,16 +98,6 @@ class EventHandler(AssistantEventHandler):
         print("on_end called")
         self.stream_done = True
         self.response_data.append({"type": "end_of_stream"})
-
-    def stream_response(self):
-        while True:
-            if self.response_data:
-                data = self.response_data.pop(0)
-                print(f"Streaming data: {data}")
-                yield f"data: {json.dumps(data)}\n\n"
-                if data.get("type") == "end_of_stream":
-                    break
-            time.sleep(0.1)
 
 
 def serve_image_file(request, file_id):
@@ -161,10 +150,26 @@ def stream_responses(request, thread_id, assistant_id):
                 assistant_id=assistant_id,
                 event_handler=event_handler,
             ) as stream:
-                stream.until_done()
-            # Yield events to the client
-            for data in event_handler.stream_response():
-                yield data
+                # Process events as they arrive
+                for event in stream:
+                    # The event handler methods are called automatically
+                    # Retrieve and yield data as it becomes available
+                    while event_handler.response_data:
+                        data = event_handler.response_data.pop(0)
+                        print(f"Streaming data: {data}")
+                        yield f"data: {json.dumps(data)}\n\n"
+                        # Check for end of stream
+                        if data.get("type") == "end_of_stream":
+                            return  # Exit the generator to end streaming
+
+                # After the stream ends, process any remaining response_data
+                while event_handler.response_data:
+                    data = event_handler.response_data.pop(0)
+                    print(f"Streaming data after stream ends: {data}")
+                    yield f"data: {json.dumps(data)}\n\n"
+                    if data.get("type") == "end_of_stream":
+                        return  # Exit the generator to end streaming
+
         except Exception as e:
             # Yield an error message to the client
             error_data = {"type": "error", "message": str(e)}

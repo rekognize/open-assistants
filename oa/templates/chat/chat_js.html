@@ -473,7 +473,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         eventSource.onmessage = async function(event) {
             const data = JSON.parse(event.data);
-            console.log("Received SSE data:", data);
+            console.log("Received SSE data:", data.type);
 
             if (data.type === 'message_created') {
                 console.log("message_created event received");
@@ -492,11 +492,11 @@ document.addEventListener("DOMContentLoaded", async function () {
                     assistantResponseContent.innerHTML = `${marked.parse(processedContent)}`;
                 }
                 scrollToBottom();
-            } else if (data.type === 'message_completed') {
-                console.log("message_completed event received");
+            } else if (data.type === 'message_done') {
+                console.log("message_done event received");
                 currentText = data.text;
                 currentAnnotations = data.annotations || [];
-                const processedContent = processAnnotations(currentText, currentAnnotations);
+                const processedContent = await processAnnotations(currentText, currentAnnotations);
                 if (assistantResponseContent) {
                     assistantResponseContent.innerHTML = `${marked.parse(processedContent)}`;
                 }
@@ -520,6 +520,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         eventSource.onerror = function(error) {
             console.error('SSE error:', error);
             eventSource.close();
+            formContainer.classList.remove('d-none');
+            awaitingResponse.classList.add("d-none");
+            textarea.focus();
         };
 
         eventSource.onopen = function() {
@@ -563,7 +566,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     async function processAnnotations(content, annotations) {
-        console.log("Processing annotations:", annotations);
         for (let index = 0; index < annotations.length; index++) {
             const annotation = annotations[index];
             if (annotation.file_citation) {
