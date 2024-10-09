@@ -69,12 +69,18 @@
                                     <hr class="dropdown-divider">
                                 </li>
 
-                                <li>
-                                    <a class="dropdown-item d-flex justify-content-between" href="#">
-                                        Logout
-                                        <i class="bi bi-box-arrow-right"></i>
-                                    </a>
-                                </li>
+<li>
+    <span class="dropdown-item d-flex justify-content-between">
+        <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-link p-0 m-0 align-baseline" style="text-decoration: none; color: inherit;">
+                Log out
+            </button>
+        </form>
+        <i class="bi bi-box-arrow-right"></i>
+    </span>
+</li>
+
 
                             </ul>
 
@@ -86,7 +92,7 @@
 
                     <ul class="navbar-nav ms-auto">
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
+                            <a class="nav-link" href="{% url 'admin:login' %}?next=/">
 
                                 Login / Signup
 
