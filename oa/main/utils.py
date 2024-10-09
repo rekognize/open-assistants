@@ -1,7 +1,13 @@
+from datetime import datetime
+
 from django.contrib.auth import get_user
 from openai import OpenAI
 from oa.api.utils import APIError
 from oa.main.models import Project
+
+
+def format_time(timestamp):
+    return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def get_object_or_404_sync(model, *args, **kwargs):
