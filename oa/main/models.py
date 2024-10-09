@@ -7,6 +7,7 @@ class Project(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='projects')
     key = models.CharField(max_length=255, unique=True)
     name = models.CharField(max_length=100, blank=True, null=True)
+    is_oa_project = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name or self.get_partial_key()

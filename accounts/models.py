@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from oa.main.models import Project
 
 
 class Profile(models.Model):
@@ -13,3 +14,12 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username
+
+    def assign_project(self):
+        project = Project.objects.filter(is_oa_project=True).filter(user__isnull=True).first()
+        if project:
+            project.user = self.user
+            project.save()
+        else:
+            pass
+        return project
