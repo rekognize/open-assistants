@@ -13,4 +13,18 @@
 
     </div>
 
+    {% if not selected_project %}
+
+    <div class="container mt-4">
+        <div class="alert alert-warning">
+            Please provide an OpenAI project key.
+            <hr>
+            <a class="btn btn-outline-success" href="#" data-bs-toggle="modal" data-bs-target="#manageKeysModal">
+                Add project key
+            </a>
+        </div>
+    </div>
+
+    {% endif %}
+
 {% endblock %}

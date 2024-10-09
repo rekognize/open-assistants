@@ -21,7 +21,8 @@
             <ul class="navbar-nav me-auto mb-lg-0">
                 {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url "manage_assistants" %}">Manage</a>
+                        <a class="nav-link {% if not selected_project %}disabled{% endif %}"
+                           href="{% url "manage_assistants" %}">Manage</a>
                     </li>
                 {% endif %}
             </ul>

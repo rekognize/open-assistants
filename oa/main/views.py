@@ -7,7 +7,7 @@ import os
 from django.db import IntegrityError
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
@@ -28,6 +28,8 @@ class HomeView(TemplateView):
 
 @login_required
 def manage_assistants(request):
+    if not Project.objects.filter(user=request.user).exists():
+        return redirect('home')
     return render(request, "manage.html")
 
 
