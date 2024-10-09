@@ -284,12 +284,13 @@ async def upload_files(
 
     uploaded_files, failed_files, supported_files = [], [], []
 
-    # Define the supported file types (same as the client-side)
+    # Define the supported file types for file search (same as the client-side)
     supported_file_types = {
         ".c": "text/x-c",
         ".cpp": "text/x-c++",
         ".css": "text/css",
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".go": "text/x-golang",
         ".html": "text/html",
         ".java": "text/x-java",
         ".js": "text/javascript",

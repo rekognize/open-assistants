@@ -237,6 +237,32 @@
         }
     }
 
+    // Helper function to check if the file type is supported for file search
+    function isSupportedFileType(fileName) {
+        const supportedFileTypes = {
+            ".c": "text/x-c",
+            ".cpp": "text/x-c++",
+            ".css": "text/css",
+            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".go": "text/x-golang",
+            ".html": "text/html",
+            ".java": "text/x-java",
+            ".js": "text/javascript",
+            ".json": "application/json",
+            ".md": "text/markdown",
+            ".pdf": "application/pdf",
+            ".php": "text/x-php",
+            ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ".py": ["text/x-python", "text/x-script.python"],
+            ".rb": "text/x-ruby",
+            ".tex": "text/x-tex",
+            ".ts": "application/typescript",
+            ".txt": "text/plain"
+        };
+        const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+        return supportedFileTypes.hasOwnProperty(extension);
+    }
+
 </script>
 
 {% block extra_scripts %}{% endblock %}
