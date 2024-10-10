@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.urls import path
+
 from oa.api.views import api
 from oa.main import views as main_views
 
