@@ -70,17 +70,17 @@
                                     <hr class="dropdown-divider">
                                 </li>
 
-<li>
-    <span class="dropdown-item d-flex justify-content-between">
-        <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: inline;">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-link p-0 m-0 align-baseline" style="text-decoration: none; color: inherit;">
-                Log out
-            </button>
-        </form>
-        <i class="bi bi-box-arrow-right"></i>
-    </span>
-</li>
+                                <li>
+                                    <span class="dropdown-item d-flex justify-content-between">
+                                        <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-link p-0 m-0 align-baseline" style="text-decoration: none; color: inherit;">
+                                                Log out
+                                            </button>
+                                        </form>
+                                        <i class="bi bi-box-arrow-right"></i>
+                                    </span>
+                                </li>
 
 
                             </ul>
