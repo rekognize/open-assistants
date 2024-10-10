@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.urls import path
-
 from oa.api.views import api
 from oa.main import views as main_views
 
@@ -31,3 +30,7 @@ urlpatterns = [
     path('projects/<int:project_id>/edit/', main_views.edit_project, name='edit_project'),
     path('projects/<int:project_id>/delete/', main_views.delete_project, name='delete_project'),
 ]
+
+admin.site.index_title = 'Open Assistants'
+admin.site.site_header = 'Open Assistants'
+admin.site.site_title = 'Open Assistants'

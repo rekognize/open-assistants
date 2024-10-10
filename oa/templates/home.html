@@ -13,4 +13,21 @@
 
     </div>
 
+    {% if not selected_project and user.is_authenticated %}
+
+    <div class="container mt-4">
+        <div class="alert alert-warning">
+            Please provide an OpenAI project key to start managing your assistants.
+            If you don't already have one, you can get one <a href="https://platform.openai.com/api-keys" target="_blank">here</a>.
+            <hr>
+            <div class="d-flex justify-content-between">
+                <a class="btn btn-outline-success" href="#" data-bs-toggle="modal" data-bs-target="#manageKeysModal">
+                    Add your project key
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+
 {% endblock %}
