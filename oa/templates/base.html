@@ -71,15 +71,13 @@
                                 </li>
 
                                 <li>
-                                    <span class="dropdown-item d-flex justify-content-between">
-                                        <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: inline;">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-link p-0 m-0 align-baseline" style="text-decoration: none; color: inherit;">
-                                                Log out
-                                            </button>
-                                        </form>
+                                    <a href="#" class="dropdown-item d-flex justify-content-between" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                        Log out
                                         <i class="bi bi-box-arrow-right"></i>
-                                    </span>
+                                    </a>
+                                    <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: none;">
+                                        {% csrf_token %}
+                                    </form>
                                 </li>
 
 
