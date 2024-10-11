@@ -57,6 +57,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         // After thread is created or retrieved
         await fetchMessages(threadId)
+        await fetchThreadFiles(threadId)
     }
 
     // Helper function to update the URL with thread_id
@@ -223,6 +224,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                 showToast("Files uploaded!", filenames, "success");
                 console.log('attachments', attachments);
 
+                // Update the thread files list
+                await fetchThreadFiles();
+
             } else {
                 const errorData = await response.json();
                 const parsedError = parseErrorText(errorData.error);
@@ -333,6 +337,42 @@ document.addEventListener("DOMContentLoaded", async function () {
         dataFilesInput.addEventListener('change', function (e) {
             uploadThreadFiles(e.target.files);
         });
+    }
+
+    async function fetchThreadFiles(threadId) {
+        console.log("Fetching files for threadId:", threadId);
+        try {
+            const url = `/t/${threadId}/files/`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const fileList = document.getElementById('thread-files-list');
+                fileList.innerHTML = '';
+                if (data.files.length === 0) {
+                    document.getElementById('no-files').style.display = 'block';
+                } else {
+                    document.getElementById('no-files').style.display = 'none';
+                    data.files.forEach(file => {
+                        const listItem = document.createElement('li');
+                        const fileSize = bytesToSize(file.bytes);
+                        listItem.innerHTML = `<small>${file.file_name} (${fileSize})</small>`;
+                        fileList.appendChild(listItem);
+                    });
+                }
+            } else {
+                console.error('Error fetching thread files:', data.error);
+            }
+        } catch (error) {
+            console.error('Error fetching thread files:', error);
+        }
     }
 
     async function fetchMessages(threadId) {
