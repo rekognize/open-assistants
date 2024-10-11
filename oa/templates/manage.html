@@ -1639,7 +1639,7 @@
                 console.log(result);
 
                 // Extract filenames from the uploaded files
-                const filenames = result.uploaded_files.map(file => file.filename || file.name).join(', ');
+                const filenames = result.uploaded_files.map(file => file.filename).join(', ');
 
                 // Update the global files and vector store relation states
                 result.uploaded_files.forEach(file => {

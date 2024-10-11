@@ -200,19 +200,27 @@ document.addEventListener("DOMContentLoaded", async function () {
 
                 console.log('uploadThreadFiles', data);
 
+                // Extract filenames from the uploaded files
+                const filenames = data.uploaded_files.map(file => file.filename).join(', ');
+
+                const supportedFileIds = new Set(data['supported_files'].map(file => file['id']));
+
                 if (data['uploaded_files'].length > 0) {
                     for (const file of data['uploaded_files']) {
+                        let tools = [{'type': 'code_interpreter'}];
+
+                        // Check if the file is in the supported_files list
+                        if (supportedFileIds.has(file['id'])) {
+                            tools.unshift({'type': 'file_search'});
+                        }
+
                         attachments.push({
                             'file_id': file['id'],
-                            'tools': [
-                                // TODO Check file type with isFileTypeSupported to decide to add file_search
-                                {'type': 'file_search'},
-                                {'type': 'code_interpreter'}
-                            ]
+                            'tools': tools
                         });
                     }
                 }
-                showToast("Files uploaded!", " ", "success");
+                showToast("Files uploaded!", filenames, "success");
                 console.log('attachments', attachments);
 
             } else {
