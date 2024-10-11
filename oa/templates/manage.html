@@ -361,21 +361,6 @@
         return checkBoxes;
     }
 
-    function bytesToSize(bytes) {
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        if (bytes === 0) return '0 Bytes';
-        const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        const size = bytes / Math.pow(1024, i);
-        return `${size.toFixed(2)} ${sizes[i]}`;
-    }
-
-    function toggleLoading(contentId, show) {
-        const loadingElement = document.getElementById(`loading-${contentId}`);
-        if (loadingElement) {
-            loadingElement.style.display = show ? 'block' : 'none';
-        }
-    }
-
     function toggleEditMode(id) {
         const cardBody = document.getElementById(`${id}`);
         const cardFooter = cardBody.closest('.card').querySelector('.card-footer');
@@ -1638,8 +1623,9 @@
 
                 console.log(result);
 
-                // Extract filenames from the uploaded files
-                const filenames = result.uploaded_files.map(file => file.filename || file.name).join(', ');
+                // Extract filenames
+                const uploadedFilenames = result.uploaded_files.map(file => file.filename).join(', ');
+                const failedFilenames = result.failed_files.map(file => file.filename).join(', ');
 
                 // Update the global files and vector store relation states
                 result.uploaded_files.forEach(file => {
@@ -1671,7 +1657,8 @@
                 const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
                 modal.hide();
 
-                showToast("Files uploaded!", filenames, "success");
+                showToast("Files uploaded!", uploadedFilenames, "success");
+                showToast("Failed to upload!", failedFilenames, "danger");
 
                 // Clear the file input and reset the form
                 selectedFiles = [];
