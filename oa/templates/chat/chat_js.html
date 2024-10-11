@@ -55,9 +55,12 @@ document.addEventListener("DOMContentLoaded", async function () {
             updateURLWithThreadId();
         }
 
+        // Show loading indicators initially
+        toggleLoading('thread-files', true);
+
         // After thread is created or retrieved
-        await fetchMessages(threadId)
-        await fetchThreadFiles(threadId)
+        await fetchMessages(threadId);
+        await fetchThreadFiles(threadId);
     }
 
     // Helper function to update the URL with thread_id
@@ -217,6 +220,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 
                         attachments.push({
                             'file_id': file['id'],
+                            'filename': file['filename'],
+                            'bytes': file['bytes'],
                             'tools': tools
                         });
                     }
@@ -224,8 +229,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 showToast("Files uploaded!", filenames, "success");
                 console.log('attachments', attachments);
 
-                // Update the thread files list
-                await fetchThreadFiles();
+                // Update the attachments list
+                updateAttachmentsList();
 
             } else {
                 const errorData = await response.json();
@@ -240,6 +245,51 @@ document.addEventListener("DOMContentLoaded", async function () {
             // Hide the loading indicator
             loadingUpload.style.display = 'none';
             submitButton.disabled = false;
+        }
+    }
+
+    function updateAttachmentsList() {
+        const attachmentsSection = document.getElementById('attachments-section');
+        const attachmentsList = document.getElementById('attachments-list');
+
+        if (attachments.length === 0) {
+            // Hide the attachments section
+            attachmentsSection.classList.add('d-none');
+            return;
+        } else {
+            // Show the attachments section
+            attachmentsSection.classList.remove('d-none');
+        }
+
+        // Clear the existing list
+        attachmentsList.innerHTML = '';
+
+        // For each attachment, create a list item
+        for (const attachment of attachments) {
+            // Create a list item
+            const li = document.createElement('li');
+            li.classList.add('list-group-item', 'd-flex', 'align-items-center', 'text-secondary', 'small');
+
+            // Create an icon for the file
+            const icon = document.createElement('i');
+            icon.classList.add('bi', 'bi-file-earmark', 'me-2');
+
+            // Create a span for the filename
+            const filenameSpan = document.createElement('span');
+            filenameSpan.textContent = attachment.filename;
+
+            // Create a span for the file size
+            const fileSizeSpan = document.createElement('span');
+            fileSizeSpan.classList.add('ms-auto');
+            fileSizeSpan.textContent = bytesToSize(attachment.bytes);
+
+            // Append the icon, filename, and file size to the list item
+            li.appendChild(icon);
+            li.appendChild(filenameSpan);
+            li.appendChild(fileSizeSpan);
+
+            // Append the list item to the attachments list
+            attachmentsList.appendChild(li);
         }
     }
 
@@ -372,6 +422,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
         } catch (error) {
             console.error('Error fetching thread files:', error);
+        } finally {
+            toggleLoading('thread-files', false);
         }
     }
 
@@ -480,6 +532,10 @@ document.addEventListener("DOMContentLoaded", async function () {
                 await createMessage(message, attachments);
                 // Clear attachments after sending
                 attachments = [];
+
+                // Update attachments list and thread files list
+                updateAttachmentsList();
+                await fetchThreadFiles(threadId);
             } catch(e) {
                 console.error('Error:', e)
             }

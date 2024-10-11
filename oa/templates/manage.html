@@ -361,13 +361,6 @@
         return checkBoxes;
     }
 
-    function toggleLoading(contentId, show) {
-        const loadingElement = document.getElementById(`loading-${contentId}`);
-        if (loadingElement) {
-            loadingElement.style.display = show ? 'block' : 'none';
-        }
-    }
-
     function toggleEditMode(id) {
         const cardBody = document.getElementById(`${id}`);
         const cardFooter = cardBody.closest('.card').querySelector('.card-footer');
