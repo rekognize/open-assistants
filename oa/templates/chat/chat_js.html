@@ -204,8 +204,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
                 console.log('uploadThreadFiles', data);
 
-                // Extract filenames from the uploaded files
-                const filenames = data.uploaded_files.map(file => file.filename).join(', ');
+                // Extract filenames
+                const uploadedFilenames = data.uploaded_files.map(file => file.filename).join(', ');
+                const failedFilenames = data.failed_files.map(file => file.filename).join(', ');
 
                 const supportedFileIds = new Set(data['supported_files'].map(file => file['id']));
 
@@ -226,7 +227,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                         });
                     }
                 }
-                showToast("Files uploaded!", filenames, "success");
+                showToast("Files uploaded!", uploadedFilenames, "success");
+                showToast("Failed to upload!", failedFilenames, "danger");
                 console.log('attachments', attachments);
 
                 // Update the attachments list

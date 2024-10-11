@@ -327,7 +327,7 @@ async def upload_files(
 
         except Exception as e:
             failed_files.append({
-                "name": uploaded_file.name,
+                "filename": uploaded_file.name,
                 "error": str(e)
             })
 

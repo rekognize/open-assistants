@@ -1623,8 +1623,9 @@
 
                 console.log(result);
 
-                // Extract filenames from the uploaded files
-                const filenames = result.uploaded_files.map(file => file.filename).join(', ');
+                // Extract filenames
+                const uploadedFilenames = result.uploaded_files.map(file => file.filename).join(', ');
+                const failedFilenames = result.failed_files.map(file => file.filename).join(', ');
 
                 // Update the global files and vector store relation states
                 result.uploaded_files.forEach(file => {
@@ -1656,7 +1657,8 @@
                 const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
                 modal.hide();
 
-                showToast("Files uploaded!", filenames, "success");
+                showToast("Files uploaded!", uploadedFilenames, "success");
+                showToast("Failed to upload!", failedFilenames, "danger");
 
                 // Clear the file input and reset the form
                 selectedFiles = [];
