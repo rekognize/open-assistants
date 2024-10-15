@@ -211,3 +211,9 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 SESAME_MAX_AGE = 300
+
+
+try:
+    from settings_local import *
+except ImportError:
+    pass
