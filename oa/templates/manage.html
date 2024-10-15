@@ -361,21 +361,6 @@
         return checkBoxes;
     }
 
-    function bytesToSize(bytes) {
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        if (bytes === 0) return '0 Bytes';
-        const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        const size = bytes / Math.pow(1024, i);
-        return `${size.toFixed(2)} ${sizes[i]}`;
-    }
-
-    function toggleLoading(contentId, show) {
-        const loadingElement = document.getElementById(`loading-${contentId}`);
-        if (loadingElement) {
-            loadingElement.style.display = show ? 'block' : 'none';
-        }
-    }
-
     function toggleEditMode(id) {
         const cardBody = document.getElementById(`${id}`);
         const cardFooter = cardBody.closest('.card').querySelector('.card-footer');
@@ -1441,6 +1426,14 @@
             }
         }
 
+        // Disable the upload button if no files are selected
+        const uploadBtn = document.getElementById('uploadBtn');
+        if (selectedFiles.length === 0) {
+            uploadBtn.disabled = true;
+        } else {
+            uploadBtn.disabled = false;
+        }
+
         const uploadFileModal = new bootstrap.Modal(document.getElementById('uploadFileModal'));
         uploadFileModal.show();
     }
@@ -1470,35 +1463,11 @@
         event.target.classList.remove('hover');
     }
 
-    // Helper function to check if the file type is supported
-    function isSupportedFileType(fileName) {
-        const supportedFileTypes = {
-            ".c": "text/x-c",
-            ".cpp": "text/x-c++",
-            ".css": "text/css",
-            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ".html": "text/html",
-            ".java": "text/x-java",
-            ".js": "text/javascript",
-            ".json": "application/json",
-            ".md": "text/markdown",
-            ".pdf": "application/pdf",
-            ".php": "text/x-php",
-            ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            ".py": ["text/x-python", "text/x-script.python"],
-            ".rb": "text/x-ruby",
-            ".tex": "text/x-tex",
-            ".ts": "application/typescript",
-            ".txt": "text/plain"
-        };
-        const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
-        return supportedFileTypes.hasOwnProperty(extension);
-    }
-
     // Add selected or dropped files to the list
     function addFilesToList(files) {
         const uploadedFilesList = document.getElementById('uploaded-files-list');
         const uploadedFilesSection = document.getElementById('uploaded-files-section');
+        const uploadBtn = document.getElementById('uploadBtn');
 
         // Show "Selected Files" section if files are selected
         uploadedFilesSection.classList.remove('d-none');
@@ -1576,6 +1545,8 @@
                 // If no files are left, hide the "Selected Files" section
                 if (selectedFiles.length === 0) {
                     uploadedFilesSection.classList.add('d-none');
+                    // Disable the upload button
+                    uploadBtn.disabled = true;
                 }
 
                 // Update the hidden file input with the updated list of selected files
@@ -1589,6 +1560,9 @@
             // Initialize the tooltip for this file
             new bootstrap.Tooltip(filenameSpan);
         }
+
+        // Enable the upload button since files are selected
+        uploadBtn.disabled = false;
 
         // Update hidden file input with selected files
         const fileInput = document.getElementById('fileUploadInput');
@@ -1649,21 +1623,28 @@
 
                 console.log(result);
 
+                // Extract filenames
+                const uploadedFilenames = result.uploaded_files.map(file => file.filename).join(', ');
+                const failedFilenames = result.failed_files.map(file => file.filename).join(', ');
+
                 // Update the global files and vector store relation states
                 result.uploaded_files.forEach(file => {
                     // Add the uploaded files to the global files dict
                     files[file.id] = file;
 
-                    // Update fileVectorStores
-                    fileVectorStores[file.id] = selectedVectorStores;  // Set the selected vector stores for the uploaded file
+                    // Only update vector stores for supported_files
+                    if (isSupportedFileType(file.filename)) {
+                        // Update fileVectorStores
+                        fileVectorStores[file.id] = selectedVectorStores;  // Set the selected vector stores for the uploaded file
 
-                    // Update vectorStoreFiles
-                    selectedVectorStores.forEach(vsId => {
-                        if (!vectorStoreFiles[vsId]) {
-                            vectorStoreFiles[vsId] = [];
-                        }
-                        vectorStoreFiles[vsId].push(file.id);  // Add the file to the vector store
-                    });
+                        // Update vectorStoreFiles
+                        selectedVectorStores.forEach(vsId => {
+                            if (!vectorStoreFiles[vsId]) {
+                                vectorStoreFiles[vsId] = [];
+                            }
+                            vectorStoreFiles[vsId].push(file.id);  // Add the file to the vector store
+                        });
+                    }
                 });
 
                 console.log('fileVectorStores:', fileVectorStores);
@@ -1675,6 +1656,9 @@
                 // Hide the modal after successful upload
                 const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
                 modal.hide();
+
+                showToast("Files uploaded!", uploadedFilenames, "success");
+                showToast("Failed to upload!", failedFilenames, "danger");
 
                 // Clear the file input and reset the form
                 selectedFiles = [];
