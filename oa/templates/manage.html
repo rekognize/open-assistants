@@ -97,10 +97,78 @@
                                 data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllAssistants('collapse');"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-assistants"
                                 data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllAssistants('expand');"></a>
-                            <a href="#" class="text-light-emphasis bi bi-sort-down ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Sort options"></a>
-                            <a href="#" class="text-light-emphasis bi bi-filter ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Filter options"></a>
+                            <!-- Sorting Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="assistantSortDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="assistantSortDropdown">
+                                    <li class="dropdown-header">Sort by</li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('created_at', 'desc', event);">
+                                            Created Time (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('created_at', 'asc', event);">
+                                            Created Time (Oldest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('name', 'asc', event);">
+                                            Name (A to Z)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('name', 'desc', event);">
+                                            Name (Z to A)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <!-- Filter Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="assistantFilterDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <div class="dropdown-menu p-3" aria-labelledby="assistantFilterDropdown">
+                                    <form id="assistantFilterForm">
+                                        <!-- Name Filter -->
+                                        <div class="mb-2">
+                                            <label for="filterName" class="form-label">Name</label>
+                                            <input type="text" class="form-control form-control-sm" id="filterName" placeholder="Search by name">
+                                        </div>
+                                        <!-- Creation Date Filter -->
+                                        <div class="mb-2">
+                                            <label class="form-label">Creation Date</label>
+                                            <div class="d-flex">
+                                                <input type="date" class="form-control form-control-sm me-1" id="filterStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="filterEndDate">
+                                            </div>
+                                        </div>
+                                        <!-- Vector Store Filter -->
+                                        <div class="mb-2">
+                                            <label for="filterVectorStore" class="form-label">Vector Store</label>
+                                            <select class="form-select form-select-sm" id="filterVectorStore">
+                                                <option value="">All</option>
+                                                <!-- Options will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <!-- Model Filter -->
+                                        <div class="mb-2">
+                                            <label for="filterModel" class="form-label">Model</label>
+                                            <select class="form-select form-select-sm" id="filterModel">
+                                                <option value="">All</option>
+                                                <option value="gpt-4o">gpt-4o</option>
+                                                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                            </select>
+                                        </div>
+                                        <!-- Filter Buttons -->
+                                        <div class="d-flex justify-content-between mt-3">
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="applyAssistantFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="resetAssistantFilters()">Reset</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
                                 onclick="refreshAssistantsList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
@@ -192,6 +260,7 @@
 </div>
 
 {% include "modals/file_upload_modal.html" %}
+{% include "modals/vector_store_deletion_confirmation_modal.html" %}
 
 {% endblock %}
 
@@ -391,6 +460,16 @@
     let vectorStoreFiles = {};  // {vsId: [file1, file2, ...]}
     let fileVectorStores = {};  // {fileId: [vs1, vs2, ...]}
     let selectedFiles = [];
+    let assistantSortField = 'created_at'; // default sort field
+    let assistantSortOrder = 'desc';       // default sort order
+    let assistantFilters = {
+        name: '',
+        startDate: null,
+        endDate: null,
+        vectorStoreId: '',
+        model: ''
+    };
+
 
     async function loadAndDisplayVectorStores() {
         const vectorStores = await fetchVectorStores();
@@ -426,6 +505,7 @@
         toggleLoading('files', true);
 
         vectorStores = await loadAndDisplayVectorStores();
+        populateVectorStoreFilterOptions();
         loadAndDisplayAssistants();  // Runs in parallel with loadAllVectorStoreFiles
         await loadAllVectorStoreFiles();
         loadAndDisplayFiles();
@@ -442,7 +522,24 @@
         const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
         assistantsList.innerHTML = ''; // Clear any existing assistants
         toggleLoading('assistants', true);
+
+        // Reset to default sorting options
+        assistantSortField = 'created_at';
+        assistantSortOrder = 'desc';
+
+        // Update the sorting icon and active class
+        updateSortDropdownUI(assistantSortField, assistantSortOrder);
+
+        // Close the sorting dropdown if open
+        const dropdownElement = document.getElementById('assistantSortDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        // Fetch and display assistants
         loadAndDisplayAssistants();
+
         // Refresh collapse all button
         btnCollapseAllAssistants.classList.remove('d-none');
         btnExpandAllAssistants.classList.add('d-none');
@@ -455,6 +552,7 @@
         vectorStoresList.innerHTML = ''; // Clear any existing vector stores
         toggleLoading('vector-stores', true);
         await loadAndDisplayVectorStores();
+        populateVectorStoreFilterOptions();
         // Refresh collapse all button
         btnCollapseAllStores.classList.remove('d-none');
         btnExpandAllStores.classList.add('d-none');
@@ -530,6 +628,120 @@
         } else {  // expand
             btnCollapseAllFiles.classList.remove('d-none');
             btnExpandAllFiles.classList.add('d-none');
+        }
+    }
+
+    function setAssistantSort(field, order, event) {
+        if (event) event.preventDefault(); // Prevent default anchor behavior
+        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
+        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
+
+        assistantSortField = field;
+        assistantSortOrder = order;
+
+        // Update the active class on the dropdown menu items
+        updateSortDropdownUI(field, order);
+
+        displayAssistants(); // Re-display assistants with new sort order
+
+        // Close the dropdown menu
+        const dropdownElement = document.getElementById('assistantSortDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+
+        // Refresh collapse all button
+        btnCollapseAllAssistants.classList.remove('d-none');
+        btnExpandAllAssistants.classList.add('d-none');
+        }
+    }
+
+    function updateSortDropdownUI(field, order) {
+        // Remove 'active' class from all dropdown items
+        const dropdownItems = document.querySelectorAll('#assistantSortDropdown + .dropdown-menu .dropdown-item');
+        dropdownItems.forEach(item => item.classList.remove('active'));
+
+        // Add 'active' class to the selected item
+        const selectedItem = document.querySelector(`#assistantSortDropdown + .dropdown-menu .dropdown-item[href*="${field}"][href*="${order}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('active');
+        }
+
+        // Optionally, update the sort icon to reflect current sorting
+        const sortIcon = document.getElementById('assistantSortDropdown');
+        sortIcon.className = 'text-light-emphasis bi ms-2';
+        if (field === 'name') {
+            sortIcon.classList.add(order === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-down-alt');
+        } else if (field === 'created_at') {
+            sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
+        }
+    }
+
+    function populateVectorStoreFilterOptions() {
+        const filterVectorStore = document.getElementById('filterVectorStore');
+        filterVectorStore.innerHTML = '<option value="">All</option>'; // Reset options
+
+        for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
+            const option = document.createElement('option');
+            option.value = vsId;
+            option.textContent = vectorStore.name ?? 'Untitled';
+            filterVectorStore.appendChild(option);
+        }
+    }
+
+    function applyAssistantFilters() {
+        assistantFilters.name = document.getElementById('filterName').value.toLowerCase();
+        assistantFilters.startDate = document.getElementById('filterStartDate').value ? new Date(document.getElementById('filterStartDate').value) : null;
+        assistantFilters.endDate = document.getElementById('filterEndDate').value ? new Date(document.getElementById('filterEndDate').value) : null;
+        assistantFilters.vectorStoreId = document.getElementById('filterVectorStore').value;
+        assistantFilters.model = document.getElementById('filterModel').value;
+
+        displayAssistants(); // Re-display assistants with filters applied
+
+        // Close the dropdown menu
+        const dropdownElement = document.getElementById('assistantFilterDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        // Update the filter icon based on active filters
+        updateFilterIcon();
+    }
+
+    function resetAssistantFilters() {
+        document.getElementById('assistantFilterForm').reset();
+        assistantFilters = {
+            name: '',
+            startDate: null,
+            endDate: null,
+            vectorStoreId: '',
+            model: ''
+        };
+        displayAssistants();
+
+        // Close the dropdown menu
+        const dropdownElement = document.getElementById('assistantFilterDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        // Update the filter icon to reflect no active filters
+        updateFilterIcon();
+    }
+
+    function updateFilterIcon() {
+        const dropdownElement = document.getElementById('assistantFilterDropdown');
+        // Check if any filters are active
+        const filtersActive = assistantFilters.name || assistantFilters.startDate || assistantFilters.endDate || assistantFilters.vectorStoreId || assistantFilters.model;
+
+        if (filtersActive) {
+            dropdownElement.classList.remove('bi-funnel');
+            dropdownElement.classList.add('bi-funnel-fill');
+        } else {
+            dropdownElement.classList.remove('bi-funnel-fill');
+            dropdownElement.classList.add('bi-funnel');
         }
     }
 
@@ -756,6 +968,16 @@
             if (response.ok) {
                 const data = await response.json();
 
+                // Update the global vectorStores object
+                vectorStores[vectorStoreId] = data;
+
+                // Update the filter dropdown
+                populateVectorStoreFilterOptions();
+
+                // Re-display assistants to reflect the updated vector store name
+                displayAssistants();
+
+                // Update the vector store card
                 updateVectorStoreInfo(vectorStoreId, data);
 
                 toggleEditMode(vectorStoreId);
@@ -787,14 +1009,56 @@
         toggleEditMode(vectorStoreId);
     }
 
+    let vectorStoreToDeleteId = null; // To store the ID of the vector store to delete
+
     async function deleteVectorStore(vectorStoreId) {
+        vectorStoreToDeleteId = vectorStoreId; // Store the vector store ID for use in the confirm deletion function
+
+        // Collect assistants using this vector store
+        const assistantsUsingVS = [];
+        for (const [assistantId, assistant] of Object.entries(assistants)) {
+            const assignedVsId = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || null;
+            if (assignedVsId === vectorStoreId) {
+                assistantsUsingVS.push(assistant.name);
+            }
+        }
+
+        // Update the modal content
+        const assistantsListElement = document.getElementById('assistantNamesList');
+        const assistantsUsingVectorStoreDiv = document.getElementById('assistantsUsingVectorStore');
+
+        // Clear previous list
+        assistantsListElement.innerHTML = '';
+
+        if (assistantsUsingVS.length > 0) {
+            // Show the list of assistants
+            assistantsUsingVectorStoreDiv.classList.remove('d-none');
+            assistantsUsingVS.forEach(name => {
+                const li = document.createElement('li');
+                li.textContent = name;
+                assistantsListElement.appendChild(li);
+            });
+        } else {
+            assistantsUsingVectorStoreDiv.classList.add('d-none');
+        }
+
+        // Show the modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('vectorStoreDeleteModal'));
+        deleteModal.show();
+
+        // Attach event listener to the confirm delete button
+        const confirmDeleteBtn = document.getElementById('confirmDeleteVectorStoreBtn');
+        confirmDeleteBtn.onclick = confirmDeleteVectorStore;
+    }
+
+    async function confirmDeleteVectorStore() {
+        const vectorStoreId = vectorStoreToDeleteId;
         const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
         const url = "{% url 'api-1.0.0:delete_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}".replace('VS_ID_PLACEHOLDER', vectorStoreId);
 
-        // Show a confirmation dialog
-        if (!confirm('Are you sure you want to delete this vector store?')) {
-            return;
-        }
+        // Hide the modal
+        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('vectorStoreDeleteModal'));
+        deleteModal.hide();
 
         try {
             const response = await fetch(url, {
@@ -806,10 +1070,19 @@
             });
 
             if (response.ok) {
-                // If the API call is successful, remove the card from the UI
+                // Remove the vector store from the global vectorStores object
+                delete vectorStores[vectorStoreId];
+
+                // Update the filter dropdown
+                populateVectorStoreFilterOptions();
+
+                // Re-display assistants
+                displayAssistants();
+
+                // Remove the card from UI
                 vectorStoreCard.remove();
-                // Update client-side state
-                delete(vectorStores[vectorStoreId])
+
+                showToast("Vector store deleted!", vectorStoreId, "success");
                 console.log(`Vector Store with ID ${vectorStoreId} deleted successfully.`);
             } else {
                 const errorData = await response.json();
@@ -905,11 +1178,56 @@
         const assistantsList = document.getElementById('assistants-list');
         assistantsList.innerHTML = ''; // Clear any existing assistants
 
-        // Iterate over the assistants object and append each item
-        for (const [id, assistant] of Object.entries(assistants)) {
-            assistantItem = renderAssistant(assistant, vectorStores);
-            assistantsList.appendChild(assistantItem); // Append each assistant item as it's processed
+        // Convert the assistants object into an array
+        let assistantsArray = Object.values(assistants);
+
+        // Apply filters
+        assistantsArray = assistantsArray.filter(assistant => {
+            // Filter by name
+            if (assistantFilters.name && !assistant.name.toLowerCase().includes(assistantFilters.name)) {
+                return false;
+            }
+            // Filter by creation date
+            const assistantDate = new Date(assistant.created_at * 1000);
+            if (assistantFilters.startDate && assistantDate < assistantFilters.startDate) {
+                return false;
+            }
+            if (assistantFilters.endDate && assistantDate > assistantFilters.endDate) {
+                return false;
+            }
+            // Filter by vector store
+            const assignedVsId = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || null;
+            if (assistantFilters.vectorStoreId && assignedVsId !== assistantFilters.vectorStoreId) {
+                return false;
+            }
+            // Filter by model
+            if (assistantFilters.model && assistant.model !== assistantFilters.model) {
+                return false;
+            }
+            return true;
+        });
+
+        // Sort the array according to the selected sort options
+        assistantsArray.sort((a, b) => {
+            let compareResult = 0;
+
+            if (assistantSortField === 'name') {
+                compareResult = a.name.localeCompare(b.name);
+            } else if (assistantSortField === 'created_at') {
+                compareResult = a.created_at - b.created_at;
+            }
+
+            return assistantSortOrder === 'asc' ? compareResult : -compareResult;
+        });
+
+        // Iterate over the sorted and filtered array and append each item
+        for (const assistant of assistantsArray) {
+            const assistantItem = renderAssistant(assistant);
+            assistantsList.appendChild(assistantItem);
         }
+
+        // Re-initialize tooltips if necessary
+        initializeTooltips();
     }
 
     async function addAssistant() {
@@ -1686,6 +2004,19 @@
     // Trigger the file selection dialog when the dropzone is clicked
     document.getElementById('dropZone').addEventListener('click', () => {
         document.getElementById('fileUploadInput').click();
+    });
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Call initializeTooltips on page load
+        initializeTooltips();
+
+        // Initialize the sorting dropdown
+        const dropdownElement = document.getElementById('assistantSortDropdown');
+        new bootstrap.Dropdown(dropdownElement);
+
+        // Initialize the filter icon
+        updateFilterIcon();
     });
 
 </script>
