@@ -15,7 +15,7 @@ from openai import AssistantEventHandler, OpenAIError
 from openai.types.beta.threads import Text, TextDelta, ImageFile
 
 from .models import Project
-from .utils import get_openai_client_sync, format_time
+from .utils import get_openai_client_sync, format_time, verify_openai_key
 from ..api.utils import APIError, get_openai_client
 
 
@@ -378,6 +378,11 @@ def create_project(request):
             return JsonResponse({'success': False, 'error': 'Name is required.'})
         if not key:
             return JsonResponse({'success': False, 'error': 'Key is required.'})
+
+        # Verify the key with OpenAI
+        is_valid, error_message = verify_openai_key(key)
+        if not is_valid:
+            return JsonResponse({'success': False, 'error': error_message})
 
         try:
             project = Project.objects.create(user=request.user, name=name, key=key)

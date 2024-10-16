@@ -14,6 +14,11 @@
             return;
         }
 
+        // Disable inputs and button to prevent multiple submissions
+        nameInput.disabled = true;
+        keyInput.disabled = true;
+        btnSaveNewProject.disabled = true;
+
         fetch('{% url "create_project" %}', {
             method: 'POST',
             headers: {
@@ -28,23 +33,30 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    nameInput.disabled = true;
-                    keyInput.disabled = true;
-                    btnSaveNewProject.disabled = true;
-
                     // Call setProject with the new project
-                    setProject(data.project.id)
+                    setProject(data.project.id);
 
                     // Delay the page redirect to allow the user to see the toast
                     setTimeout(() => {
                         window.location.href = '{% url "manage_assistants" %}';
                     }, 1000); // Delay of 1 second
                 } else {
+                    // Re-enable inputs and button
+                    nameInput.disabled = false;
+                    keyInput.disabled = false;
+                    btnSaveNewProject.disabled = false;
+
+                    // Display the error message returned by the server
                     showToast('Failed to create project!', data.error);
                     console.error('Failed to create project!', data.error);
                 }
             })
             .catch(error => {
+                // Re-enable inputs and button
+                nameInput.disabled = false;
+                keyInput.disabled = false;
+                btnSaveNewProject.disabled = false;
+
                 showToast('Error:', error);
                 console.error('Error:', error);
             });
