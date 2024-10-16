@@ -45,15 +45,22 @@
                             </div>
                         </li>
                     {% endfor %}
+                    <!-- Empty input for adding a new project and key -->
+                    <li id="new-project"
+                        class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <input type="text" class="form-control form-control-sm me-2" placeholder="Name" id="new-project-name" maxlength="100" required>
+                            <input type="text" class="form-control form-control-sm" placeholder="Key" id="new-project-key" maxlength="255" required>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-sm btn-outline-success" id="btnSaveNewProject" onclick="saveNewProject()" data-bs-toggle="tooltip" title="Save">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        </div>
+                    </li>
                 </ul>
             </div>
             <div class="modal-footer py-2">
-                <!-- Add Key Button -->
-                <div class="d-flex justify-content-end">
-                    <button id="addKeyBtn" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-plus-circle"></i> Add Key
-                    </button>
-                </div>
             </div>
         </div>
     </div>
