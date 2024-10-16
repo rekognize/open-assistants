@@ -1079,6 +1079,23 @@
                 // Re-display assistants
                 displayAssistants();
 
+                // Update file-vector store associations
+                const associatedFiles = vectorStoreFiles[vectorStoreId] || [];
+                associatedFiles.forEach(fileId => {
+                    // Remove vectorStoreId from fileVectorStores[fileId]
+                    if (fileVectorStores[fileId]) {
+                        fileVectorStores[fileId] = fileVectorStores[fileId].filter(id => id !== vectorStoreId);
+                    }
+                });
+
+                // Remove the vector store from vectorStoreFiles
+                delete vectorStoreFiles[vectorStoreId];
+
+                // Update all file cards to reflect the updated list of vector stores
+                for (const fileId in files) {
+                    updateFileInfo(fileId, files[fileId]);
+                }
+
                 // Remove the card from UI
                 vectorStoreCard.remove();
 
@@ -1975,8 +1992,12 @@
                 const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
                 modal.hide();
 
-                showToast("Files uploaded!", uploadedFilenames, "success");
-                showToast("Failed to upload!", failedFilenames, "danger");
+                if (uploadedFilenames) {
+                    showToast("Files uploaded!", uploadedFilenames, "success");
+                }
+                if (failedFilenames) {
+                    showToast("Failed to upload!", failedFilenames, "danger");
+                }
 
                 // Clear the file input and reset the form
                 selectedFiles = [];

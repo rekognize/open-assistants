@@ -227,8 +227,13 @@ document.addEventListener("DOMContentLoaded", async function () {
                         });
                     }
                 }
-                showToast("Files uploaded!", uploadedFilenames, "success");
-                showToast("Failed to upload!", failedFilenames, "danger");
+
+                if (uploadedFilenames) {
+                    showToast("Files uploaded!", uploadedFilenames, "success");
+                }
+                if (failedFilenames) {
+                    showToast("Failed to upload!", failedFilenames, "danger");
+                }
                 console.log('attachments', attachments);
 
                 // Update the attachments list
