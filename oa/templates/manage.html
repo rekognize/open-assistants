@@ -980,6 +980,11 @@
                 // Update the vector store card
                 updateVectorStoreInfo(vectorStoreId, data);
 
+                // After updating the vectorStores object
+                for (const fileId in files) {
+                    updateFileInfo(fileId, files[fileId]);
+                }
+
                 toggleEditMode(vectorStoreId);
             } else {
                 const errorData = await response.json();
