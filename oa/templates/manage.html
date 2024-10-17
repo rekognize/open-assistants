@@ -745,6 +745,20 @@
         }
     }
 
+    function updateVectorStoreRelatedUI() {
+    // Update the assistant filter dropdown
+    populateVectorStoreFilterOptions();
+
+    // Re-display assistants to reflect the new vector store
+    displayAssistants();
+
+    // Update all file cards to reflect the updated list of vector stores
+    displayFiles(files);
+
+    // Re-initialize tooltips if necessary
+    initializeTooltips();
+}
+
 
     /* Vector stores */
 
@@ -918,6 +932,9 @@
                 } else {
                     vectorStoresList.appendChild(vectorStoreItem);
                 }
+
+                // Update related UI elements
+                updateVectorStoreRelatedUI();
             } else {
                 const errorData = await response.json();
                 const parsedError = parseErrorText(errorData.error);
@@ -971,19 +988,11 @@
                 // Update the global vectorStores object
                 vectorStores[vectorStoreId] = data;
 
-                // Update the filter dropdown
-                populateVectorStoreFilterOptions();
-
-                // Re-display assistants to reflect the updated vector store name
-                displayAssistants();
-
                 // Update the vector store card
                 updateVectorStoreInfo(vectorStoreId, data);
 
-                // After updating the vectorStores object
-                for (const fileId in files) {
-                    updateFileInfo(fileId, files[fileId]);
-                }
+                // Update related UI elements
+                updateVectorStoreRelatedUI();
 
                 toggleEditMode(vectorStoreId);
             } else {
@@ -1078,12 +1087,6 @@
                 // Remove the vector store from the global vectorStores object
                 delete vectorStores[vectorStoreId];
 
-                // Update the filter dropdown
-                populateVectorStoreFilterOptions();
-
-                // Re-display assistants
-                displayAssistants();
-
                 // Update file-vector store associations
                 const associatedFiles = vectorStoreFiles[vectorStoreId] || [];
                 associatedFiles.forEach(fileId => {
@@ -1096,13 +1099,11 @@
                 // Remove the vector store from vectorStoreFiles
                 delete vectorStoreFiles[vectorStoreId];
 
-                // Update all file cards to reflect the updated list of vector stores
-                for (const fileId in files) {
-                    updateFileInfo(fileId, files[fileId]);
-                }
-
                 // Remove the card from UI
                 vectorStoreCard.remove();
+
+                // Update related UI elements
+                updateVectorStoreRelatedUI();
 
                 showToast("Vector store deleted!", vectorStoreId, "success");
                 console.log(`Vector Store with ID ${vectorStoreId} deleted successfully.`);
