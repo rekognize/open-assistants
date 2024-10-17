@@ -97,6 +97,7 @@
                                 data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllAssistants('collapse');"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-assistants"
                                 data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllAssistants('expand');"></a>
+
                             <!-- Sorting Dropdown -->
                             <div class="dropdown d-inline">
                                 <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="assistantSortDropdown" data-bs-toggle="dropdown"
@@ -125,6 +126,7 @@
                                     </li>
                                 </ul>
                             </div>
+
                             <!-- Filter Dropdown -->
                             <div class="dropdown d-inline">
                                 <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="assistantFilterDropdown" data-bs-toggle="dropdown"
@@ -169,6 +171,7 @@
                                     </form>
                                 </div>
                             </div>
+
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
                                 onclick="refreshAssistantsList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
@@ -200,10 +203,93 @@
                                 data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllStores('collapse');"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-stores"
                                 data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllStores('expand');"></a>
-                            <a href="#" class="text-light-emphasis bi bi-sort-down ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Sort options"></a>
-                            <a href="#" class="text-light-emphasis bi bi-filter ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Filter options"></a>
+
+                            <!-- Sorting Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="vectorStoreSortDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="vectorStoreSortDropdown">
+                                    <li class="dropdown-header">Sort by</li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('created_at', 'desc', event);">
+                                            Created Time (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('created_at', 'asc', event);">
+                                            Created Time (Oldest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('name', 'asc', event);">
+                                            Name (A to Z)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('name', 'desc', event);">
+                                            Name (Z to A)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('last_active_at', 'desc', event);">
+                                            Last Active (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('last_active_at', 'asc', event);">
+                                            Last Active (Oldest First)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Filter Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="vectorStoreFilterDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <div class="dropdown-menu p-3" aria-labelledby="vectorStoreFilterDropdown">
+                                    <form id="vectorStoreFilterForm">
+                                        <!-- Name Filter -->
+                                        <div class="mb-2">
+                                            <label for="vsFilterName" class="form-label">Name</label>
+                                            <input type="text" class="form-control form-control-sm" id="vsFilterName" placeholder="Search by name">
+                                        </div>
+                                        <!-- Creation Date Filter -->
+                                        <div class="mb-2">
+                                            <label class="form-label">Creation Date</label>
+                                            <div class="d-flex">
+                                                <input type="date" class="form-control form-control-sm me-1" id="vsFilterStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="vsFilterEndDate">
+                                            </div>
+                                        </div>
+                                        <!-- Status Filter -->
+                                        <div class="mb-2">
+                                            <label for="vsFilterStatus" class="form-label">Status</label>
+                                            <select class="form-select form-select-sm" id="vsFilterStatus">
+                                                <option value="">All</option>
+                                                <option value="completed">Completed</option>
+                                                <option value="in_progress">In Progress</option>
+                                                <option value="expired">Expired</option>
+                                            </select>
+                                        </div>
+                                        <!-- Expiration Filter -->
+                                        <div class="mb-2">
+                                            <label for="vsFilterHasExpiration" class="form-label">Has Expiration</label>
+                                            <select class="form-select form-select-sm" id="vsFilterHasExpiration">
+                                                <option value="">All</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </select>
+                                        </div>
+                                        <!-- Filter Buttons -->
+                                        <div class="d-flex justify-content-between mt-3">
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="applyVectorStoreFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="resetVectorStoreFilters()">Reset</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
                                 onclick="refreshVSList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
@@ -460,6 +546,9 @@
     let vectorStoreFiles = {};  // {vsId: [file1, file2, ...]}
     let fileVectorStores = {};  // {fileId: [vs1, vs2, ...]}
     let selectedFiles = [];
+
+    // Global variables for sorting and filtering
+
     let assistantSortField = 'created_at'; // default sort field
     let assistantSortOrder = 'desc';       // default sort order
     let assistantFilters = {
@@ -468,6 +557,15 @@
         endDate: null,
         vectorStoreId: '',
         model: ''
+    };
+    let vectorStoreSortField = 'created_at'; // default sort field
+    let vectorStoreSortOrder = 'desc';       // default sort order
+    let vectorStoreFilters = {
+        name: '',
+        startDate: null,
+        endDate: null,
+        status: '',
+        hasExpiration: ''
     };
 
 
@@ -505,7 +603,7 @@
         toggleLoading('files', true);
 
         vectorStores = await loadAndDisplayVectorStores();
-        populateVectorStoreFilterOptions();
+        populateAssistantFilterOptions();
         loadAndDisplayAssistants();  // Runs in parallel with loadAllVectorStoreFiles
         await loadAllVectorStoreFiles();
         loadAndDisplayFiles();
@@ -518,17 +616,13 @@
 
     async function refreshAssistantsList() {
         const assistantsList = document.getElementById('assistants-list');
-        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
-        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
         assistantsList.innerHTML = ''; // Clear any existing assistants
         toggleLoading('assistants', true);
 
         // Reset to default sorting options
         assistantSortField = 'created_at';
         assistantSortOrder = 'desc';
-
-        // Update the sorting icon and active class
-        updateSortDropdownUI(assistantSortField, assistantSortOrder);
+        updateSortDropdownUI('assistantSortDropdown', assistantSortField, assistantSortOrder);
 
         // Close the sorting dropdown if open
         const dropdownElement = document.getElementById('assistantSortDropdown');
@@ -541,32 +635,45 @@
         loadAndDisplayAssistants();
 
         // Refresh collapse all button
+        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
+        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
         btnCollapseAllAssistants.classList.remove('d-none');
         btnExpandAllAssistants.classList.add('d-none');
     }
 
     async function refreshVSList() {
         const vectorStoresList = document.getElementById('vector-stores-list');
-        const btnCollapseAllStores = document.getElementById('collapse-all-stores');
-        const btnExpandAllStores = document.getElementById('expand-all-stores');
         vectorStoresList.innerHTML = ''; // Clear any existing vector stores
         toggleLoading('vector-stores', true);
+
+        // Reset to default sorting options
+        vectorStoreSortField = 'created_at';
+        vectorStoreSortOrder = 'desc';
+        updateSortDropdownUI('vectorStoreSortDropdown', vectorStoreSortField, vectorStoreSortOrder);
+
+        // Fetch and display
         await loadAndDisplayVectorStores();
-        populateVectorStoreFilterOptions();
+        populateAssistantFilterOptions();
+
         // Refresh collapse all button
+        const btnCollapseAllStores = document.getElementById('collapse-all-stores');
+        const btnExpandAllStores = document.getElementById('expand-all-stores');
         btnCollapseAllStores.classList.remove('d-none');
         btnExpandAllStores.classList.add('d-none');
+
         loadAllVectorStoreFiles(); // Also refresh vector store files
     }
 
     async function refreshFilesList() {
         const vectorStoresList = document.getElementById('files-list');
-        const btnCollapseAllFiles = document.getElementById('collapse-all-files');
-        const btnExpandAllFiles = document.getElementById('expand-all-files');
         vectorStoresList.innerHTML = ''; // Clear any existing files
         toggleLoading('files', true);
+
         loadAndDisplayFiles();
+
         // Refresh collapse all button
+        const btnCollapseAllFiles = document.getElementById('collapse-all-files');
+        const btnExpandAllFiles = document.getElementById('expand-all-files');
         btnCollapseAllFiles.classList.remove('d-none');
         btnExpandAllFiles.classList.add('d-none');
     }
@@ -633,14 +740,12 @@
 
     function setAssistantSort(field, order, event) {
         if (event) event.preventDefault(); // Prevent default anchor behavior
-        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
-        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
 
         assistantSortField = field;
         assistantSortOrder = order;
 
         // Update the active class on the dropdown menu items
-        updateSortDropdownUI(field, order);
+        updateSortDropdownUI('assistantSortDropdown', field, order);
 
         displayAssistants(); // Re-display assistants with new sort order
 
@@ -651,33 +756,37 @@
             dropdownInstance.hide();
 
         // Refresh collapse all button
+        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
+        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
         btnCollapseAllAssistants.classList.remove('d-none');
         btnExpandAllAssistants.classList.add('d-none');
         }
     }
 
-    function updateSortDropdownUI(field, order) {
-        // Remove 'active' class from all dropdown items
-        const dropdownItems = document.querySelectorAll('#assistantSortDropdown + .dropdown-menu .dropdown-item');
-        dropdownItems.forEach(item => item.classList.remove('active'));
+    function setVectorStoreSort(field, order, event) {
+        if (event) event.preventDefault();
 
-        // Add 'active' class to the selected item
-        const selectedItem = document.querySelector(`#assistantSortDropdown + .dropdown-menu .dropdown-item[href*="${field}"][href*="${order}"]`);
-        if (selectedItem) {
-            selectedItem.classList.add('active');
+        vectorStoreSortField = field;
+        vectorStoreSortOrder = order;
+
+        updateSortDropdownUI('vectorStoreSortDropdown', field, order);
+
+        displayVectorStores();
+
+        const dropdownElement = document.getElementById('vectorStoreSortDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
         }
 
-        // Optionally, update the sort icon to reflect current sorting
-        const sortIcon = document.getElementById('assistantSortDropdown');
-        sortIcon.className = 'text-light-emphasis bi ms-2';
-        if (field === 'name') {
-            sortIcon.classList.add(order === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-down-alt');
-        } else if (field === 'created_at') {
-            sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
-        }
+        // Refresh collapse all button
+        const btnCollapseAllStores = document.getElementById('collapse-all-stores');
+        const btnExpandAllStores = document.getElementById('expand-all-stores');
+        btnCollapseAllStores.classList.remove('d-none');
+        btnExpandAllStores.classList.add('d-none');
     }
 
-    function populateVectorStoreFilterOptions() {
+    function populateAssistantFilterOptions() {
         const filterVectorStore = document.getElementById('filterVectorStore');
         filterVectorStore.innerHTML = '<option value="">All</option>'; // Reset options
 
@@ -706,7 +815,7 @@
         }
 
         // Update the filter icon based on active filters
-        updateFilterIcon();
+        updateFilterIcon('assistantFilterDropdown', assistantFilters);
     }
 
     function resetAssistantFilters() {
@@ -728,13 +837,79 @@
         }
 
         // Update the filter icon to reflect no active filters
-        updateFilterIcon();
+        updateFilterIcon('assistantFilterDropdown', assistantFilters);
     }
 
-    function updateFilterIcon() {
-        const dropdownElement = document.getElementById('assistantFilterDropdown');
-        // Check if any filters are active
-        const filtersActive = assistantFilters.name || assistantFilters.startDate || assistantFilters.endDate || assistantFilters.vectorStoreId || assistantFilters.model;
+    function applyVectorStoreFilters() {
+        vectorStoreFilters.name = document.getElementById('vsFilterName').value.toLowerCase();
+        vectorStoreFilters.startDate = document.getElementById('vsFilterStartDate').value ? new Date(document.getElementById('vsFilterStartDate').value) : null;
+        vectorStoreFilters.endDate = document.getElementById('vsFilterEndDate').value ? new Date(document.getElementById('vsFilterEndDate').value) : null;
+        vectorStoreFilters.status = document.getElementById('vsFilterStatus').value;
+        vectorStoreFilters.hasExpiration = document.getElementById('vsFilterHasExpiration').value;
+
+        displayVectorStores();
+
+        const dropdownElement = document.getElementById('vectorStoreFilterDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        updateFilterIcon('vectorStoreFilterDropdown', vectorStoreFilters);
+    }
+
+    function resetVectorStoreFilters() {
+        document.getElementById('vectorStoreFilterForm').reset();
+        vectorStoreFilters = {
+            name: '',
+            startDate: null,
+            endDate: null,
+            status: '',
+            hasExpiration: ''
+        };
+        displayVectorStores();
+
+        const dropdownElement = document.getElementById('vectorStoreFilterDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        updateFilterIcon('vectorStoreFilterDropdown', vectorStoreFilters);
+    }
+
+    function updateSortDropdownUI(dropdownId, field, order) {
+        // Remove 'active' class from all dropdown items
+        const dropdownItems = document.querySelectorAll(`#${dropdownId} + .dropdown-menu .dropdown-item`);
+        dropdownItems.forEach(item => item.classList.remove('active'));
+
+        // Add 'active' class to the selected item
+        const selectedItem = document.querySelector(`#${dropdownId} + .dropdown-menu .dropdown-item[href*="${field}"][href*="${order}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('active');
+        }
+
+        // Update the sort icon
+        const sortIcon = document.getElementById(dropdownId);
+        sortIcon.className = 'text-light-emphasis bi ms-2';
+        if (field === 'name') {
+            sortIcon.classList.add(order === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-down-alt');
+        } else if (field === 'created_at') {
+            sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
+        } else if (field === 'last_active_at') {
+            sortIcon.classList.add('bi-clock-history');
+        }
+    }
+
+    function updateFilterIcon(dropdownId, filters) {
+        const dropdownElement = document.getElementById(dropdownId);
+        const filtersActive = Object.values(filters).some(value => {
+            if (value instanceof Date) {
+                return true;
+            } else {
+                return value !== '' && value !== null && value !== undefined;
+            }
+        });
 
         if (filtersActive) {
             dropdownElement.classList.remove('bi-funnel');
@@ -744,20 +919,6 @@
             dropdownElement.classList.add('bi-funnel');
         }
     }
-
-    function updateVectorStoreRelatedUI() {
-    // Update the assistant filter dropdown
-    populateVectorStoreFilterOptions();
-
-    // Re-display assistants to reflect the new vector store
-    displayAssistants();
-
-    // Update all file cards to reflect the updated list of vector stores
-    displayFiles(files);
-
-    // Re-initialize tooltips if necessary
-    initializeTooltips();
-}
 
 
     /* Vector stores */
@@ -804,15 +965,61 @@
         return vectorStoreItem;
     }
 
-    function displayVectorStores(vectorStores) {
+    function displayVectorStores() {
         const vectorStoresList = document.getElementById('vector-stores-list');
-        vectorStoresList.innerHTML = ''; // Clear any existing vector stores
+        vectorStoresList.innerHTML = '';
 
-        // Iterate over the vectorStores object and append each item
-        for (const [id, store] of Object.entries(vectorStores)) {
+        // Convert to array
+        let vectorStoresArray = Object.values(vectorStores);
+
+        // Apply filters
+        vectorStoresArray = vectorStoresArray.filter(store => {
+            // Name filter
+            if (vectorStoreFilters.name && !(store.name || 'Untitled').toLowerCase().includes(vectorStoreFilters.name)) {
+                return false;
+            }
+            // Creation date filter
+            const createdAt = new Date(store.created_at * 1000);
+            if (vectorStoreFilters.startDate && createdAt < vectorStoreFilters.startDate) {
+                return false;
+            }
+            if (vectorStoreFilters.endDate && createdAt > vectorStoreFilters.endDate) {
+                return false;
+            }
+            // Status filter
+            if (vectorStoreFilters.status && store.status !== vectorStoreFilters.status) {
+                return false;
+            }
+            // Has expiration filter
+            const hasExpiration = store.expires_at ? 'true' : 'false';
+            if (vectorStoreFilters.hasExpiration && hasExpiration !== vectorStoreFilters.hasExpiration) {
+                return false;
+            }
+            return true;
+        });
+
+        // Sort
+        vectorStoresArray.sort((a, b) => {
+            let compareResult = 0;
+
+            if (vectorStoreSortField === 'name') {
+                compareResult = (a.name || 'Untitled').localeCompare(b.name || 'Untitled');
+            } else if (vectorStoreSortField === 'created_at') {
+                compareResult = a.created_at - b.created_at;
+            } else if (vectorStoreSortField === 'last_active_at') {
+                compareResult = a.last_active_at - b.last_active_at;
+            }
+
+            return vectorStoreSortOrder === 'asc' ? compareResult : -compareResult;
+        });
+
+        // Display
+        for (const store of vectorStoresArray) {
             const vectorStoreItem = renderVectorStore(store);
-            vectorStoresList.appendChild(vectorStoreItem); // Append each item as it's processed
+            vectorStoresList.appendChild(vectorStoreItem);
         }
+
+        initializeTooltips();
     }
 
     async function fetchVectorStoreFiles(vectorStoreId) {
@@ -1118,6 +1325,20 @@
             console.error('Unexpected error:', error);
         }
     }
+
+    function updateVectorStoreRelatedUI() {
+    // Update the assistant filter dropdown
+    populateAssistantFilterOptions();
+
+    // Re-display assistants to reflect the new vector store
+    displayAssistants();
+
+    // Update all file cards to reflect the updated list of vector stores
+    displayFiles(files);
+
+    // Re-initialize tooltips if necessary
+    initializeTooltips();
+}
 
 
     /* Assistants */
@@ -2038,12 +2259,13 @@
         // Call initializeTooltips on page load
         initializeTooltips();
 
-        // Initialize the sorting dropdown
-        const dropdownElement = document.getElementById('assistantSortDropdown');
-        new bootstrap.Dropdown(dropdownElement);
+        // Initialize sorting dropdowns
+        new bootstrap.Dropdown(document.getElementById('assistantSortDropdown'));
+        new bootstrap.Dropdown(document.getElementById('vectorStoreSortDropdown'));
 
-        // Initialize the filter icon
-        updateFilterIcon();
+        // Initialize filter icons
+        updateFilterIcon('assistantFilterDropdown', assistantFilters);
+        updateFilterIcon('vectorStoreFilterDropdown', vectorStoreFilters);
     });
 
 </script>
