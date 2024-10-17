@@ -91,7 +91,10 @@
             <div class="sticky-top">
                 <div class="mb-2 pb-2 border-bottom">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="lead mb-0">Assistants</h5>
+                        <div class="d-flex align-items-center">
+                            <h5 class="lead mb-0">Assistants</h5>
+                            <span id="assistants-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                        </div>
                         <div>
                             <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-assistants"
                                 data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllAssistants('collapse');"></a>
@@ -197,7 +200,10 @@
             <div class="sticky-top">
                 <div class="mb-2 pb-2 border-bottom">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="lead mb-0">Stores</h5>
+                        <div class="d-flex align-items-center">
+                            <h5 class="lead mb-0">Stores</h5>
+                            <span id="stores-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                        </div>
                         <div>
                             <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-stores"
                                 data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllStores('collapse');"></a>
@@ -929,13 +935,7 @@
 
     function updateFilterIcon(dropdownId, filters) {
         const dropdownElement = document.getElementById(dropdownId);
-        const filtersActive = Object.values(filters).some(value => {
-            if (value instanceof Date) {
-                return true;
-            } else {
-                return value !== '' && value !== null && value !== undefined;
-            }
-        });
+        const filtersActive = areFiltersActive(filters);
 
         if (filtersActive) {
             dropdownElement.classList.remove('bi-funnel');
@@ -946,6 +946,15 @@
         }
     }
 
+    function areFiltersActive(filters) {
+        return Object.values(filters).some(value => {
+            if (value instanceof Date) {
+                return true;
+            } else {
+                return value !== '' && value !== null && value !== undefined;
+            }
+        });
+    }
 
     /* Vector stores */
 
@@ -995,6 +1004,8 @@
         const vectorStoresList = document.getElementById('vector-stores-list');
         vectorStoresList.innerHTML = '';
 
+        const totalStores = Object.values(vectorStores).length;
+
         // Convert to array
         let vectorStoresArray = Object.values(vectorStores);
 
@@ -1023,6 +1034,17 @@
             }
             return true;
         });
+
+        const filteredStoresCount = vectorStoresArray.length;
+
+        // Update the stores count display only if filters are active
+        const storesCountElement = document.getElementById('stores-count');
+        if (areFiltersActive(vectorStoreFilters)) {
+            storesCountElement.textContent = `${filteredStoresCount} results (${totalStores} total)`;
+            storesCountElement.style.display = 'inline';
+        } else {
+            storesCountElement.style.display = 'none';
+        }
 
         // Sort
         vectorStoresArray.sort((a, b) => {
@@ -1448,6 +1470,8 @@
         const assistantsList = document.getElementById('assistants-list');
         assistantsList.innerHTML = ''; // Clear any existing assistants
 
+        const totalAssistants = Object.values(assistants).length;
+
         // Convert the assistants object into an array
         let assistantsArray = Object.values(assistants);
 
@@ -1476,6 +1500,17 @@
             }
             return true;
         });
+
+        const filteredAssistantsCount = assistantsArray.length;
+
+        // Update the assistants count display only if filters are active
+        const assistantsCountElement = document.getElementById('assistants-count');
+        if (areFiltersActive(assistantFilters)) {
+            assistantsCountElement.textContent = `${filteredAssistantsCount} results (${totalAssistants} total)`;
+            assistantsCountElement.style.display = 'inline';
+        } else {
+            assistantsCountElement.style.display = 'none';
+        }
 
         // Sort the array according to the selected sort options
         assistantsArray.sort((a, b) => {
