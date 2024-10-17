@@ -800,8 +800,21 @@
 
     function applyAssistantFilters() {
         assistantFilters.name = document.getElementById('filterName').value.toLowerCase();
-        assistantFilters.startDate = document.getElementById('filterStartDate').value ? new Date(document.getElementById('filterStartDate').value) : null;
-        assistantFilters.endDate = document.getElementById('filterEndDate').value ? new Date(document.getElementById('filterEndDate').value) : null;
+        assistantFilters.startDate = document.getElementById('filterStartDate').value
+            ? new Date(document.getElementById('filterStartDate').value)
+            : null;
+        assistantFilters.endDate = document.getElementById('filterEndDate').value
+            ? new Date(document.getElementById('filterEndDate').value)
+            : null;
+
+        // Adjust dates
+        if (assistantFilters.startDate) {
+            assistantFilters.startDate.setHours(0, 0, 0, 0);
+        }
+        if (assistantFilters.endDate) {
+            assistantFilters.endDate.setHours(23, 59, 59, 999);
+        }
+
         assistantFilters.vectorStoreId = document.getElementById('filterVectorStore').value;
         assistantFilters.model = document.getElementById('filterModel').value;
 
@@ -842,8 +855,21 @@
 
     function applyVectorStoreFilters() {
         vectorStoreFilters.name = document.getElementById('vsFilterName').value.toLowerCase();
-        vectorStoreFilters.startDate = document.getElementById('vsFilterStartDate').value ? new Date(document.getElementById('vsFilterStartDate').value) : null;
-        vectorStoreFilters.endDate = document.getElementById('vsFilterEndDate').value ? new Date(document.getElementById('vsFilterEndDate').value) : null;
+        vectorStoreFilters.startDate = document.getElementById('vsFilterStartDate').value
+            ? new Date(document.getElementById('vsFilterStartDate').value)
+            : null;
+        vectorStoreFilters.endDate = document.getElementById('vsFilterEndDate').value
+            ? new Date(document.getElementById('vsFilterEndDate').value)
+            : null;
+
+        // Adjust dates
+        if (vectorStoreFilters.startDate) {
+            vectorStoreFilters.startDate.setHours(0, 0, 0, 0);
+        }
+        if (vectorStoreFilters.endDate) {
+            vectorStoreFilters.endDate.setHours(23, 59, 59, 999);
+        }
+
         vectorStoreFilters.status = document.getElementById('vsFilterStatus').value;
         vectorStoreFilters.hasExpiration = document.getElementById('vsFilterHasExpiration').value;
 
@@ -897,7 +923,7 @@
         } else if (field === 'created_at') {
             sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
         } else if (field === 'last_active_at') {
-            sortIcon.classList.add('bi-clock-history');
+            sortIcon.classList.add(order === 'asc' ? 'bi-clock-history' : 'bi-clock');
         }
     }
 
