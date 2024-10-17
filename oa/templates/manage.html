@@ -97,9 +97,9 @@
                         </div>
                         <div>
                             <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-assistants"
-                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllAssistants('collapse');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllAssistants('collapse');"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-assistants"
-                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllAssistants('expand');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllAssistants('expand');"></a>
 
                             <!-- Sorting Dropdown -->
                             <div class="dropdown d-inline">
@@ -108,22 +108,22 @@
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="assistantSortDropdown">
                                     <li class="dropdown-header">Sort by</li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('created_at', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('created_at', 'desc', event);">
                                             Created Time (Newest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('created_at', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('created_at', 'asc', event);">
                                             Created Time (Oldest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('name', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('name', 'asc', event);">
                                             Name (A to Z)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('name', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('name', 'desc', event);">
                                             Name (Z to A)
                                         </a>
                                     </li>
@@ -168,17 +168,17 @@
                                         </div>
                                         <!-- Filter Buttons -->
                                         <div class="d-flex justify-content-between mt-3">
-                                            <button type="button" class="btn btn-sm btn-primary" onclick="applyAssistantFilters()">Apply</button>
-                                            <button type="button" class="btn btn-sm btn-secondary" onclick="resetAssistantFilters()">Reset</button>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyAssistantFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetAssistantFilters()">Reset</button>
                                         </div>
                                     </form>
                                 </div>
                             </div>
 
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
-                                onclick="refreshAssistantsList();"
+                                onclick="hideTooltip(this); refreshAssistantsList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
-                            <a href="#" onclick="addAssistant()" class="text-light-emphasis bi bi-plus-lg ms-2"
+                            <a href="#" onclick="hideTooltip(this); addAssistant()" class="text-light-emphasis bi bi-plus-lg ms-2"
                                 data-bs-toggle="tooltip" data-bs-title="Create a new assistant"></a>
                         </div>
                     </div>
@@ -206,9 +206,9 @@
                         </div>
                         <div>
                             <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-stores"
-                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllStores('collapse');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllStores('collapse');"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-stores"
-                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllStores('expand');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllStores('expand');"></a>
 
                             <!-- Sorting Dropdown -->
                             <div class="dropdown d-inline">
@@ -217,32 +217,32 @@
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="vectorStoreSortDropdown">
                                     <li class="dropdown-header">Sort by</li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('created_at', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('created_at', 'desc', event);">
                                             Created Time (Newest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('created_at', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('created_at', 'asc', event);">
                                             Created Time (Oldest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('name', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('name', 'asc', event);">
                                             Name (A to Z)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('name', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('name', 'desc', event);">
                                             Name (Z to A)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('last_active_at', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('last_active_at', 'desc', event);">
                                             Last Active (Newest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setVectorStoreSort('last_active_at', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('last_active_at', 'asc', event);">
                                             Last Active (Oldest First)
                                         </a>
                                     </li>
@@ -289,17 +289,17 @@
                                         </div>
                                         <!-- Filter Buttons -->
                                         <div class="d-flex justify-content-between mt-3">
-                                            <button type="button" class="btn btn-sm btn-primary" onclick="applyVectorStoreFilters()">Apply</button>
-                                            <button type="button" class="btn btn-sm btn-secondary" onclick="resetVectorStoreFilters()">Reset</button>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyVectorStoreFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetVectorStoreFilters()">Reset</button>
                                         </div>
                                     </form>
                                 </div>
                             </div>
 
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
-                                onclick="refreshVSList();"
+                                onclick="hideTooltip(this); refreshVSList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
-                            <a href="#" onclick="addVectorStore();" class="text-light-emphasis bi bi-plus-lg ms-2"
+                            <a href="#" onclick="hideTooltip(this); addVectorStore();" class="text-light-emphasis bi bi-plus-lg ms-2"
                                 data-bs-toggle="tooltip" data-bs-title="Create a new vector store"></a>
                         </div>
                     </div>
@@ -323,17 +323,17 @@
                         <h5 class="lead mb-0">Files</h5>
                         <div>
                             <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-files"
-                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllFiles('collapse');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllFiles('collapse');"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-files"
-                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllFiles('expand');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllFiles('expand');"></a>
                             <a href="#" class="text-light-emphasis bi bi-sort-down ms-2"
                                 data-bs-toggle="tooltip" data-bs-title="Sort options"></a>
                             <a href="#" class="text-light-emphasis bi bi-filter ms-2"
                                 data-bs-toggle="tooltip" data-bs-title="Filter options"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
-                                onclick="refreshFilesList();"
+                                onclick="hideTooltip(this); refreshFilesList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
-                            <a href="#" onclick="showUploadFileModal()" class="text-light-emphasis bi bi-plus-lg ms-2"
+                            <a href="#" onclick="hideTooltip(this); showUploadFileModal()" class="text-light-emphasis bi bi-plus-lg ms-2"
                                 data-bs-toggle="tooltip" data-bs-title="Add files"></a>
                         </div>
                     </div>
@@ -622,6 +622,10 @@
 
     async function refreshAssistantsList() {
         const assistantsList = document.getElementById('assistants-list');
+
+        // Dispose of existing tooltips within the assistants list
+        disposeTooltips(assistantsList);
+
         assistantsList.innerHTML = ''; // Clear any existing assistants
         toggleLoading('assistants', true);
 
@@ -649,6 +653,10 @@
 
     async function refreshVSList() {
         const vectorStoresList = document.getElementById('vector-stores-list');
+
+        // Dispose of existing tooltips within the vector stores list
+        disposeTooltips(vectorStoresList);
+
         vectorStoresList.innerHTML = ''; // Clear any existing vector stores
         toggleLoading('vector-stores', true);
 
@@ -671,8 +679,12 @@
     }
 
     async function refreshFilesList() {
-        const vectorStoresList = document.getElementById('files-list');
-        vectorStoresList.innerHTML = ''; // Clear any existing files
+        const filesList = document.getElementById('files-list');
+
+        // Dispose of existing tooltips within the files list
+        disposeTooltips(filesList);
+
+        filesList.innerHTML = ''; // Clear any existing files
         toggleLoading('files', true);
 
         loadAndDisplayFiles();
@@ -1002,6 +1014,10 @@
 
     function displayVectorStores() {
         const vectorStoresList = document.getElementById('vector-stores-list');
+
+        // Dispose of existing tooltips within the vector stores list
+        disposeTooltips(vectorStoresList);
+
         vectorStoresList.innerHTML = '';
 
         const totalStores = Object.values(vectorStores).length;
@@ -1468,6 +1484,10 @@
 
     function displayAssistants() {
         const assistantsList = document.getElementById('assistants-list');
+
+        // Dispose of existing tooltips within the assistants list
+        disposeTooltips(assistantsList);
+
         assistantsList.innerHTML = ''; // Clear any existing assistants
 
         const totalAssistants = Object.values(assistants).length;
@@ -1531,7 +1551,7 @@
             assistantsList.appendChild(assistantItem);
         }
 
-        // Re-initialize tooltips if necessary
+        // Re-initialize tooltips after updating the DOM
         initializeTooltips();
     }
 
@@ -1791,6 +1811,10 @@
 
     function displayFiles(files) {
         const filesList = document.getElementById('files-list');
+
+        // Dispose of existing tooltips within the files list
+        disposeTooltips(filesList);
+
         filesList.innerHTML = ''; // Clear any existing files
 
         // Iterate over the files object and append each item
@@ -1798,6 +1822,9 @@
             fileItem = renderFile(file);
             filesList.appendChild(fileItem); // Append each file item as it's processed
         }
+
+        // Re-initialize tooltips after updating the DOM
+        initializeTooltips();
     }
 
     let fileVectorStoreChanges = {};
