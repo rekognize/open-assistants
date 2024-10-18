@@ -15,4 +15,11 @@
             new bootstrap.Tooltip(tooltipTriggerEl);
         });
     }
+
+    function hideTooltip(element) {
+        const tooltipInstance = bootstrap.Tooltip.getInstance(element);
+        if (tooltipInstance) {
+            tooltipInstance.hide();
+        }
+    }
 </script>

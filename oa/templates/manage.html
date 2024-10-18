@@ -91,12 +91,16 @@
             <div class="sticky-top">
                 <div class="mb-2 pb-2 border-bottom">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="lead mb-0">Assistants</h5>
+                        <div class="d-flex align-items-center">
+                            <h5 class="lead mb-0">Assistants</h5>
+                            <span id="assistants-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                        </div>
                         <div>
                             <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-assistants"
-                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllAssistants('collapse');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllAssistants('collapse');"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-assistants"
-                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllAssistants('expand');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllAssistants('expand');"></a>
+
                             <!-- Sorting Dropdown -->
                             <div class="dropdown d-inline">
                                 <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="assistantSortDropdown" data-bs-toggle="dropdown"
@@ -104,27 +108,28 @@
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="assistantSortDropdown">
                                     <li class="dropdown-header">Sort by</li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('created_at', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('created_at', 'desc', event);">
                                             Created Time (Newest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('created_at', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('created_at', 'asc', event);">
                                             Created Time (Oldest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('name', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('name', 'asc', event);">
                                             Name (A to Z)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="setAssistantSort('name', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('name', 'desc', event);">
                                             Name (Z to A)
                                         </a>
                                     </li>
                                 </ul>
                             </div>
+
                             <!-- Filter Dropdown -->
                             <div class="dropdown d-inline">
                                 <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="assistantFilterDropdown" data-bs-toggle="dropdown"
@@ -163,16 +168,17 @@
                                         </div>
                                         <!-- Filter Buttons -->
                                         <div class="d-flex justify-content-between mt-3">
-                                            <button type="button" class="btn btn-sm btn-primary" onclick="applyAssistantFilters()">Apply</button>
-                                            <button type="button" class="btn btn-sm btn-secondary" onclick="resetAssistantFilters()">Reset</button>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyAssistantFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetAssistantFilters()">Reset</button>
                                         </div>
                                     </form>
                                 </div>
                             </div>
+
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
-                                onclick="refreshAssistantsList();"
+                                onclick="hideTooltip(this); refreshAssistantsList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
-                            <a href="#" onclick="addAssistant()" class="text-light-emphasis bi bi-plus-lg ms-2"
+                            <a href="#" onclick="hideTooltip(this); addAssistant()" class="text-light-emphasis bi bi-plus-lg ms-2"
                                 data-bs-toggle="tooltip" data-bs-title="Create a new assistant"></a>
                         </div>
                     </div>
@@ -194,20 +200,106 @@
             <div class="sticky-top">
                 <div class="mb-2 pb-2 border-bottom">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="lead mb-0">Stores</h5>
+                        <div class="d-flex align-items-center">
+                            <h5 class="lead mb-0">Stores</h5>
+                            <span id="stores-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                        </div>
                         <div>
                             <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-stores"
-                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllStores('collapse');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllStores('collapse');"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-stores"
-                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllStores('expand');"></a>
-                            <a href="#" class="text-light-emphasis bi bi-sort-down ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Sort options"></a>
-                            <a href="#" class="text-light-emphasis bi bi-filter ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Filter options"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllStores('expand');"></a>
+
+                            <!-- Sorting Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="vectorStoreSortDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="vectorStoreSortDropdown">
+                                    <li class="dropdown-header">Sort by</li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('created_at', 'desc', event);">
+                                            Created Time (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('created_at', 'asc', event);">
+                                            Created Time (Oldest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('name', 'asc', event);">
+                                            Name (A to Z)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('name', 'desc', event);">
+                                            Name (Z to A)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('last_active_at', 'desc', event);">
+                                            Last Active (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('last_active_at', 'asc', event);">
+                                            Last Active (Oldest First)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Filter Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="vectorStoreFilterDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <div class="dropdown-menu p-3" aria-labelledby="vectorStoreFilterDropdown">
+                                    <form id="vectorStoreFilterForm">
+                                        <!-- Name Filter -->
+                                        <div class="mb-2">
+                                            <label for="vsFilterName" class="form-label">Name</label>
+                                            <input type="text" class="form-control form-control-sm" id="vsFilterName" placeholder="Search by name">
+                                        </div>
+                                        <!-- Creation Date Filter -->
+                                        <div class="mb-2">
+                                            <label class="form-label">Creation Date</label>
+                                            <div class="d-flex">
+                                                <input type="date" class="form-control form-control-sm me-1" id="vsFilterStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="vsFilterEndDate">
+                                            </div>
+                                        </div>
+                                        <!-- Status Filter -->
+                                        <div class="mb-2">
+                                            <label for="vsFilterStatus" class="form-label">Status</label>
+                                            <select class="form-select form-select-sm" id="vsFilterStatus">
+                                                <option value="">All</option>
+                                                <option value="completed">Completed</option>
+                                                <option value="in_progress">In Progress</option>
+                                                <option value="expired">Expired</option>
+                                            </select>
+                                        </div>
+                                        <!-- Expiration Filter -->
+                                        <div class="mb-2">
+                                            <label for="vsFilterHasExpiration" class="form-label">Has Expiration</label>
+                                            <select class="form-select form-select-sm" id="vsFilterHasExpiration">
+                                                <option value="">All</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </select>
+                                        </div>
+                                        <!-- Filter Buttons -->
+                                        <div class="d-flex justify-content-between mt-3">
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyVectorStoreFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetVectorStoreFilters()">Reset</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
-                                onclick="refreshVSList();"
+                                onclick="hideTooltip(this); refreshVSList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
-                            <a href="#" onclick="addVectorStore();" class="text-light-emphasis bi bi-plus-lg ms-2"
+                            <a href="#" onclick="hideTooltip(this); addVectorStore();" class="text-light-emphasis bi bi-plus-lg ms-2"
                                 data-bs-toggle="tooltip" data-bs-title="Create a new vector store"></a>
                         </div>
                     </div>
@@ -228,20 +320,103 @@
             <div class="sticky-top">
                 <div class="mb-2 pb-2 border-bottom">
                     <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
                         <h5 class="lead mb-0">Files</h5>
+                            <span id="files-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                        </div>
                         <div>
                             <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-files"
-                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="toggleAllFiles('collapse');"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllFiles('collapse');"></a>
                             <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-files"
-                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="toggleAllFiles('expand');"></a>
-                            <a href="#" class="text-light-emphasis bi bi-sort-down ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Sort options"></a>
-                            <a href="#" class="text-light-emphasis bi bi-filter ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Filter options"></a>
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllFiles('expand');"></a>
+
+                            <!-- Sorting Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="fileSortDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="fileSortDropdown">
+                                    <li class="dropdown-header">Sort by</li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('created_at', 'desc', event);">
+                                            Created Time (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('created_at', 'asc', event);">
+                                            Created Time (Oldest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('filename', 'asc', event);">
+                                            Name (A to Z)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('filename', 'desc', event);">
+                                            Name (Z to A)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('bytes', 'asc', event);">
+                                            Size (Smallest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('bytes', 'desc', event);">
+                                            Size (Largest First)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Filter Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="fileFilterDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <div class="dropdown-menu p-3" aria-labelledby="fileFilterDropdown">
+                                    <form id="fileFilterForm">
+                                        <!-- Name Filter -->
+                                        <div class="mb-2">
+                                            <label for="fileFilterName" class="form-label">Name</label>
+                                            <input type="text" class="form-control form-control-sm" id="fileFilterName" placeholder="Search by name">
+                                        </div>
+                                        <!-- Creation Date Filter -->
+                                        <div class="mb-2">
+                                            <label class="form-label">Creation Date</label>
+                                            <div class="d-flex">
+                                                <input type="date" class="form-control form-control-sm me-1" id="fileFilterStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="fileFilterEndDate">
+                                            </div>
+                                        </div>
+                                        <!-- Vector Store Filter -->
+                                        <div class="mb-2">
+                                            <label for="fileFilterVectorStore" class="form-label">Vector Store</label>
+                                            <select class="form-select form-select-sm" id="fileFilterVectorStore">
+                                                <option value="">All</option>
+                                                <!-- Options will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <!-- File Type Filter -->
+                                        <div class="mb-2">
+                                            <label for="fileFilterType" class="form-label">File Type</label>
+                                            <select class="form-select form-select-sm" id="fileFilterType">
+                                                <option value="">All</option>
+                                                <!-- Options will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <!-- Filter Buttons -->
+                                        <div class="d-flex justify-content-between mt-3">
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyFileFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetFileFilters()">Reset</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
-                                onclick="refreshFilesList();"
+                                onclick="hideTooltip(this); refreshFilesList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
-                            <a href="#" onclick="showUploadFileModal()" class="text-light-emphasis bi bi-plus-lg ms-2"
+                            <a href="#" onclick="hideTooltip(this); showUploadFileModal()" class="text-light-emphasis bi bi-plus-lg ms-2"
                                 data-bs-toggle="tooltip" data-bs-title="Add files"></a>
                         </div>
                     </div>
@@ -260,7 +435,7 @@
 </div>
 
 {% include "modals/file_upload_modal.html" %}
-{% include "modals/vector_store_deletion_confirmation_modal.html" %}
+{% include "modals/deletion_confirmation_modals.html" %}
 
 {% endblock %}
 
@@ -460,6 +635,9 @@
     let vectorStoreFiles = {};  // {vsId: [file1, file2, ...]}
     let fileVectorStores = {};  // {fileId: [vs1, vs2, ...]}
     let selectedFiles = [];
+
+    // Global variables for sorting and filtering
+
     let assistantSortField = 'created_at'; // default sort field
     let assistantSortOrder = 'desc';       // default sort order
     let assistantFilters = {
@@ -468,6 +646,24 @@
         endDate: null,
         vectorStoreId: '',
         model: ''
+    };
+    let vectorStoreSortField = 'created_at'; // default sort field
+    let vectorStoreSortOrder = 'desc';       // default sort order
+    let vectorStoreFilters = {
+        name: '',
+        startDate: null,
+        endDate: null,
+        status: '',
+        hasExpiration: ''
+    };
+    let fileSortField = 'created_at'; // default sort field
+    let fileSortOrder = 'desc';       // default sort order
+    let fileFilters = {
+        name: '',
+        startDate: null,
+        endDate: null,
+        vectorStoreId: '',
+        fileType: ''
     };
 
 
@@ -494,7 +690,8 @@
 
     async function loadAndDisplayFiles() {
         const files = await fetchFiles();
-        displayFiles(files);
+        displayFiles();
+        populateFileFilterOptions();
     }
 
     // Orchestrate the flow
@@ -505,7 +702,7 @@
         toggleLoading('files', true);
 
         vectorStores = await loadAndDisplayVectorStores();
-        populateVectorStoreFilterOptions();
+        populateAssistantFilterOptions();
         loadAndDisplayAssistants();  // Runs in parallel with loadAllVectorStoreFiles
         await loadAllVectorStoreFiles();
         loadAndDisplayFiles();
@@ -518,17 +715,17 @@
 
     async function refreshAssistantsList() {
         const assistantsList = document.getElementById('assistants-list');
-        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
-        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
+
+        // Dispose of existing tooltips within the assistants list
+        disposeTooltips(assistantsList);
+
         assistantsList.innerHTML = ''; // Clear any existing assistants
         toggleLoading('assistants', true);
 
         // Reset to default sorting options
         assistantSortField = 'created_at';
         assistantSortOrder = 'desc';
-
-        // Update the sorting icon and active class
-        updateSortDropdownUI(assistantSortField, assistantSortOrder);
+        updateSortDropdownUI('assistantSortDropdown', assistantSortField, assistantSortOrder);
 
         // Close the sorting dropdown if open
         const dropdownElement = document.getElementById('assistantSortDropdown');
@@ -541,32 +738,65 @@
         loadAndDisplayAssistants();
 
         // Refresh collapse all button
+        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
+        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
         btnCollapseAllAssistants.classList.remove('d-none');
         btnExpandAllAssistants.classList.add('d-none');
     }
 
     async function refreshVSList() {
         const vectorStoresList = document.getElementById('vector-stores-list');
-        const btnCollapseAllStores = document.getElementById('collapse-all-stores');
-        const btnExpandAllStores = document.getElementById('expand-all-stores');
+
+        // Dispose of existing tooltips within the vector stores list
+        disposeTooltips(vectorStoresList);
+
         vectorStoresList.innerHTML = ''; // Clear any existing vector stores
         toggleLoading('vector-stores', true);
+
+        // Reset to default sorting options
+        vectorStoreSortField = 'created_at';
+        vectorStoreSortOrder = 'desc';
+        updateSortDropdownUI('vectorStoreSortDropdown', vectorStoreSortField, vectorStoreSortOrder);
+
+        // Fetch and display
         await loadAndDisplayVectorStores();
-        populateVectorStoreFilterOptions();
+        populateAssistantFilterOptions();
+
         // Refresh collapse all button
+        const btnCollapseAllStores = document.getElementById('collapse-all-stores');
+        const btnExpandAllStores = document.getElementById('expand-all-stores');
         btnCollapseAllStores.classList.remove('d-none');
         btnExpandAllStores.classList.add('d-none');
+
         loadAllVectorStoreFiles(); // Also refresh vector store files
     }
 
     async function refreshFilesList() {
-        const vectorStoresList = document.getElementById('files-list');
+        const filesList = document.getElementById('files-list');
+
+        // Dispose of existing tooltips within the files list
+        disposeTooltips(filesList);
+
+        filesList.innerHTML = ''; // Clear any existing files
+        toggleLoading('files', true);
+
+        // Reset to default sorting options
+        fileSortField = 'created_at';
+        fileSortOrder = 'desc';
+        updateSortDropdownUI('fileSortDropdown', fileSortField, fileSortOrder);
+
+        // Close the sorting dropdown if open
+        const dropdownElement = document.getElementById('fileSortDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        loadAndDisplayFiles();
+
+        // Refresh collapse all button
         const btnCollapseAllFiles = document.getElementById('collapse-all-files');
         const btnExpandAllFiles = document.getElementById('expand-all-files');
-        vectorStoresList.innerHTML = ''; // Clear any existing files
-        toggleLoading('files', true);
-        loadAndDisplayFiles();
-        // Refresh collapse all button
         btnCollapseAllFiles.classList.remove('d-none');
         btnExpandAllFiles.classList.add('d-none');
     }
@@ -633,14 +863,12 @@
 
     function setAssistantSort(field, order, event) {
         if (event) event.preventDefault(); // Prevent default anchor behavior
-        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
-        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
 
         assistantSortField = field;
         assistantSortOrder = order;
 
         // Update the active class on the dropdown menu items
-        updateSortDropdownUI(field, order);
+        updateSortDropdownUI('assistantSortDropdown', field, order);
 
         displayAssistants(); // Re-display assistants with new sort order
 
@@ -651,48 +879,78 @@
             dropdownInstance.hide();
 
         // Refresh collapse all button
+        const btnCollapseAllAssistants = document.getElementById('collapse-all-assistants');
+        const btnExpandAllAssistants = document.getElementById('expand-all-assistants');
         btnCollapseAllAssistants.classList.remove('d-none');
         btnExpandAllAssistants.classList.add('d-none');
         }
     }
 
-    function updateSortDropdownUI(field, order) {
-        // Remove 'active' class from all dropdown items
-        const dropdownItems = document.querySelectorAll('#assistantSortDropdown + .dropdown-menu .dropdown-item');
-        dropdownItems.forEach(item => item.classList.remove('active'));
+    function setVectorStoreSort(field, order, event) {
+        if (event) event.preventDefault();
 
-        // Add 'active' class to the selected item
-        const selectedItem = document.querySelector(`#assistantSortDropdown + .dropdown-menu .dropdown-item[href*="${field}"][href*="${order}"]`);
-        if (selectedItem) {
-            selectedItem.classList.add('active');
+        vectorStoreSortField = field;
+        vectorStoreSortOrder = order;
+
+        updateSortDropdownUI('vectorStoreSortDropdown', field, order);
+
+        displayVectorStores();
+
+        const dropdownElement = document.getElementById('vectorStoreSortDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
         }
 
-        // Optionally, update the sort icon to reflect current sorting
-        const sortIcon = document.getElementById('assistantSortDropdown');
-        sortIcon.className = 'text-light-emphasis bi ms-2';
-        if (field === 'name') {
-            sortIcon.classList.add(order === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-down-alt');
-        } else if (field === 'created_at') {
-            sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
-        }
+        // Refresh collapse all button
+        const btnCollapseAllStores = document.getElementById('collapse-all-stores');
+        const btnExpandAllStores = document.getElementById('expand-all-stores');
+        btnCollapseAllStores.classList.remove('d-none');
+        btnExpandAllStores.classList.add('d-none');
     }
 
-    function populateVectorStoreFilterOptions() {
-        const filterVectorStore = document.getElementById('filterVectorStore');
-        filterVectorStore.innerHTML = '<option value="">All</option>'; // Reset options
+    function setFileSort(field, order, event) {
+        if (event) event.preventDefault();
 
-        for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
-            const option = document.createElement('option');
-            option.value = vsId;
-            option.textContent = vectorStore.name ?? 'Untitled';
-            filterVectorStore.appendChild(option);
+        fileSortField = field;
+        fileSortOrder = order;
+
+        // Update the active class on the dropdown menu items
+        updateSortDropdownUI('fileSortDropdown', field, order);
+
+        displayFiles(); // Re-display files with new sort order
+
+        // Close the dropdown menu
+        const dropdownElement = document.getElementById('fileSortDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
         }
+
+        // Refresh collapse all button
+        const btnCollapseAllFiles = document.getElementById('collapse-all-files');
+        const btnExpandAllFiles = document.getElementById('expand-all-files');
+        btnCollapseAllFiles.classList.remove('d-none');
+        btnExpandAllFiles.classList.add('d-none');
     }
 
     function applyAssistantFilters() {
         assistantFilters.name = document.getElementById('filterName').value.toLowerCase();
-        assistantFilters.startDate = document.getElementById('filterStartDate').value ? new Date(document.getElementById('filterStartDate').value) : null;
-        assistantFilters.endDate = document.getElementById('filterEndDate').value ? new Date(document.getElementById('filterEndDate').value) : null;
+        assistantFilters.startDate = document.getElementById('filterStartDate').value
+            ? new Date(document.getElementById('filterStartDate').value)
+            : null;
+        assistantFilters.endDate = document.getElementById('filterEndDate').value
+            ? new Date(document.getElementById('filterEndDate').value)
+            : null;
+
+        // Adjust dates
+        if (assistantFilters.startDate) {
+            assistantFilters.startDate.setHours(0, 0, 0, 0);
+        }
+        if (assistantFilters.endDate) {
+            assistantFilters.endDate.setHours(23, 59, 59, 999);
+        }
+
         assistantFilters.vectorStoreId = document.getElementById('filterVectorStore').value;
         assistantFilters.model = document.getElementById('filterModel').value;
 
@@ -706,7 +964,7 @@
         }
 
         // Update the filter icon based on active filters
-        updateFilterIcon();
+        updateFilterIcon('assistantFilterDropdown', assistantFilters);
     }
 
     function resetAssistantFilters() {
@@ -728,13 +986,182 @@
         }
 
         // Update the filter icon to reflect no active filters
-        updateFilterIcon();
+        updateFilterIcon('assistantFilterDropdown', assistantFilters);
     }
 
-    function updateFilterIcon() {
-        const dropdownElement = document.getElementById('assistantFilterDropdown');
-        // Check if any filters are active
-        const filtersActive = assistantFilters.name || assistantFilters.startDate || assistantFilters.endDate || assistantFilters.vectorStoreId || assistantFilters.model;
+    function applyVectorStoreFilters() {
+        vectorStoreFilters.name = document.getElementById('vsFilterName').value.toLowerCase();
+        vectorStoreFilters.startDate = document.getElementById('vsFilterStartDate').value
+            ? new Date(document.getElementById('vsFilterStartDate').value)
+            : null;
+        vectorStoreFilters.endDate = document.getElementById('vsFilterEndDate').value
+            ? new Date(document.getElementById('vsFilterEndDate').value)
+            : null;
+
+        // Adjust dates
+        if (vectorStoreFilters.startDate) {
+            vectorStoreFilters.startDate.setHours(0, 0, 0, 0);
+        }
+        if (vectorStoreFilters.endDate) {
+            vectorStoreFilters.endDate.setHours(23, 59, 59, 999);
+        }
+
+        vectorStoreFilters.status = document.getElementById('vsFilterStatus').value;
+        vectorStoreFilters.hasExpiration = document.getElementById('vsFilterHasExpiration').value;
+
+        displayVectorStores();
+
+        const dropdownElement = document.getElementById('vectorStoreFilterDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        updateFilterIcon('vectorStoreFilterDropdown', vectorStoreFilters);
+    }
+
+    function resetVectorStoreFilters() {
+        document.getElementById('vectorStoreFilterForm').reset();
+        vectorStoreFilters = {
+            name: '',
+            startDate: null,
+            endDate: null,
+            status: '',
+            hasExpiration: ''
+        };
+        displayVectorStores();
+
+        const dropdownElement = document.getElementById('vectorStoreFilterDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        updateFilterIcon('vectorStoreFilterDropdown', vectorStoreFilters);
+    }
+
+    function applyFileFilters() {
+        fileFilters.name = document.getElementById('fileFilterName').value.toLowerCase();
+        fileFilters.startDate = document.getElementById('fileFilterStartDate').value
+            ? new Date(document.getElementById('fileFilterStartDate').value)
+            : null;
+        fileFilters.endDate = document.getElementById('fileFilterEndDate').value
+            ? new Date(document.getElementById('fileFilterEndDate').value)
+            : null;
+
+        // Adjust dates
+        if (fileFilters.startDate) {
+            fileFilters.startDate.setHours(0, 0, 0, 0);
+        }
+        if (fileFilters.endDate) {
+            fileFilters.endDate.setHours(23, 59, 59, 999);
+        }
+
+        fileFilters.vectorStoreId = document.getElementById('fileFilterVectorStore').value;
+        fileFilters.fileType = document.getElementById('fileFilterType').value;
+
+        displayFiles(); // Re-display files with filters applied
+
+        // Close the dropdown menu
+        const dropdownElement = document.getElementById('fileFilterDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        // Update the filter icon based on active filters
+        updateFilterIcon('fileFilterDropdown', fileFilters);
+    }
+
+    function resetFileFilters() {
+        document.getElementById('fileFilterForm').reset();
+        fileFilters = {
+            name: '',
+            startDate: null,
+            endDate: null,
+            vectorStoreId: '',
+            fileType: ''
+        };
+        displayFiles();
+
+        // Close the dropdown menu
+        const dropdownElement = document.getElementById('fileFilterDropdown');
+        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+        if (dropdownInstance) {
+            dropdownInstance.hide();
+        }
+
+        // Update the filter icon to reflect no active filters
+        updateFilterIcon('fileFilterDropdown', fileFilters);
+    }
+
+    function populateAssistantFilterOptions() {
+        const filterVectorStore = document.getElementById('filterVectorStore');
+        filterVectorStore.innerHTML = '<option value="">All</option>'; // Reset options
+
+        for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
+            const option = document.createElement('option');
+            option.value = vsId;
+            option.textContent = vectorStore.name ?? 'Untitled';
+            filterVectorStore.appendChild(option);
+        }
+    }
+
+    function populateFileFilterOptions() {
+        const filterVectorStore = document.getElementById('fileFilterVectorStore');
+        filterVectorStore.innerHTML = '<option value="">All</option>'; // Reset options
+
+        for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
+            const option = document.createElement('option');
+            option.value = vsId;
+            option.textContent = vectorStore.name ?? 'Untitled';
+            filterVectorStore.appendChild(option);
+        }
+
+        // Populate file types
+        const filterFileType = document.getElementById('fileFilterType');
+        filterFileType.innerHTML = '<option value="">All</option>'; // Reset options
+
+        const fileTypes = new Set();
+        for (const file of Object.values(files)) {
+            fileTypes.add(getFileType(file.filename));
+        }
+        for (const fileType of fileTypes) {
+            const option = document.createElement('option');
+            option.value = fileType;
+            option.textContent = fileType.toUpperCase();
+            filterFileType.appendChild(option);
+        }
+    }
+
+    function updateSortDropdownUI(dropdownId, field, order) {
+        // Remove 'active' class from all dropdown items
+        const dropdownItems = document.querySelectorAll(`#${dropdownId} + .dropdown-menu .dropdown-item`);
+        dropdownItems.forEach(item => item.classList.remove('active'));
+
+        // Add 'active' class to the selected item
+        const selectedItem = document.querySelector(`#${dropdownId} + .dropdown-menu .dropdown-item[href*="${field}"][href*="${order}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('active');
+        }
+
+        // Update the sort icon
+        const sortIcon = document.getElementById(dropdownId);
+        sortIcon.className = 'text-light-emphasis bi ms-2';
+        if (field === 'name' || field === 'filename') {
+            sortIcon.classList.add(order === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-down-alt');
+        } else if (field === 'created_at') {
+            sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
+        } else if (field === 'size' || field === 'bytes') {
+            sortIcon.classList.add(order === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-down-alt');
+        } else if (field === 'last_active_at') {
+            sortIcon.classList.add(order === 'asc' ? 'bi-clock-history' : 'bi-clock');
+        }
+    }
+
+    function updateFilterIcon(dropdownId, filters) {
+        const dropdownElement = document.getElementById(dropdownId);
+        const filtersActive = areFiltersActive(filters);
 
         if (filtersActive) {
             dropdownElement.classList.remove('bi-funnel');
@@ -743,6 +1170,21 @@
             dropdownElement.classList.remove('bi-funnel-fill');
             dropdownElement.classList.add('bi-funnel');
         }
+    }
+
+    function areFiltersActive(filters) {
+        return Object.values(filters).some(value => {
+            if (value instanceof Date) {
+                return true;
+            } else {
+                return value !== '' && value !== null && value !== undefined;
+            }
+        });
+    }
+
+    function getFileType(filename) {
+        const extension = filename.split('.').pop().toLowerCase();
+        return extension;
     }
 
 
@@ -790,15 +1232,78 @@
         return vectorStoreItem;
     }
 
-    function displayVectorStores(vectorStores) {
+    function displayVectorStores() {
         const vectorStoresList = document.getElementById('vector-stores-list');
-        vectorStoresList.innerHTML = ''; // Clear any existing vector stores
 
-        // Iterate over the vectorStores object and append each item
-        for (const [id, store] of Object.entries(vectorStores)) {
-            const vectorStoreItem = renderVectorStore(store);
-            vectorStoresList.appendChild(vectorStoreItem); // Append each item as it's processed
+        // Dispose of existing tooltips within the vector stores list
+        disposeTooltips(vectorStoresList);
+
+        vectorStoresList.innerHTML = '';
+
+        const totalStores = Object.values(vectorStores).length;
+
+        // Convert to array
+        let vectorStoresArray = Object.values(vectorStores);
+
+        // Apply filters
+        vectorStoresArray = vectorStoresArray.filter(store => {
+            // Name filter
+            if (vectorStoreFilters.name && !(store.name || 'Untitled').toLowerCase().includes(vectorStoreFilters.name)) {
+                return false;
+            }
+            // Creation date filter
+            const createdAt = new Date(store.created_at * 1000);
+            if (vectorStoreFilters.startDate && createdAt < vectorStoreFilters.startDate) {
+                return false;
+            }
+            if (vectorStoreFilters.endDate && createdAt > vectorStoreFilters.endDate) {
+                return false;
+            }
+            // Status filter
+            if (vectorStoreFilters.status && store.status !== vectorStoreFilters.status) {
+                return false;
+            }
+            // Has expiration filter
+            const hasExpiration = store.expires_at ? 'true' : 'false';
+            if (vectorStoreFilters.hasExpiration && hasExpiration !== vectorStoreFilters.hasExpiration) {
+                return false;
+            }
+            return true;
+        });
+
+        const filteredStoresCount = vectorStoresArray.length;
+
+        // Update the stores count display only if filters are active
+        const storesCountElement = document.getElementById('stores-count');
+        if (areFiltersActive(vectorStoreFilters)) {
+            storesCountElement.textContent = `${filteredStoresCount} results (${totalStores} total)`;
+            storesCountElement.style.display = 'inline';
+        } else {
+            storesCountElement.style.display = 'none';
         }
+
+        // Sort
+        vectorStoresArray.sort((a, b) => {
+            let compareResult = 0;
+
+            if (vectorStoreSortField === 'name') {
+                compareResult = (a.name || 'Untitled').localeCompare(b.name || 'Untitled');
+            } else if (vectorStoreSortField === 'created_at') {
+                compareResult = a.created_at - b.created_at;
+            } else if (vectorStoreSortField === 'last_active_at') {
+                compareResult = a.last_active_at - b.last_active_at;
+            }
+
+            return vectorStoreSortOrder === 'asc' ? compareResult : -compareResult;
+        });
+
+        // Display
+        for (const store of vectorStoresArray) {
+            const vectorStoreItem = renderVectorStore(store);
+            vectorStoresList.appendChild(vectorStoreItem);
+        }
+
+        initializeTooltips();
     }
 
     async function fetchVectorStoreFiles(vectorStoreId) {
@@ -918,6 +1423,9 @@
                 } else {
                     vectorStoresList.appendChild(vectorStoreItem);
                 }
+
+                // Update related UI elements
+                updateVectorStoreRelatedUI();
             } else {
                 const errorData = await response.json();
                 const parsedError = parseErrorText(errorData.error);
@@ -971,14 +1479,11 @@
                 // Update the global vectorStores object
                 vectorStores[vectorStoreId] = data;
 
-                // Update the filter dropdown
-                populateVectorStoreFilterOptions();
-
-                // Re-display assistants to reflect the updated vector store name
-                displayAssistants();
-
                 // Update the vector store card
                 updateVectorStoreInfo(vectorStoreId, data);
+
+                // Update related UI elements
+                updateVectorStoreRelatedUI();
 
                 toggleEditMode(vectorStoreId);
             } else {
@@ -1026,9 +1531,14 @@
         // Update the modal content
         const assistantsListElement = document.getElementById('assistantNamesList');
         const assistantsUsingVectorStoreDiv = document.getElementById('assistantsUsingVectorStore');
+        const vectorStoreInfo = document.getElementById('vectorStoreInfo');
 
         // Clear previous list
         assistantsListElement.innerHTML = '';
+
+        // Add vector store info
+        vectorStoreInfo.textContent = '';
+        vectorStoreInfo.textContent = vectorStores[vectorStoreId].name;
 
         if (assistantsUsingVS.length > 0) {
             // Show the list of assistants
@@ -1055,6 +1565,7 @@
         const vectorStoreId = vectorStoreToDeleteId;
         const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
         const url = "{% url 'api-1.0.0:delete_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}".replace('VS_ID_PLACEHOLDER', vectorStoreId);
+        const vectorStoreName = vectorStores[vectorStoreId].name;
 
         // Hide the modal
         const deleteModal = bootstrap.Modal.getInstance(document.getElementById('vectorStoreDeleteModal'));
@@ -1073,16 +1584,25 @@
                 // Remove the vector store from the global vectorStores object
                 delete vectorStores[vectorStoreId];
 
-                // Update the filter dropdown
-                populateVectorStoreFilterOptions();
+                // Update file-vector store associations
+                const associatedFiles = vectorStoreFiles[vectorStoreId] || [];
+                associatedFiles.forEach(fileId => {
+                    // Remove vectorStoreId from fileVectorStores[fileId]
+                    if (fileVectorStores[fileId]) {
+                        fileVectorStores[fileId] = fileVectorStores[fileId].filter(id => id !== vectorStoreId);
+                    }
+                });
 
-                // Re-display assistants
-                displayAssistants();
+                // Remove the vector store from vectorStoreFiles
+                delete vectorStoreFiles[vectorStoreId];
 
                 // Remove the card from UI
                 vectorStoreCard.remove();
 
-                showToast("Vector store deleted!", vectorStoreId, "success");
+                // Update related UI elements
+                updateVectorStoreRelatedUI();
+
+                showToast("Vector store deleted!", vectorStoreName, "success");
                 console.log(`Vector Store with ID ${vectorStoreId} deleted successfully.`);
             } else {
                 const errorData = await response.json();
@@ -1094,6 +1614,23 @@
             showToast("Unexpected error:", error);
             console.error('Unexpected error:', error);
         }
+    }
+
+    function updateVectorStoreRelatedUI() {
+        // Update the assistant filter dropdown
+        populateAssistantFilterOptions();
+
+        // Update the file filter dropdown
+        populateFileFilterOptions();
+
+        // Re-display assistants to reflect the new vector store
+        displayAssistants();
+
+        // Update all file cards to reflect the updated list of vector stores
+        displayFiles();
+
+        // Re-initialize tooltips if necessary
+        initializeTooltips();
     }
 
 
@@ -1176,7 +1713,13 @@
 
     function displayAssistants() {
         const assistantsList = document.getElementById('assistants-list');
+
+        // Dispose of existing tooltips within the assistants list
+        disposeTooltips(assistantsList);
+
         assistantsList.innerHTML = ''; // Clear any existing assistants
+
+        const totalAssistants = Object.values(assistants).length;
 
         // Convert the assistants object into an array
         let assistantsArray = Object.values(assistants);
@@ -1207,6 +1750,17 @@
             return true;
         });
 
+        const filteredAssistantsCount = assistantsArray.length;
+
+        // Update the assistants count display only if filters are active
+        const assistantsCountElement = document.getElementById('assistants-count');
+        if (areFiltersActive(assistantFilters)) {
+            assistantsCountElement.textContent = `${filteredAssistantsCount} results (${totalAssistants} total)`;
+            assistantsCountElement.style.display = 'inline';
+        } else {
+            assistantsCountElement.style.display = 'none';
+        }
+
         // Sort the array according to the selected sort options
         assistantsArray.sort((a, b) => {
             let compareResult = 0;
@@ -1226,7 +1780,7 @@
             assistantsList.appendChild(assistantItem);
         }
 
-        // Re-initialize tooltips if necessary
+        // Re-initialize tooltips after updating the DOM
         initializeTooltips();
     }
 
@@ -1366,6 +1920,9 @@
             if (response.ok) {
                 const data = await response.json();
 
+                // Update the global assistants object
+                assistants[assistantId] = data;
+
                 updateAssistantInfo(assistantId, data);
 
                 toggleEditMode(assistantId);
@@ -1397,14 +1954,35 @@
         toggleEditMode(assistantId);
     }
 
+    let assistantToDeleteId = null; // To store the ID of the assistant to delete
+
     async function deleteAssistant(assistantId) {
+        assistantToDeleteId = assistantId; // Store the assistant ID for use in the confirm deletion function
+
+        const assistantInfo = document.getElementById('assistantInfo');
+
+        // Add assistant info
+        assistantInfo.textContent = '';
+        assistantInfo.textContent = assistants[assistantId].name;
+
+        // Show the modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('assistantDeleteModal'));
+        deleteModal.show();
+
+        // Attach event listener to the confirm delete button
+        const confirmDeleteBtn = document.getElementById('confirmDeleteAssistantBtn');
+        confirmDeleteBtn.onclick = confirmDeleteAssistant;
+    }
+
+    async function confirmDeleteAssistant() {
+        const assistantId = assistantToDeleteId;
         const assistantCard = document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
         const url = "{% url 'api-1.0.0:delete_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}".replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+        const assistantName = assistants[assistantId].name;
 
-        // Show a confirmation dialog
-        if (!confirm('Are you sure you want to delete this assistant?')) {
-            return;
-        }
+        // Hide the modal
+        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('assistantDeleteModal'));
+        deleteModal.hide();
 
         try {
             const response = await fetch(url, {
@@ -1416,10 +1994,13 @@
             });
 
             if (response.ok) {
-                // If the API call is successful, remove the assistant card from the UI
+                // Remove the assistant from the global assistants object
+                delete assistants[assistantId];
+
+                // Remove the card from UI
                 assistantCard.remove();
-                // Update client-side state
-                delete(assistants[assistantId])
+
+                showToast("Assistant deleted!", assistantName, "success");
                 console.log(`Assistant with ID ${assistantId} deleted successfully.`);
             } else {
                 const errorData = await response.json();
@@ -1484,15 +2065,80 @@
         return fileItem;
     }
 
-    function displayFiles(files) {
+    function displayFiles() {
         const filesList = document.getElementById('files-list');
+
+        // Dispose of existing tooltips within the files list
+        disposeTooltips(filesList);
+
         filesList.innerHTML = ''; // Clear any existing files
 
-        // Iterate over the files object and append each item
-        for (const [id, file] of Object.entries(files)) {
-            fileItem = renderFile(file);
-            filesList.appendChild(fileItem); // Append each file item as it's processed
+        const totalFiles = Object.values(files).length;
+
+        // Convert the files object into an array
+        let filesArray = Object.values(files);
+
+        // Apply filters
+        filesArray = filesArray.filter(file => {
+            // Filter by name
+            if (fileFilters.name && !file.filename.toLowerCase().includes(fileFilters.name)) {
+                return false;
+            }
+            // Filter by creation date
+            const fileDate = new Date(file.created_at * 1000);
+            if (fileFilters.startDate && fileDate < fileFilters.startDate) {
+                return false;
+            }
+            if (fileFilters.endDate && fileDate > fileFilters.endDate) {
+                return false;
+            }
+            // Filter by vector store
+            const assignedVsIds = fileVectorStores[file.id] || [];
+            if (fileFilters.vectorStoreId && !assignedVsIds.includes(fileFilters.vectorStoreId)) {
+                return false;
+            }
+            // Filter by file type
+            const fileType = getFileType(file.filename);
+            if (fileFilters.fileType && fileType !== fileFilters.fileType) {
+                return false;
+            }
+            return true;
+        });
+
+        const filteredFilesCount = filesArray.length;
+
+        // Update the files count display only if filters are active
+        const filesCountElement = document.getElementById('files-count');
+        if (areFiltersActive(fileFilters)) {
+            filesCountElement.textContent = `${filteredFilesCount} results (${totalFiles} total)`;
+            filesCountElement.style.display = 'inline';
+        } else {
+            filesCountElement.style.display = 'none';
         }
+
+        // Sort the array according to the selected sort options
+        filesArray.sort((a, b) => {
+            let compareResult = 0;
+
+            if (fileSortField === 'filename') {
+                compareResult = a.filename.localeCompare(b.filename);
+            } else if (fileSortField === 'created_at') {
+                compareResult = a.created_at - b.created_at;
+            } else if (fileSortField === 'bytes') {
+                compareResult = a.bytes - b.bytes;
+            }
+
+            return fileSortOrder === 'asc' ? compareResult : -compareResult;
+        });
+
+        // Iterate over the sorted and filtered array and append each item
+        for (const file of filesArray) {
+            const fileItem = renderFile(file);
+            filesList.appendChild(fileItem);
+        }
+
+        // Re-initialize tooltips after updating the DOM
+        initializeTooltips();
     }
 
     let fileVectorStoreChanges = {};
@@ -1969,14 +2615,18 @@
                 console.log('vectorStoreFiles:', vectorStoreFiles);
 
                 // Display the updated files, keeping existing files intact
-                displayFiles(files);  // Re-render the entire file list based on the global `files`
+                displayFiles();  // Re-render the entire file list based on the global `files`
 
                 // Hide the modal after successful upload
                 const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
                 modal.hide();
 
-                showToast("Files uploaded!", uploadedFilenames, "success");
-                showToast("Failed to upload!", failedFilenames, "danger");
+                if (uploadedFilenames) {
+                    showToast("Files uploaded!", uploadedFilenames, "success");
+                }
+                if (failedFilenames) {
+                    showToast("Failed to upload!", failedFilenames, "danger");
+                }
 
                 // Clear the file input and reset the form
                 selectedFiles = [];
@@ -2011,12 +2661,15 @@
         // Call initializeTooltips on page load
         initializeTooltips();
 
-        // Initialize the sorting dropdown
-        const dropdownElement = document.getElementById('assistantSortDropdown');
-        new bootstrap.Dropdown(dropdownElement);
+        // Initialize sorting dropdowns
+        new bootstrap.Dropdown(document.getElementById('assistantSortDropdown'));
+        new bootstrap.Dropdown(document.getElementById('vectorStoreSortDropdown'));
+        new bootstrap.Dropdown(document.getElementById('fileSortDropdown'));
 
-        // Initialize the filter icon
-        updateFilterIcon();
+        // Initialize filter icons
+        updateFilterIcon('assistantFilterDropdown', assistantFilters);
+        updateFilterIcon('vectorStoreFilterDropdown', vectorStoreFilters);
+        updateFilterIcon('fileFilterDropdown', fileFilters);
     });
 
 </script>
