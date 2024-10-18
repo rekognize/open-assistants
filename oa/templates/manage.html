@@ -1697,6 +1697,9 @@
             if (response.ok) {
                 const data = await response.json();
 
+                // Update the global assistants object
+                assistants[assistantId] = data;
+
                 updateAssistantInfo(assistantId, data);
 
                 toggleEditMode(assistantId);
