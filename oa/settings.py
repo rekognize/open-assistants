@@ -213,6 +213,10 @@ AUTHENTICATION_BACKENDS = [
 SESAME_MAX_AGE = 300
 
 
+STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+
+
 try:
     from settings_local import *
 except ImportError:
