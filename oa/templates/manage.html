@@ -352,7 +352,7 @@
 </div>
 
 {% include "modals/file_upload_modal.html" %}
-{% include "modals/vector_store_deletion_confirmation_modal.html" %}
+{% include "modals/deletion_confirmation_modals.html" %}
 
 {% endblock %}
 
@@ -1311,9 +1311,14 @@
         // Update the modal content
         const assistantsListElement = document.getElementById('assistantNamesList');
         const assistantsUsingVectorStoreDiv = document.getElementById('assistantsUsingVectorStore');
+        const vectorStoreInfo = document.getElementById('vectorStoreInfo');
 
         // Clear previous list
         assistantsListElement.innerHTML = '';
+
+        // Add vector store info
+        vectorStoreInfo.textContent = '';
+        vectorStoreInfo.textContent = vectorStores[vectorStoreId].name;
 
         if (assistantsUsingVS.length > 0) {
             // Show the list of assistants
@@ -1340,6 +1345,7 @@
         const vectorStoreId = vectorStoreToDeleteId;
         const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
         const url = "{% url 'api-1.0.0:delete_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}".replace('VS_ID_PLACEHOLDER', vectorStoreId);
+        const vectorStoreName = vectorStores[vectorStoreId].name;
 
         // Hide the modal
         const deleteModal = bootstrap.Modal.getInstance(document.getElementById('vectorStoreDeleteModal'));
@@ -1376,7 +1382,7 @@
                 // Update related UI elements
                 updateVectorStoreRelatedUI();
 
-                showToast("Vector store deleted!", vectorStoreId, "success");
+                showToast("Vector store deleted!", vectorStoreName, "success");
                 console.log(`Vector Store with ID ${vectorStoreId} deleted successfully.`);
             } else {
                 const errorData = await response.json();
@@ -1722,14 +1728,35 @@
         toggleEditMode(assistantId);
     }
 
+    let assistantToDeleteId = null; // To store the ID of the assistant to delete
+
     async function deleteAssistant(assistantId) {
+        assistantToDeleteId = assistantId; // Store the assistant ID for use in the confirm deletion function
+
+        const assistantInfo = document.getElementById('assistantInfo');
+
+        // Add assistant info
+        assistantInfo.textContent = '';
+        assistantInfo.textContent = assistants[assistantId].name;
+
+        // Show the modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('assistantDeleteModal'));
+        deleteModal.show();
+
+        // Attach event listener to the confirm delete button
+        const confirmDeleteBtn = document.getElementById('confirmDeleteAssistantBtn');
+        confirmDeleteBtn.onclick = confirmDeleteAssistant;
+    }
+
+    async function confirmDeleteAssistant() {
+        const assistantId = assistantToDeleteId;
         const assistantCard = document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
         const url = "{% url 'api-1.0.0:delete_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}".replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+        const assistantName = assistants[assistantId].name;
 
-        // Show a confirmation dialog
-        if (!confirm('Are you sure you want to delete this assistant?')) {
-            return;
-        }
+        // Hide the modal
+        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('assistantDeleteModal'));
+        deleteModal.hide();
 
         try {
             const response = await fetch(url, {
@@ -1741,10 +1768,13 @@
             });
 
             if (response.ok) {
-                // If the API call is successful, remove the assistant card from the UI
+                // Remove the assistant from the global assistants object
+                delete assistants[assistantId];
+
+                // Remove the card from UI
                 assistantCard.remove();
-                // Update client-side state
-                delete(assistants[assistantId])
+
+                showToast("Assistant deleted!", assistantName, "success");
                 console.log(`Assistant with ID ${assistantId} deleted successfully.`);
             } else {
                 const errorData = await response.json();
