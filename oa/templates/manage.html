@@ -1538,7 +1538,7 @@
 
         // Add vector store info
         vectorStoreInfo.textContent = '';
-        vectorStoreInfo.textContent = vectorStores[vectorStoreId].name;
+        vectorStoreInfo.textContent = vectorStores[vectorStoreId] && vectorStores[vectorStoreId].name && vectorStores[vectorStoreId].name.trim() !== '' ? vectorStores[vectorStoreId].name : 'Untitled';
 
         if (assistantsUsingVS.length > 0) {
             // Show the list of assistants
@@ -1565,7 +1565,7 @@
         const vectorStoreId = vectorStoreToDeleteId;
         const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
         const url = "{% url 'api-1.0.0:delete_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}".replace('VS_ID_PLACEHOLDER', vectorStoreId);
-        const vectorStoreName = vectorStores[vectorStoreId].name;
+        const vectorStoreName = vectorStores[vectorStoreId] && vectorStores[vectorStoreId].name && vectorStores[vectorStoreId].name.trim() !== '' ? vectorStores[vectorStoreId].name : 'Untitled';
 
         // Hide the modal
         const deleteModal = bootstrap.Modal.getInstance(document.getElementById('vectorStoreDeleteModal'));
@@ -2322,14 +2322,57 @@
         filesList.replaceChild(newCard, oldCard);
     }
 
-    async function deleteFile(fileId) {
-        const fileCard = document.getElementById(`file-${fileId}`);
-        const url = "{% url 'api-1.0.0:delete_file' file_id='FILE_ID_PLACEHOLDER' %}".replace('FILE_ID_PLACEHOLDER', fileId);
+    let fileToDeleteId = null; // To store the ID of the file to delete
 
-        // Show a confirmation dialog
-        if (!confirm('Are you sure you want to delete this file?')) {
-            return;
+    async function deleteFile(fileId) {
+        fileToDeleteId = fileId; // Store the file ID for use in the confirm deletion function
+
+        // Collect vector stores associated with this file
+        const vectorStoresUsingFile = fileVectorStores[fileId] || [];
+
+        // Update the modal content
+        const vectorStoreNamesListElement = document.getElementById('vectorStoreNamesList');
+        const vectorStoresUsingFileDiv = document.getElementById('vectorStoresUsingFile');
+        const fileInfo = document.getElementById('fileInfo');
+
+        // Clear previous list
+        vectorStoreNamesListElement.innerHTML = '';
+
+        // Add file info
+        fileInfo.textContent = '';
+        fileInfo.textContent = files[fileId].filename;
+
+        if (vectorStoresUsingFile.length > 0) {
+            // Show the list of vector stores
+            vectorStoresUsingFileDiv.classList.remove('d-none');
+            vectorStoresUsingFile.forEach(vsId => {
+                const vsName = vectorStores[vsId] && vectorStores[vsId].name && vectorStores[vsId].name.trim() !== '' ? vectorStores[vsId].name : 'Untitled';
+                const li = document.createElement('li');
+                li.textContent = vsName;
+                vectorStoreNamesListElement.appendChild(li);
+            });
+        } else {
+            vectorStoresUsingFileDiv.classList.add('d-none');
         }
+
+        // Show the modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('fileDeleteModal'));
+        deleteModal.show();
+
+        // Attach event listener to the confirm delete button
+        const confirmDeleteBtn = document.getElementById('confirmDeleteFileBtn');
+        confirmDeleteBtn.onclick = confirmDeleteFile;
+    }
+
+    async function confirmDeleteFile() {
+        const fileId = fileToDeleteId;
+        const fileCard = document.getElementById(`file-${fileId}`).closest('.file-item');
+        const url = "{% url 'api-1.0.0:delete_file' file_id='FILE_ID_PLACEHOLDER' %}".replace('FILE_ID_PLACEHOLDER', fileId);
+        const fileName = files[fileId].filename;
+
+        // Hide the modal
+        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('fileDeleteModal'));
+        deleteModal.hide();
 
         try {
             const response = await fetch(url, {
@@ -2341,10 +2384,25 @@
             });
 
             if (response.ok) {
-                // If the API call is successful, remove the card from the UI
+                // Remove the file from the global files object
+                delete files[fileId];
+
+                // Update file-vector store associations
+                const associatedVectorStores = fileVectorStores[fileId] || [];
+                associatedVectorStores.forEach(vsId => {
+                    // Remove fileId from vectorStoreFiles[vsId]
+                    if (vectorStoreFiles[vsId]) {
+                        vectorStoreFiles[vsId] = vectorStoreFiles[vsId].filter(id => id !== fileId);
+                    }
+                });
+
+                // Remove the file from fileVectorStores
+                delete fileVectorStores[fileId];
+
+                // Remove the card from UI
                 fileCard.remove();
-                // Update client-side state
-                delete(files[fileId]);
+
+                showToast("File deleted!", fileName, "success");
                 console.log(`File with ID ${fileId} deleted successfully.`);
             } else {
                 const errorData = await response.json();
