@@ -1282,6 +1282,33 @@
             storesCountElement.style.display = 'none';
         }
 
+        // Handle different cases based on total stores and filtered stores
+        if (totalStores === 0) {
+            // No vector stores exist at all
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No vector stores found.</p>
+                <span class="text-secondary">
+                    <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addVectorStore()"><i class="bi bi-plus-lg"></i>Add your first vector store.</a>
+                </span>
+            `;
+            vectorStoresList.appendChild(messageDiv);
+            return;
+        } else if (vectorStoresArray.length === 0) {
+            // Vector stores exist, but none match the filters
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No vector stores match your filters.</p>
+                <span class="text-secondary">You can
+                <a href="#" class="text-decoration-none" onclick="resetVectorStoreFilters()">reset the filters</a>
+                to see all vector stores.</span>
+            `;
+            vectorStoresList.appendChild(messageDiv);
+            return;
+        }
+
         // Sort
         vectorStoresArray.sort((a, b) => {
             let compareResult = 0;
@@ -1402,11 +1429,7 @@
             if (response.ok) {
                 const data = await response.json();
 
-                // Update the vector store's ID and other info in the UI
-                document.getElementById(`vs-${vectorStoreId}`).id = `vs-${data.id}`;
-                button.dataset.vectorStoreId = data.id;
-
-                // Update the global vector_stores object and display the vector store in the list
+                // Update the global vectorStores object
                 vectorStores[data.id] = data;
 
                 // Remove the form card and prepend the new vector store to the list
@@ -1415,14 +1438,8 @@
                     tempCard.remove();
                 }
 
-                vectorStoreItem = renderVectorStore(data, vectorStores);
-
-                const vectorStoresList = document.getElementById('vector-stores-list');
-                if (vectorStoresList.firstChild) {
-                    vectorStoresList.insertBefore(vectorStoreItem, vectorStoresList.firstChild);
-                } else {
-                    vectorStoresList.appendChild(vectorStoreItem);
-                }
+                // Re-display the vector stores list
+                displayVectorStores();
 
                 // Update related UI elements
                 updateVectorStoreRelatedUI();
@@ -1479,13 +1496,12 @@
                 // Update the global vectorStores object
                 vectorStores[vectorStoreId] = data;
 
-                // Update the vector store card
-                updateVectorStoreInfo(vectorStoreId, data);
+                // Re-display the vector stores list
+                displayVectorStores();
 
                 // Update related UI elements
                 updateVectorStoreRelatedUI();
 
-                toggleEditMode(vectorStoreId);
             } else {
                 const errorData = await response.json();
                 const parsedError = parseErrorText(errorData.error);
@@ -1501,17 +1517,6 @@
             buttonText.classList.remove('d-none');
             button.disabled = false;
         }
-    }
-
-    function updateVectorStoreInfo(vectorStoreId, updatedVectorStore) {
-        // Replace the card with the new one
-        const vectorStoresList = document.getElementById('vector-stores-list');
-
-        const oldCard = document.getElementById(`vector-store-${vectorStoreId}`);
-        const newCard = renderVectorStore(updatedVectorStore);
-
-        vectorStoresList.replaceChild(newCard, oldCard);
-        toggleEditMode(vectorStoreId);
     }
 
     let vectorStoreToDeleteId = null; // To store the ID of the vector store to delete
@@ -1563,7 +1568,6 @@
 
     async function confirmDeleteVectorStore() {
         const vectorStoreId = vectorStoreToDeleteId;
-        const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
         const url = "{% url 'api-1.0.0:delete_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}".replace('VS_ID_PLACEHOLDER', vectorStoreId);
         const vectorStoreName = vectorStores[vectorStoreId] && vectorStores[vectorStoreId].name && vectorStores[vectorStoreId].name.trim() !== '' ? vectorStores[vectorStoreId].name : 'Untitled';
 
@@ -1596,8 +1600,8 @@
                 // Remove the vector store from vectorStoreFiles
                 delete vectorStoreFiles[vectorStoreId];
 
-                // Remove the card from UI
-                vectorStoreCard.remove();
+                // Re-display the vector stores list
+                displayVectorStores();
 
                 // Update related UI elements
                 updateVectorStoreRelatedUI();
@@ -1761,6 +1765,33 @@
             assistantsCountElement.style.display = 'none';
         }
 
+        // Handle different cases based on total assistants and filtered assistants
+        if (totalAssistants === 0) {
+            // No assistants exist at all
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No assistants found.</p>
+                <span class="text-secondary">
+                    <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addAssistant()"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
+                </span>
+            `;
+            assistantsList.appendChild(messageDiv);
+            return;
+        } else if (assistantsArray.length === 0) {
+            // Assistants exist, but none match the filters
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No assistants match your filters.</p>
+                <span class="text-secondary">You can
+                <a href="#" class="text-decoration-none" onclick="resetAssistantFilters()">reset the filters</a>
+                to see all assistants.</span>
+            `;
+            assistantsList.appendChild(messageDiv);
+            return;
+        }
+
         // Sort the array according to the selected sort options
         assistantsArray.sort((a, b) => {
             let compareResult = 0;
@@ -1846,11 +1877,7 @@
             if (response.ok) {
                 const data = await response.json();
 
-                // Update the assistant's ID and other info in the UI
-                document.getElementById(`assistant-${assistantId}`).id = `assistant-${data.id}`;
-                button.dataset.assistantId = data.id;
-
-                // Update the global assistants object and display the assistant in the list
+                // Update the global assistants object
                 assistants[data.id] = data;
 
                 // Remove the form card and prepend the new assistant to the list
@@ -1859,14 +1886,9 @@
                     tempCard.remove();
                 }
 
-                assistantItem = renderAssistant(data, vectorStores);
+                // Re-display the assistants list
+                displayAssistants();
 
-                const assistantsList = document.getElementById('assistants-list');
-                if (assistantsList.firstChild) {
-                    assistantsList.insertBefore(assistantItem, assistantsList.firstChild);
-                } else {
-                    assistantsList.appendChild(assistantItem);
-                }
             } else {
                 const errorData = await response.json();
                 const parsedError = parseErrorText(errorData.error);
@@ -1923,9 +1945,8 @@
                 // Update the global assistants object
                 assistants[assistantId] = data;
 
-                updateAssistantInfo(assistantId, data);
-
-                toggleEditMode(assistantId);
+                // Re-display the assistants list
+                displayAssistants();
             } else {
                 const errorData = await response.json();
                 const parsedError = parseErrorText(errorData.error);
@@ -1941,17 +1962,6 @@
             buttonText.classList.remove('d-none');
             button.disabled = false;
         }
-    }
-
-    function updateAssistantInfo(assistantId, updatedAssistant) {
-        // Replace the card with the new one
-        const vectorStoresList = document.getElementById('assistants-list');
-
-        const oldCard = document.getElementById(`assistant-${assistantId}`);
-        const newCard = renderAssistant(updatedAssistant);
-
-        vectorStoresList.replaceChild(newCard, oldCard);
-        toggleEditMode(assistantId);
     }
 
     let assistantToDeleteId = null; // To store the ID of the assistant to delete
@@ -1976,7 +1986,6 @@
 
     async function confirmDeleteAssistant() {
         const assistantId = assistantToDeleteId;
-        const assistantCard = document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
         const url = "{% url 'api-1.0.0:delete_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}".replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
         const assistantName = assistants[assistantId].name;
 
@@ -1997,8 +2006,8 @@
                 // Remove the assistant from the global assistants object
                 delete assistants[assistantId];
 
-                // Remove the card from UI
-                assistantCard.remove();
+                // Re-display the assistants list
+                displayAssistants();
 
                 showToast("Assistant deleted!", assistantName, "success");
                 console.log(`Assistant with ID ${assistantId} deleted successfully.`);
@@ -2114,6 +2123,33 @@
             filesCountElement.style.display = 'inline';
         } else {
             filesCountElement.style.display = 'none';
+        }
+
+        // Handle different cases based on total files and filtered files
+        if (totalFiles === 0) {
+            // No files exist at all
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No files found.</p>
+                <span class="text-secondary">
+                    <a href="#" class="text-decoration-none" onclick="hideTooltip(this); showUploadFileModal()"><i class="bi bi-plus-lg"></i>Add your first file.</a>
+                </span>
+            `;
+            filesList.appendChild(messageDiv);
+            return;
+        } else if (filesArray.length === 0) {
+            // Files exist, but none match the filters
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No files match your filters.</p>
+                <span class="text-secondary">You can
+                <a href="#" class="text-decoration-none" onclick="resetFileFilters()">reset the filters</a>
+                to see all files.</span>
+            `;
+            filesList.appendChild(messageDiv);
+            return;
         }
 
         // Sort the array according to the selected sort options
@@ -2304,22 +2340,13 @@
             }
         }
 
+        // Re-display the files list
+        displayFiles();
+
         // Hide spinner and enable button
         spinner.classList.add('d-none');
         buttonText.classList.remove('d-none');
         button.disabled = false;
-
-        updateFileInfo(fileId, files[fileId]);  // The core file info, i.e. name & created is the same as the original
-    }
-
-    function updateFileInfo(fileId, updatedFile) {
-        // Replace the card with the new one
-        const filesList = document.getElementById('files-list');
-
-        const oldCard = document.getElementById(`file-${fileId}`);
-        const newCard = renderFile(updatedFile);
-
-        filesList.replaceChild(newCard, oldCard);
     }
 
     let fileToDeleteId = null; // To store the ID of the file to delete
@@ -2366,7 +2393,6 @@
 
     async function confirmDeleteFile() {
         const fileId = fileToDeleteId;
-        const fileCard = document.getElementById(`file-${fileId}`).closest('.file-item');
         const url = "{% url 'api-1.0.0:delete_file' file_id='FILE_ID_PLACEHOLDER' %}".replace('FILE_ID_PLACEHOLDER', fileId);
         const fileName = files[fileId].filename;
 
@@ -2399,8 +2425,8 @@
                 // Remove the file from fileVectorStores
                 delete fileVectorStores[fileId];
 
-                // Remove the card from UI
-                fileCard.remove();
+                // Re-display the files list
+                displayFiles();
 
                 showToast("File deleted!", fileName, "success");
                 console.log(`File with ID ${fileId} deleted successfully.`);
