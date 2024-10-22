@@ -1222,6 +1222,25 @@
         }
     }
 
+    async function updateVectorStoresByIds(vectorStoreIds) {
+        const fetchPromises = vectorStoreIds.map(async (vsId) => {
+            const url = "{% url 'api-1.0.0:retrieve_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}".replace('VS_ID_PLACEHOLDER', vsId);
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    vectorStores[vsId] = data;
+                } else {
+                    console.error(`Failed to fetch vector store with ID ${vsId}`);
+                }
+            } catch (error) {
+                console.error(`Error fetching vector store with ID ${vsId}:`, error);
+            }
+        });
+
+        await Promise.all(fetchPromises);
+    }
+
     function renderVectorStore(store) {
         const vectorStoreItem = document.createElement('div');
         vectorStoreItem.className = 'vector-store-item';
@@ -2228,6 +2247,8 @@
 
         console.log('Changes:', changes); // Log changes
 
+        const affectedVectorStoreIds = new Set();
+
         if (changes && changes.toAdd.length > 0) {
             // Assign the file to the given vector stores
 
@@ -2254,7 +2275,8 @@
 
                     // Update client-side state
                     changes.toAdd.forEach(vectorStoreId => {
-                        console.log('2');  // Debugging log
+                        affectedVectorStoreIds.add(vectorStoreId);
+
                         // Update `fileVectorStores`
                         if (!fileVectorStores[fileId]) {
                             fileVectorStores[fileId] = [];
@@ -2313,7 +2335,8 @@
 
                     // Update client-side state
                     changes.toRemove.forEach(vectorStoreId => {
-                        console.log('4');  // Debugging log
+                        affectedVectorStoreIds.add(vectorStoreId);
+
                         // Update `fileVectorStores`
                         if (fileVectorStores[fileId]) {
                             fileVectorStores[fileId] = fileVectorStores[fileId].filter(id => id !== vectorStoreId);
@@ -2340,8 +2363,14 @@
             }
         }
 
+        // Fetch updated vector stores
+        await updateVectorStoresByIds(Array.from(affectedVectorStoreIds));
+
         // Re-display the files list
         displayFiles();
+
+        displayVectorStores(); // Re-render vector store cards
+        populateFileFilterOptions(); // Update file filters
 
         // Hide spinner and enable button
         spinner.classList.add('d-none');
@@ -2410,11 +2439,12 @@
             });
 
             if (response.ok) {
+                // Update file-vector store associations
+                const associatedVectorStores = fileVectorStores[fileId] || [];
+
                 // Remove the file from the global files object
                 delete files[fileId];
 
-                // Update file-vector store associations
-                const associatedVectorStores = fileVectorStores[fileId] || [];
                 associatedVectorStores.forEach(vsId => {
                     // Remove fileId from vectorStoreFiles[vsId]
                     if (vectorStoreFiles[vsId]) {
@@ -2425,8 +2455,14 @@
                 // Remove the file from fileVectorStores
                 delete fileVectorStores[fileId];
 
+                // Fetch updated vector stores
+                await updateVectorStoresByIds(associatedVectorStores);
+
                 // Re-display the files list
                 displayFiles();
+
+                displayVectorStores(); // Re-render vector store cards
+                populateFileFilterOptions(); // Update file filters
 
                 showToast("File deleted!", fileName, "success");
                 console.log(`File with ID ${fileId} deleted successfully.`);
@@ -2698,8 +2734,14 @@
                 console.log('fileVectorStores:', fileVectorStores);
                 console.log('vectorStoreFiles:', vectorStoreFiles);
 
-                // Display the updated files, keeping existing files intact
-                displayFiles();  // Re-render the entire file list based on the global `files`
+                // Fetch updated vector stores
+                await updateVectorStoresByIds(result.vector_store_ids);
+
+                // Re-display the files list
+                displayFiles();
+
+                displayVectorStores(); // Re-render vector store cards to reflect updated files
+                populateFileFilterOptions(); // Update file filters to reflect new files
 
                 // Hide the modal after successful upload
                 const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
