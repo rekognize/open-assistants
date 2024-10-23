@@ -605,7 +605,7 @@
         return checkBoxes;
     }
 
-    function toggleEditMode(id) {
+    function toggleEditMode(id, type) {
         const cardBody = document.getElementById(`${id}`);
         const cardFooter = cardBody.closest('.card').querySelector('.card-footer');
 
@@ -620,8 +620,37 @@
         editMode.classList.toggle('d-none');
 
         // Toggle the visibility of the footer buttons
-        briefInfoFooter.classList.toggle('d-none');
-        editModeFooter.classList.toggle('d-none');
+        if (briefInfoFooter && editModeFooter) {
+            briefInfoFooter.classList.toggle('d-none');
+            editModeFooter.classList.toggle('d-none');
+        }
+
+        // If entering edit mode, reset the form fields to the latest data
+        if (!briefInfo.classList.contains('d-none')) {
+            // Leaving edit mode, do nothing
+        } else {
+            // Entering edit mode, reset the form fields
+            if (type === 'assistant') {
+                const assistant = assistants[id];
+                document.getElementById(`name-${id}`).value = assistant.name;
+                document.getElementById(`description-${id}`).value = assistant.description || '';
+                document.getElementById(`vs-${id}`).value = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '';
+                document.getElementById(`instructions-${id}`).value = assistant.instructions || '';
+                document.getElementById(`model-${id}`).value = assistant.model || 'gpt-4o';
+            } else if (type === 'vectorStore') {
+                const vectorStore = vectorStores[id];
+                document.getElementById(`name-${id}`).value = vectorStore.name || '';
+                document.getElementById(`expiration-days-${id}`).value = vectorStore.expires_after?.days || '';
+            } else if (type === 'file') {
+                const file = files[id];
+                const checkboxes = cardBody.querySelectorAll('.form-check-input');
+                checkboxes.forEach(checkbox => {
+                    const vectorStoreId = checkbox.value;
+                    const isSelected = fileVectorStores[file.id]?.includes(vectorStoreId);
+                    checkbox.checked = isSelected;
+                });
+            }
+        }
     }
 
 
