@@ -1305,7 +1305,7 @@
         if (totalStores === 0) {
             // No vector stores exist at all
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'text-center mt-4';
+            messageDiv.className = 'text-center mt-4 no-vector-stores-message';
             messageDiv.innerHTML = `
                 <p class="text-secondary">No vector stores found.</p>
                 <span class="text-secondary">
@@ -1392,8 +1392,22 @@
         }
     }
 
-    async function addVectorStore() {
+    function addVectorStore() {
+        // Check if there is already a vector store item with an ID starting with 'temp-card-'
+        const existingTempCard = document.querySelector('.vector-store-item[id^="temp-card-"]');
+        if (existingTempCard) {
+            // An empty card is already present, do not add another
+            return;
+        }
+
         const tempId = `temp_${Date.now()}`; // Temporary ID based on timestamp for uniqueness
+
+        // Remove the "No vector stores found." message if present
+        const vectorStoresList = document.getElementById('vector-stores-list');
+        const noVectorStoresMessage = vectorStoresList.querySelector('.no-vector-stores-message');
+        if (noVectorStoresMessage) {
+            noVectorStoresMessage.remove();
+        }
 
         // Create a new vector store item element
         const vectorStoreItem = document.createElement('div');
@@ -1404,7 +1418,6 @@
         vectorStoreItem.innerHTML = `{% include "manage/vector_store_form.html" %}`;
 
         // Append the new vector store item to the vector stores list
-        const vectorStoresList = document.getElementById('vector-stores-list');
         if (vectorStoresList.firstChild) {
             vectorStoresList.insertBefore(vectorStoreItem, vectorStoresList.firstChild);
         } else {
@@ -1412,10 +1425,28 @@
         }
     }
 
-    function removeVectorStoreCard(vsId) {
-        // To remove the add form when vector store addition is cancelled
-        const vsCard = document.getElementById(`vs-${vsId}`).closest('.vector-store-item');
-        vsCard.remove();
+    function removeVectorStoreCard(vectorStoreId) {
+        // Remove the vector store card
+        const vsCard = document.getElementById(`temp-card-${vectorStoreId}`) || document.getElementById(`vs-${vectorStoreId}`).closest('.vector-store-item');
+        if (vsCard) {
+            vsCard.remove();
+        }
+
+        // Check if the vector stores list is empty
+        const vectorStoresList = document.getElementById('vector-stores-list');
+        const vectorStoreItems = vectorStoresList.querySelectorAll('.vector-store-item');
+        if (vectorStoreItems.length === 0) {
+            // Display the "No vector stores found." message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4 no-vector-stores-message';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No vector stores found.</p>
+                <span class="text-secondary">
+                    <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addVectorStore()"><i class="bi bi-plus-lg"></i>Add your first vector store.</a>
+                </span>
+            `;
+            vectorStoresList.appendChild(messageDiv);
+        }
     }
 
     async function saveNewVectorStore(vectorStoreId) {
@@ -1788,7 +1819,7 @@
         if (totalAssistants === 0) {
             // No assistants exist at all
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'text-center mt-4';
+            messageDiv.className = 'text-center mt-4 no-assistants-message';
             messageDiv.innerHTML = `
                 <p class="text-secondary">No assistants found.</p>
                 <span class="text-secondary">
@@ -1834,8 +1865,22 @@
         initializeTooltips();
     }
 
-    async function addAssistant() {
+    function addAssistant() {
+        // Check if there is already an assistant item with an ID starting with 'temp-card-'
+        const existingTempCard = document.querySelector('.assistant-item[id^="temp-card-"]');
+        if (existingTempCard) {
+            // An empty card is already present, do not add another
+            return;
+        }
+
         const tempId = `temp_${Date.now()}`; // Temporary ID based on timestamp for uniqueness
+
+        // Remove the "No assistants found." message if present
+        const assistantsList = document.getElementById('assistants-list');
+        const noAssistantsMessage = assistantsList.querySelector('.no-assistants-message');
+        if (noAssistantsMessage) {
+            noAssistantsMessage.remove();
+        }
 
         // Create a new assistant item element
         const assistantItem = document.createElement('div');
@@ -1849,7 +1894,6 @@
         assistantItem.innerHTML = `{% include "manage/assistant_form.html" %}`;
 
         // Append the new assistant item to the assistants list
-        const assistantsList = document.getElementById('assistants-list');
         if (assistantsList.firstChild) {
             assistantsList.insertBefore(assistantItem, assistantsList.firstChild);
         } else {
@@ -1858,9 +1902,27 @@
     }
 
     function removeAssistantCard(assistantId) {
-        // To remove the add form when assistant addition is cancelled
-        const assistantCard = document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
-        assistantCard.remove();
+        // Remove the assistant card
+        const assistantCard = document.getElementById(`temp-card-${assistantId}`) || document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
+        if (assistantCard) {
+            assistantCard.remove();
+        }
+
+        // Check if the assistants list is empty
+        const assistantsList = document.getElementById('assistants-list');
+        const assistantItems = assistantsList.querySelectorAll('.assistant-item');
+        if (assistantItems.length === 0) {
+            // Display the "No assistants found." message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4 no-assistants-message';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No assistants found.</p>
+                <span class="text-secondary">
+                    <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addAssistant()"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
+                </span>
+            `;
+            assistantsList.appendChild(messageDiv);
+        }
     }
 
     async function saveNewAssistant(assistantId) {
