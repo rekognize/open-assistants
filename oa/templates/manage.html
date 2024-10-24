@@ -1597,15 +1597,31 @@
                 updateVectorStoreRelatedUI();
             } else {
                 const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to save new vector store!", parsedError.errorMessage);
-                console.error('Failed to save new vector store!', parsedError);
-                // Handle error (e.g., show error message)
+                let errorMessage = '';
+
+                if (errorData.error) {
+                    const parsedError = parseErrorText(errorData.error);
+                    errorMessage = parsedError.errorMessage;
+                } else if (errorData.detail) {
+                    // Handle server errors
+                    if (Array.isArray(errorData.detail)) {
+                        // Extract the message from the first error detail
+                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
+                    } else if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else {
+                        errorMessage = 'Unknown error occurred.';
+                    }
+                } else {
+                    errorMessage = 'Unknown error occurred.';
+                }
+
+                showToast("Failed to update vector store!", errorMessage);
+                console.error('Failed to update vector store!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
             console.error('Unexpected error:', error);
-            // Handle unexpected errors (e.g., network issues)
         } finally {
             // Hide spinner and enable button
             spinner.classList.add('d-none');
@@ -1659,9 +1675,27 @@
 
             } else {
                 const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to update vector store!", parsedError.errorMessage);
-                console.error('Failed to update vector store!', parsedError);
+                let errorMessage = '';
+
+                if (errorData.error) {
+                    const parsedError = parseErrorText(errorData.error);
+                    errorMessage = parsedError.errorMessage;
+                } else if (errorData.detail) {
+                    // Handle server errors
+                    if (Array.isArray(errorData.detail)) {
+                        // Extract the message from the first error detail
+                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
+                    } else if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else {
+                        errorMessage = 'Unknown error occurred.';
+                    }
+                } else {
+                    errorMessage = 'Unknown error occurred.';
+                }
+
+                showToast("Failed to update vector store!", errorMessage);
+                console.error('Failed to update vector store!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
@@ -2080,15 +2114,31 @@
 
             } else {
                 const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to save new assistant!", parsedError.errorMessage);
-                console.error('Failed to save new assistant!', parsedError);
-                // Handle error (e.g., show error message)
+                let errorMessage = '';
+
+                if (errorData.error) {
+                    const parsedError = parseErrorText(errorData.error);
+                    errorMessage = parsedError.errorMessage;
+                } else if (errorData.detail) {
+                    // Handle server errors
+                    if (Array.isArray(errorData.detail)) {
+                        // Extract the message from the first error detail
+                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
+                    } else if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else {
+                        errorMessage = 'Unknown error occurred.';
+                    }
+                } else {
+                    errorMessage = 'Unknown error occurred.';
+                }
+
+                showToast("Failed to update vector store!", errorMessage);
+                console.error('Failed to update vector store!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
             console.error('Unexpected error:', error);
-            // Handle unexpected errors (e.g., network issues)
         } finally {
             // Hide spinner and enable button
             spinner.classList.add('d-none');
@@ -2141,9 +2191,27 @@
                 displayAssistants();
             } else {
                 const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to update assistant!", parsedError.errorMessage);
-                console.error('Failed to update assistant!', parsedError);
+                let errorMessage = '';
+
+                if (errorData.error) {
+                    const parsedError = parseErrorText(errorData.error);
+                    errorMessage = parsedError.errorMessage;
+                } else if (errorData.detail) {
+                    // Handle server errors
+                    if (Array.isArray(errorData.detail)) {
+                        // Extract the message from the first error detail
+                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
+                    } else if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else {
+                        errorMessage = 'Unknown error occurred.';
+                    }
+                } else {
+                    errorMessage = 'Unknown error occurred.';
+                }
+
+                showToast("Failed to update vector store!", errorMessage);
+                console.error('Failed to update vector store!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
