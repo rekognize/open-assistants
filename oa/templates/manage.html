@@ -637,10 +637,14 @@
                 document.getElementById(`vs-${id}`).value = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '';
                 document.getElementById(`instructions-${id}`).value = assistant.instructions || '';
                 document.getElementById(`model-${id}`).value = assistant.model || 'gpt-4o';
+                // Initialize metadata fields
+                initializeMetadataFields(id, assistant.metadata);
             } else if (type === 'vectorStore') {
                 const vectorStore = vectorStores[id];
                 document.getElementById(`name-${id}`).value = vectorStore.name || '';
                 document.getElementById(`expiration-days-${id}`).value = vectorStore.expires_after?.days || '';
+                // Initialize metadata fields
+                initializeMetadataFields(id, vectorStore.metadata);
             } else if (type === 'file') {
                 const file = files[id];
                 const checkboxes = cardBody.querySelectorAll('.form-check-input');
@@ -653,18 +657,70 @@
         }
     }
 
-    function toggleMetadataFields(id) {
-        const metadataFields = document.getElementById(`metadata-fields-${id}`);
-        metadataFields.classList.toggle('d-none');
+    function initializeMetadataFields(id, metadata) {
+        const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
+        metadataFieldsContainer.innerHTML = ''; // Clear existing fields
+
+        if (metadata) {
+            Object.entries(metadata).forEach(([key, value]) => {
+                addMetadataField(id);
+                const index = metadataFieldsContainer.children.length - 1;
+                document.getElementById(`metadata-key-${id}-${index}`).value = key;
+                document.getElementById(`metadata-value-${id}-${index}`).value = value;
+            });
+        }
+    }
+
+    function addMetadataField(id) {
+        const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
+
+        // Create a unique index for each metadata entry
+        const index = metadataFieldsContainer.children.length;
+
+        const metadataRow = document.createElement('div');
+        metadataRow.classList.add('row', 'mb-2', 'metadata-row');
+        metadataRow.setAttribute('data-index', index);
+
+        metadataRow.innerHTML = `
+            <div class="col-5">
+                <input type="text" class="form-control form-control-sm" id="metadata-key-${id}-${index}" placeholder="Name">
+            </div>
+            <div class="col-5">
+                <input type="text" class="form-control form-control-sm" id="metadata-value-${id}-${index}" placeholder="Value">
+            </div>
+            <div class="col-2 text-end">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="removeMetadataField('${id}', ${index})">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        `;
+
+        metadataFieldsContainer.appendChild(metadataRow);
+    }
+
+    function removeMetadataField(id, index) {
+        const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
+        const metadataRow = metadataFieldsContainer.querySelector(`.metadata-row[data-index="${index}"]`);
+        if (metadataRow) {
+            metadataFieldsContainer.removeChild(metadataRow);
+        }
     }
 
     function collectMetadata(id) {
-        const key = document.getElementById(`metadata-key-${id}`).value.trim();
-        const value = document.getElementById(`metadata-value-${id}`).value.trim();
-        if (key && value) {
-            return { [key]: value };
-        }
-        return null;
+        const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
+        const metadataRows = metadataFieldsContainer.querySelectorAll('.metadata-row');
+        const metadata = {};
+
+        metadataRows.forEach(row => {
+            const index = row.getAttribute('data-index');
+            const key = document.getElementById(`metadata-key-${id}-${index}`).value.trim();
+            const value = document.getElementById(`metadata-value-${id}-${index}`).value.trim();
+            if (key && value) {
+                metadata[key] = value;
+            }
+        });
+
+        return metadata;  // Always return an object
     }
 
 
@@ -1509,7 +1565,7 @@
         const payload = {
             name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
             expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
-            ...(metadata && { metadata: metadata })
+            metadata: metadata
         };
 
         try {
@@ -1576,7 +1632,7 @@
         const payload = {
             name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
             expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
-            ...(metadata && { metadata: metadata })
+            metadata: metadata
         };
 
         try {
@@ -1994,7 +2050,7 @@
             description: document.getElementById(`description-${assistantId}`).value,
             vector_store_id: document.getElementById(`vs-${assistantId}`).value,
             model: document.getElementById(`model-${assistantId}`).value,
-            ...(metadata && { metadata: metadata })
+            metadata: metadata
         };
 
         try {
@@ -2062,7 +2118,7 @@
             description: document.getElementById(`description-${assistantId}`).value,
             vector_store_id: document.getElementById(`vs-${assistantId}`).value,
             model: document.getElementById(`model-${assistantId}`).value,
-            ...(metadata && { metadata: metadata })
+            metadata: metadata
         };
 
         try {

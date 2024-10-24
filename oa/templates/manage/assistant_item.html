@@ -75,18 +75,11 @@
                         <label for="model-${assistant.id}">Model</label>
                     </div>
 
-                    <!-- Metadata Fields (Initially Hidden) -->
-                    <div class="metadata-fields d-none" id="metadata-fields-${assistant.id}">
-                        <div class="form-floating mb-3">
-                            <input type="text" class="form-control" id="metadata-key-${assistant.id}" placeholder="Parameter Name">
-                            <label for="metadata-key-${assistant.id}" class="form-label">Parameter Name</label>
-                        </div>
-                        <div class="form-floating mb-3">
-                            <input type="text" class="form-control" id="metadata-value-${assistant.id}" placeholder="Parameter Value">
-                            <label for="metadata-value-${assistant.id}">Parameter Value</label>
-                        </div>
+                    <!-- Metadata Fields -->
+                    <div class="metadata-fields" id="metadata-fields-${assistant.id}">
+                        <!-- Parameter entries will be added here dynamically -->
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="toggleMetadataFields('${assistant.id}')">
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addMetadataField('${assistant.id}')">
                         Add parameter
                     </button>
 

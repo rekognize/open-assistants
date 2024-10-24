@@ -15,21 +15,13 @@
                         <label for="expiration-days-${tempId}" class="form-label">Expiration after days of inactivity</label>
                     </div>
 
-                    <!-- Metadata Fields (Initially Hidden) -->
-                    <div class="metadata-fields d-none" id="metadata-fields-${tempId}">
-                        <div class="form-floating mb-3">
-                            <input type="text" class="form-control" id="metadata-key-${tempId}" placeholder="Parameter Name">
-                            <label for="metadata-key-${tempId}" class="form-label">Parameter Name</label>
-                        </div>
-                        <div class="form-floating mb-3">
-                            <input type="text" class="form-control" id="metadata-value-${tempId}" placeholder="Parameter Value">
-                            <label for="metadata-value-${tempId}" class="form-label">Parameter Value</label>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="toggleMetadataFields('${tempId}')">
-                        Add parameter
-                    </button>
-
+                <!-- Metadata Fields -->
+                <div class="metadata-fields" id="metadata-fields-${tempId}">
+                    <!-- Parameter entries will be added here dynamically -->
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addMetadataField('${tempId}')">
+                    Add parameter
+                </button>
                 </form>
             </div>
 
