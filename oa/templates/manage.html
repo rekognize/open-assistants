@@ -605,7 +605,7 @@
         return checkBoxes;
     }
 
-    function toggleEditMode(id) {
+    function toggleEditMode(id, type) {
         const cardBody = document.getElementById(`${id}`);
         const cardFooter = cardBody.closest('.card').querySelector('.card-footer');
 
@@ -620,8 +620,107 @@
         editMode.classList.toggle('d-none');
 
         // Toggle the visibility of the footer buttons
-        briefInfoFooter.classList.toggle('d-none');
-        editModeFooter.classList.toggle('d-none');
+        if (briefInfoFooter && editModeFooter) {
+            briefInfoFooter.classList.toggle('d-none');
+            editModeFooter.classList.toggle('d-none');
+        }
+
+        // If entering edit mode, reset the form fields to the latest data
+        if (!briefInfo.classList.contains('d-none')) {
+            // Leaving edit mode, do nothing
+        } else {
+            // Entering edit mode, reset the form fields
+            if (type === 'assistant') {
+                const assistant = assistants[id];
+                document.getElementById(`name-${id}`).value = assistant.name;
+                document.getElementById(`description-${id}`).value = assistant.description || '';
+                document.getElementById(`vs-${id}`).value = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '';
+                document.getElementById(`instructions-${id}`).value = assistant.instructions || '';
+                document.getElementById(`model-${id}`).value = assistant.model || 'gpt-4o';
+                // Initialize metadata fields
+                initializeMetadataFields(id, assistant.metadata);
+            } else if (type === 'vectorStore') {
+                const vectorStore = vectorStores[id];
+                document.getElementById(`name-${id}`).value = vectorStore.name || '';
+                document.getElementById(`expiration-days-${id}`).value = vectorStore.expires_after?.days || '';
+                // Initialize metadata fields
+                initializeMetadataFields(id, vectorStore.metadata);
+            } else if (type === 'file') {
+                const file = files[id];
+                const checkboxes = cardBody.querySelectorAll('.form-check-input');
+                checkboxes.forEach(checkbox => {
+                    const vectorStoreId = checkbox.value;
+                    const isSelected = fileVectorStores[file.id]?.includes(vectorStoreId);
+                    checkbox.checked = isSelected;
+                });
+            }
+        }
+    }
+
+    function initializeMetadataFields(id, metadata) {
+        const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
+        metadataFieldsContainer.innerHTML = ''; // Clear existing fields
+
+        if (metadata) {
+            Object.entries(metadata).forEach(([key, value]) => {
+                addMetadataField(id);
+                const index = metadataFieldsContainer.children.length - 1;
+                document.getElementById(`metadata-key-${id}-${index}`).value = key;
+                document.getElementById(`metadata-value-${id}-${index}`).value = value;
+            });
+        }
+    }
+
+    function addMetadataField(id) {
+        const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
+
+        // Create a unique index for each metadata entry
+        const index = metadataFieldsContainer.children.length;
+
+        const metadataRow = document.createElement('div');
+        metadataRow.classList.add('row', 'mb-2', 'metadata-row');
+        metadataRow.setAttribute('data-index', index);
+
+        metadataRow.innerHTML = `
+            <div class="col-5">
+                <input type="text" class="form-control form-control-sm" id="metadata-key-${id}-${index}" placeholder="Name">
+            </div>
+            <div class="col-5">
+                <input type="text" class="form-control form-control-sm" id="metadata-value-${id}-${index}" placeholder="Value">
+            </div>
+            <div class="col-2 text-end">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="removeMetadataField('${id}', ${index})">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        `;
+
+        metadataFieldsContainer.appendChild(metadataRow);
+    }
+
+    function removeMetadataField(id, index) {
+        const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
+        const metadataRow = metadataFieldsContainer.querySelector(`.metadata-row[data-index="${index}"]`);
+        if (metadataRow) {
+            metadataFieldsContainer.removeChild(metadataRow);
+        }
+    }
+
+    function collectMetadata(id) {
+        const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
+        const metadataRows = metadataFieldsContainer.querySelectorAll('.metadata-row');
+        const metadata = {};
+
+        metadataRows.forEach(row => {
+            const index = row.getAttribute('data-index');
+            const key = document.getElementById(`metadata-key-${id}-${index}`).value.trim();
+            const value = document.getElementById(`metadata-value-${id}-${index}`).value.trim();
+            if (key && value) {
+                metadata[key] = value;
+            }
+        });
+
+        return metadata;  // Always return an object
     }
 
 
@@ -1305,7 +1404,7 @@
         if (totalStores === 0) {
             // No vector stores exist at all
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'text-center mt-4';
+            messageDiv.className = 'text-center mt-4 no-vector-stores-message';
             messageDiv.innerHTML = `
                 <p class="text-secondary">No vector stores found.</p>
                 <span class="text-secondary">
@@ -1392,8 +1491,22 @@
         }
     }
 
-    async function addVectorStore() {
+    function addVectorStore() {
+        // Check if there is already a vector store item with an ID starting with 'temp-card-'
+        const existingTempCard = document.querySelector('.vector-store-item[id^="temp-card-"]');
+        if (existingTempCard) {
+            // An empty card is already present, do not add another
+            return;
+        }
+
         const tempId = `temp_${Date.now()}`; // Temporary ID based on timestamp for uniqueness
+
+        // Remove the "No vector stores found." message if present
+        const vectorStoresList = document.getElementById('vector-stores-list');
+        const noVectorStoresMessage = vectorStoresList.querySelector('.no-vector-stores-message');
+        if (noVectorStoresMessage) {
+            noVectorStoresMessage.remove();
+        }
 
         // Create a new vector store item element
         const vectorStoreItem = document.createElement('div');
@@ -1404,7 +1517,6 @@
         vectorStoreItem.innerHTML = `{% include "manage/vector_store_form.html" %}`;
 
         // Append the new vector store item to the vector stores list
-        const vectorStoresList = document.getElementById('vector-stores-list');
         if (vectorStoresList.firstChild) {
             vectorStoresList.insertBefore(vectorStoreItem, vectorStoresList.firstChild);
         } else {
@@ -1412,10 +1524,28 @@
         }
     }
 
-    function removeVectorStoreCard(vsId) {
-        // To remove the add form when vector store addition is cancelled
-        const vsCard = document.getElementById(`vs-${vsId}`).closest('.vector-store-item');
-        vsCard.remove();
+    function removeVectorStoreCard(vectorStoreId) {
+        // Remove the vector store card
+        const vsCard = document.getElementById(`temp-card-${vectorStoreId}`) || document.getElementById(`vs-${vectorStoreId}`).closest('.vector-store-item');
+        if (vsCard) {
+            vsCard.remove();
+        }
+
+        // Check if the vector stores list is empty
+        const vectorStoresList = document.getElementById('vector-stores-list');
+        const vectorStoreItems = vectorStoresList.querySelectorAll('.vector-store-item');
+        if (vectorStoreItems.length === 0) {
+            // Display the "No vector stores found." message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4 no-vector-stores-message';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No vector stores found.</p>
+                <span class="text-secondary">
+                    <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addVectorStore()"><i class="bi bi-plus-lg"></i>Add your first vector store.</a>
+                </span>
+            `;
+            vectorStoresList.appendChild(messageDiv);
+        }
     }
 
     async function saveNewVectorStore(vectorStoreId) {
@@ -1430,9 +1560,12 @@
 
         const url = "{% url 'api-1.0.0:create_vector_store' %}";
 
+        const metadata = collectMetadata(vectorStoreId);
+
         const payload = {
             name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
-            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value
+            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
+            metadata: metadata
         };
 
         try {
@@ -1464,15 +1597,31 @@
                 updateVectorStoreRelatedUI();
             } else {
                 const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to save new vector store!", parsedError.errorMessage);
-                console.error('Failed to save new vector store!', parsedError);
-                // Handle error (e.g., show error message)
+                let errorMessage = '';
+
+                if (errorData.error) {
+                    const parsedError = parseErrorText(errorData.error);
+                    errorMessage = parsedError.errorMessage;
+                } else if (errorData.detail) {
+                    // Handle server errors
+                    if (Array.isArray(errorData.detail)) {
+                        // Extract the message from the first error detail
+                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
+                    } else if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else {
+                        errorMessage = 'Unknown error occurred.';
+                    }
+                } else {
+                    errorMessage = 'Unknown error occurred.';
+                }
+
+                showToast("Failed to update vector store!", errorMessage);
+                console.error('Failed to update vector store!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
             console.error('Unexpected error:', error);
-            // Handle unexpected errors (e.g., network issues)
         } finally {
             // Hide spinner and enable button
             spinner.classList.add('d-none');
@@ -1494,9 +1643,12 @@
         const modifyVectorStoreUrlTemplate = "{% url 'api-1.0.0:modify_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}";
         const url = modifyVectorStoreUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
 
+        const metadata = collectMetadata(vectorStoreId);
+
         const payload = {
             name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
-            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value
+            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
+            metadata: metadata
         };
 
         try {
@@ -1523,9 +1675,27 @@
 
             } else {
                 const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to update vector store!", parsedError.errorMessage);
-                console.error('Failed to update vector store!', parsedError);
+                let errorMessage = '';
+
+                if (errorData.error) {
+                    const parsedError = parseErrorText(errorData.error);
+                    errorMessage = parsedError.errorMessage;
+                } else if (errorData.detail) {
+                    // Handle server errors
+                    if (Array.isArray(errorData.detail)) {
+                        // Extract the message from the first error detail
+                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
+                    } else if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else {
+                        errorMessage = 'Unknown error occurred.';
+                    }
+                } else {
+                    errorMessage = 'Unknown error occurred.';
+                }
+
+                showToast("Failed to update vector store!", errorMessage);
+                console.error('Failed to update vector store!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
@@ -1788,7 +1958,7 @@
         if (totalAssistants === 0) {
             // No assistants exist at all
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'text-center mt-4';
+            messageDiv.className = 'text-center mt-4 no-assistants-message';
             messageDiv.innerHTML = `
                 <p class="text-secondary">No assistants found.</p>
                 <span class="text-secondary">
@@ -1834,8 +2004,22 @@
         initializeTooltips();
     }
 
-    async function addAssistant() {
+    function addAssistant() {
+        // Check if there is already an assistant item with an ID starting with 'temp-card-'
+        const existingTempCard = document.querySelector('.assistant-item[id^="temp-card-"]');
+        if (existingTempCard) {
+            // An empty card is already present, do not add another
+            return;
+        }
+
         const tempId = `temp_${Date.now()}`; // Temporary ID based on timestamp for uniqueness
+
+        // Remove the "No assistants found." message if present
+        const assistantsList = document.getElementById('assistants-list');
+        const noAssistantsMessage = assistantsList.querySelector('.no-assistants-message');
+        if (noAssistantsMessage) {
+            noAssistantsMessage.remove();
+        }
 
         // Create a new assistant item element
         const assistantItem = document.createElement('div');
@@ -1849,7 +2033,6 @@
         assistantItem.innerHTML = `{% include "manage/assistant_form.html" %}`;
 
         // Append the new assistant item to the assistants list
-        const assistantsList = document.getElementById('assistants-list');
         if (assistantsList.firstChild) {
             assistantsList.insertBefore(assistantItem, assistantsList.firstChild);
         } else {
@@ -1858,9 +2041,27 @@
     }
 
     function removeAssistantCard(assistantId) {
-        // To remove the add form when assistant addition is cancelled
-        const assistantCard = document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
-        assistantCard.remove();
+        // Remove the assistant card
+        const assistantCard = document.getElementById(`temp-card-${assistantId}`) || document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
+        if (assistantCard) {
+            assistantCard.remove();
+        }
+
+        // Check if the assistants list is empty
+        const assistantsList = document.getElementById('assistants-list');
+        const assistantItems = assistantsList.querySelectorAll('.assistant-item');
+        if (assistantItems.length === 0) {
+            // Display the "No assistants found." message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'text-center mt-4 no-assistants-message';
+            messageDiv.innerHTML = `
+                <p class="text-secondary">No assistants found.</p>
+                <span class="text-secondary">
+                    <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addAssistant()"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
+                </span>
+            `;
+            assistantsList.appendChild(messageDiv);
+        }
     }
 
     async function saveNewAssistant(assistantId) {
@@ -1875,12 +2076,15 @@
 
         const url = "{% url 'api-1.0.0:create_assistant' %}";
 
+        const metadata = collectMetadata(assistantId);
+
         const payload = {
             name: document.getElementById(`name-${assistantId}`).value,
             instructions: document.getElementById(`instructions-${assistantId}`).value,
             description: document.getElementById(`description-${assistantId}`).value,
             vector_store_id: document.getElementById(`vs-${assistantId}`).value,
-            model: document.getElementById(`model-${assistantId}`).value
+            model: document.getElementById(`model-${assistantId}`).value,
+            metadata: metadata
         };
 
         try {
@@ -1910,15 +2114,31 @@
 
             } else {
                 const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to save new assistant!", parsedError.errorMessage);
-                console.error('Failed to save new assistant!', parsedError);
-                // Handle error (e.g., show error message)
+                let errorMessage = '';
+
+                if (errorData.error) {
+                    const parsedError = parseErrorText(errorData.error);
+                    errorMessage = parsedError.errorMessage;
+                } else if (errorData.detail) {
+                    // Handle server errors
+                    if (Array.isArray(errorData.detail)) {
+                        // Extract the message from the first error detail
+                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
+                    } else if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else {
+                        errorMessage = 'Unknown error occurred.';
+                    }
+                } else {
+                    errorMessage = 'Unknown error occurred.';
+                }
+
+                showToast("Failed to update vector store!", errorMessage);
+                console.error('Failed to update vector store!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
             console.error('Unexpected error:', error);
-            // Handle unexpected errors (e.g., network issues)
         } finally {
             // Hide spinner and enable button
             spinner.classList.add('d-none');
@@ -1940,12 +2160,15 @@
         const modifyAssistantUrlTemplate = "{% url 'api-1.0.0:modify_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
         const url = modifyAssistantUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
 
+        const metadata = collectMetadata(assistantId);
+
         const payload = {
             name: document.getElementById(`name-${assistantId}`).value,
             instructions: document.getElementById(`instructions-${assistantId}`).value,
             description: document.getElementById(`description-${assistantId}`).value,
             vector_store_id: document.getElementById(`vs-${assistantId}`).value,
-            model: document.getElementById(`model-${assistantId}`).value
+            model: document.getElementById(`model-${assistantId}`).value,
+            metadata: metadata
         };
 
         try {
@@ -1968,9 +2191,27 @@
                 displayAssistants();
             } else {
                 const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to update assistant!", parsedError.errorMessage);
-                console.error('Failed to update assistant!', parsedError);
+                let errorMessage = '';
+
+                if (errorData.error) {
+                    const parsedError = parseErrorText(errorData.error);
+                    errorMessage = parsedError.errorMessage;
+                } else if (errorData.detail) {
+                    // Handle server errors
+                    if (Array.isArray(errorData.detail)) {
+                        // Extract the message from the first error detail
+                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
+                    } else if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else {
+                        errorMessage = 'Unknown error occurred.';
+                    }
+                } else {
+                    errorMessage = 'Unknown error occurred.';
+                }
+
+                showToast("Failed to update vector store!", errorMessage);
+                console.error('Failed to update vector store!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);

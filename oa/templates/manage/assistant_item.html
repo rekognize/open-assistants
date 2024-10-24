@@ -67,13 +67,21 @@
                         <label for="instructions-${assistant.id}">Instructions</label>
                     </div>
 
-                    <div class="form-floating">
+                    <div class="form-floating mb-3">
                         <select class="form-select" id="model-${assistant.id}">
                             <option value="gpt-4o">gpt-4o</option>
                             <option value="gpt-4o-mini">gpt-4o-mini</option>
                         </select>
                         <label for="model-${assistant.id}">Model</label>
                     </div>
+
+                    <!-- Metadata Fields -->
+                    <div class="metadata-fields" id="metadata-fields-${assistant.id}">
+                        <!-- Parameter entries will be added here dynamically -->
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addMetadataField('${assistant.id}')">
+                        Add parameter
+                    </button>
 
                 </form>
 
@@ -87,7 +95,7 @@
             <div>
 
                 <div class="brief-info">
-                    <button type="button" onclick="toggleEditMode('${assistant.id}')"
+                    <button type="button" onclick="toggleEditMode('${assistant.id}', 'assistant')"
                             class="btn btn-sm btn-outline-secondary"
                             data-bs-toggle="tooltip" data-bs-title="Edit">
                         <i class="bi bi-pencil"></i>
@@ -103,7 +111,7 @@
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary"
-                            onclick="toggleEditMode('${assistant.id}')"
+                            onclick="toggleEditMode('${assistant.id}', 'assistant')"
                             data-bs-toggle="tooltip" data-bs-title="Cancel">
                         <i class="bi bi-x-lg"></i>
                     </button>

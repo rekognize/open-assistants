@@ -15,6 +15,13 @@
                         <label for="expiration-days-${tempId}" class="form-label">Expiration after days of inactivity</label>
                     </div>
 
+                <!-- Metadata Fields -->
+                <div class="metadata-fields" id="metadata-fields-${tempId}">
+                    <!-- Parameter entries will be added here dynamically -->
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addMetadataField('${tempId}')">
+                    Add parameter
+                </button>
                 </form>
             </div>
 

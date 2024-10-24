@@ -67,6 +67,14 @@
                         <label for="expiration-days-${store.id}" class="form-label">Expiration after days of inactivity</label>
                     </div>
 
+                    <!-- Metadata Fields -->
+                    <div class="metadata-fields" id="metadata-fields-${store.id}">
+                        <!-- Parameter entries will be added here dynamically -->
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addMetadataField('${store.id}')">
+                        Add parameter
+                    </button>
+
                 </form>
 
             </div>
@@ -79,7 +87,7 @@
             <div>
 
                 <div class="brief-info">
-                    <button type="button" onclick="toggleEditMode('${store.id}')"
+                    <button type="button" onclick="toggleEditMode('${store.id}', 'vectorStore')"
                             class="btn btn-sm btn-outline-secondary"
                             data-bs-toggle="tooltip" data-bs-title="Edit">
                         <i class="bi bi-pencil"></i>
@@ -94,7 +102,7 @@
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary"
-                            onclick="toggleEditMode('${store.id}')"
+                            onclick="toggleEditMode('${store.id}', 'vectorStore')"
                             data-bs-toggle="tooltip" data-bs-title="Cancel">
                         <i class="bi bi-x-lg"></i>
                     </button>
