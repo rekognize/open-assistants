@@ -38,6 +38,7 @@ async def create_assistant(request, payload: AssistantSchema):
             model=payload.model,
             tools=tools,
             tool_resources=tool_resources,
+            metadata=payload.metadata
         )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
@@ -105,6 +106,7 @@ async def modify_assistant(request, assistant_id, payload: AssistantSchema):
             model=payload.model,
             tools=tools,
             tool_resources=tool_resources,
+            metadata=payload.metadata
         )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
@@ -149,6 +151,7 @@ async def create_vector_store(request, payload: VectorStoreSchema):
         vector_store = await client.beta.vector_stores.create(
             name=payload.name,
             expires_after=expires_after,
+            metadata=payload.metadata
         )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
@@ -208,6 +211,7 @@ async def modify_vector_store(request, vector_store_id, payload: VectorStoreSche
             vector_store_id,
             name=payload.name,
             expires_after=expires_after,
+            metadata=payload.metadata
         )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)

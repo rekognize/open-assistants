@@ -653,6 +653,20 @@
         }
     }
 
+    function toggleMetadataFields(id) {
+        const metadataFields = document.getElementById(`metadata-fields-${id}`);
+        metadataFields.classList.toggle('d-none');
+    }
+
+    function collectMetadata(id) {
+        const key = document.getElementById(`metadata-key-${id}`).value.trim();
+        const value = document.getElementById(`metadata-value-${id}`).value.trim();
+        if (key && value) {
+            return { [key]: value };
+        }
+        return null;
+    }
+
 
     /* Loading components and orchestration of the flow */
 
@@ -1490,9 +1504,12 @@
 
         const url = "{% url 'api-1.0.0:create_vector_store' %}";
 
+        const metadata = collectMetadata(vectorStoreId);
+
         const payload = {
             name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
-            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value
+            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
+            ...(metadata && { metadata: metadata })
         };
 
         try {
@@ -1554,9 +1571,12 @@
         const modifyVectorStoreUrlTemplate = "{% url 'api-1.0.0:modify_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}";
         const url = modifyVectorStoreUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
 
+        const metadata = collectMetadata(vectorStoreId);
+
         const payload = {
             name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
-            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value
+            expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
+            ...(metadata && { metadata: metadata })
         };
 
         try {
@@ -1966,12 +1986,15 @@
 
         const url = "{% url 'api-1.0.0:create_assistant' %}";
 
+        const metadata = collectMetadata(assistantId);
+
         const payload = {
             name: document.getElementById(`name-${assistantId}`).value,
             instructions: document.getElementById(`instructions-${assistantId}`).value,
             description: document.getElementById(`description-${assistantId}`).value,
             vector_store_id: document.getElementById(`vs-${assistantId}`).value,
-            model: document.getElementById(`model-${assistantId}`).value
+            model: document.getElementById(`model-${assistantId}`).value,
+            ...(metadata && { metadata: metadata })
         };
 
         try {
@@ -2031,12 +2054,15 @@
         const modifyAssistantUrlTemplate = "{% url 'api-1.0.0:modify_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
         const url = modifyAssistantUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
 
+        const metadata = collectMetadata(assistantId);
+
         const payload = {
             name: document.getElementById(`name-${assistantId}`).value,
             instructions: document.getElementById(`instructions-${assistantId}`).value,
             description: document.getElementById(`description-${assistantId}`).value,
             vector_store_id: document.getElementById(`vs-${assistantId}`).value,
-            model: document.getElementById(`model-${assistantId}`).value
+            model: document.getElementById(`model-${assistantId}`).value,
+            ...(metadata && { metadata: metadata })
         };
 
         try {

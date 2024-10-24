@@ -67,6 +67,21 @@
                         <label for="expiration-days-${store.id}" class="form-label">Expiration after days of inactivity</label>
                     </div>
 
+                    <!-- Metadata Fields (Initially Hidden) -->
+                    <div class="metadata-fields d-none" id="metadata-fields-${store.id}">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="metadata-key-${store.id}" placeholder="Parameter Name">
+                            <label for="metadata-key-${store.id}" class="form-label">Parameter Name</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="metadata-value-${store.id}" placeholder="Parameter Value">
+                            <label for="metadata-value-${store.id}" class="form-label">Parameter Value</label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="toggleMetadataFields('${store.id}')">
+                        Add parameter
+                    </button>
+
                 </form>
 
             </div>

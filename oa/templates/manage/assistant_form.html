@@ -27,13 +27,28 @@
                         <label for="instructions-${tempId}">Instructions</label>
                     </div>
 
-                    <div class="form-floating">
+                    <div class="form-floating mb-3">
                         <select class="form-select" id="model-${tempId}">
                             <option value="gpt-4o">gpt-4o</option>
                             <option value="gpt-4o-mini">gpt-4o-mini</option>
                         </select>
                         <label for="model-${tempId}">Model</label>
                     </div>
+
+                    <!-- Metadata Fields (Initially Hidden) -->
+                    <div class="metadata-fields d-none" id="metadata-fields-${tempId}">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="metadata-key-${tempId}" placeholder="Parameter Name">
+                            <label for="metadata-key-${tempId}" class="form-label">Parameter Name</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="metadata-value-${tempId}" placeholder="Parameter Value">
+                            <label for="metadata-value-${tempId}" class="form-label">Parameter Value</label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="toggleMetadataFields('${tempId}')">
+                        Add parameter
+                    </button>
                 </form>
             </div>
 
