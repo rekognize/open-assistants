@@ -18,23 +18,15 @@ async def create_assistant(request, payload: AssistantSchema):
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
-    # Always include code_interpreter in tools
-    tools = [{"type": "code_interpreter"}]
-    tool_resources = {}
-
-    if payload.vector_store_id:
-        # Add file_search to tools
-        tools.append({"type": "file_search"})
-        # Add tool_resources for file_search
-        tool_resources["file_search"] = {
-            "vector_store_ids": [payload.vector_store_id]
-        }
+    # Use the tools and tool_resources from the payload
+    tools = payload.tools or []
+    tool_resources = payload.tool_resources or {}
 
     try:
         assistant = await client.beta.assistants.create(
             name=payload.name,
-            instructions=payload.instructions,
             description=payload.description,
+            instructions=payload.instructions,
             model=payload.model,
             tools=tools,
             tool_resources=tool_resources,
