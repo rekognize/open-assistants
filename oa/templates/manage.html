@@ -605,6 +605,16 @@
         return checkBoxes;
     }
 
+    function toggleAssistantFileSearch(tempId) {
+        const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${tempId}`);
+        const vectorStoreDiv = document.getElementById(`vector-store-div-${tempId}`);
+        if (fileSearchSwitch.checked) {
+            vectorStoreDiv.style.display = 'block';
+        } else {
+            vectorStoreDiv.style.display = 'none';
+        }
+    }
+
     function toggleEditMode(id, type) {
         const cardBody = document.getElementById(`${id}`);
         const cardFooter = cardBody.closest('.card').querySelector('.card-footer');
@@ -2076,6 +2086,29 @@
 
         const url = "{% url 'api-1.0.0:create_assistant' %}";
 
+        const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${assistantId}`);
+        const fileSearchEnabled = fileSearchSwitch ? fileSearchSwitch.checked : false;
+        const codeInterpreterSwitch = document.getElementById(`codeInterpreterSwitch-${assistantId}`);
+        const codeInterpreterEnabled = codeInterpreterSwitch ? codeInterpreterSwitch.checked : false;
+        const vectorStoreId = fileSearchEnabled ? document.getElementById(`vs-${assistantId}`).value : null;
+
+        // Build tools array based on switches
+        const tools = [];
+        if (codeInterpreterEnabled) {
+            tools.push({ "type": "code_interpreter" });
+        }
+        if (fileSearchEnabled) {
+            tools.push({ "type": "file_search" });
+        }
+
+        // Build tool_resources
+        const tool_resources = {};
+        if (fileSearchEnabled && vectorStoreId) {
+            tool_resources["file_search"] = {
+                "vector_store_ids": [vectorStoreId]
+            };
+        }
+
         const metadata = collectMetadata(assistantId);
 
         const payload = {
@@ -2084,6 +2117,8 @@
             description: document.getElementById(`description-${assistantId}`).value,
             vector_store_id: document.getElementById(`vs-${assistantId}`).value,
             model: document.getElementById(`model-${assistantId}`).value,
+            tools: tools,
+            tool_resources: tool_resources,
             metadata: metadata
         };
 
