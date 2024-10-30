@@ -541,7 +541,7 @@
         }
     }
 
-    function renderVSList(vsList) {
+    function renderFileVSList(vsList) {
         let rendered = '<div class="info-box"><span class="info-label">Vector Store(s)</span>';
 
         if (vsList) {
@@ -549,7 +549,7 @@
             vsList.forEach(vsId => {
                 const vectorStore = vectorStores[vsId]; // Fetch the vector store from the global object
                 rendered += `
-                    <span class="d-block">${vectorStore.name ?? 'Untitled'}</span>
+                    <span class="d-block">${vectorStore.name ?? 'Untitled store'}</span>
                 `;
             });
             rendered += '</p>'
@@ -581,7 +581,7 @@
                     <input class="form-check-input" type="checkbox" value="${vsId}" id="vs-check-${vsId}" checked
                         onchange="toggleVectorStore('${fileId}', '${vsId}', this.checked)">
                     <label class="form-check-label" for="vs-check-${vsId}">
-                        ${vs.name ?? 'Untitled'}
+                        ${vs.name ?? 'Untitled store'}
                     </label>
                 </div>
             `;
@@ -595,7 +595,7 @@
                         <input class="form-check-input" type="checkbox" value="${vsId}" id="vs-check-${vsId}"
                             onchange="toggleVectorStore('${fileId}', '${vsId}', this.checked)">
                         <label class="form-check-label" for="vs-check-${vsId}">
-                            ${vectorStore.name ?? 'Untitled'}
+                            ${vectorStore.name ?? 'Untitled store'}
                         </label>
                     </div>
                 `;
@@ -1227,7 +1227,7 @@
         for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
             const option = document.createElement('option');
             option.value = vsId;
-            option.textContent = vectorStore.name ?? 'Untitled';
+            option.textContent = vectorStore.name ?? 'Untitled store';
             filterVectorStore.appendChild(option);
         }
     }
@@ -1239,7 +1239,7 @@
         for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
             const option = document.createElement('option');
             option.value = vsId;
-            option.textContent = vectorStore.name ?? 'Untitled';
+            option.textContent = vectorStore.name ?? 'Untitled store';
             filterVectorStore.appendChild(option);
         }
 
@@ -1371,6 +1371,8 @@
         vectorStoreItem.className = 'vector-store-item';
         vectorStoreItem.id = `vector-store-${store.id}`;
 
+        const storeName = store.name || 'Untitled store';
+
         vectorStoreItem.innerHTML = `{% include "manage/vector_store_item.html" %}`;
 
         return vectorStoreItem;
@@ -1392,7 +1394,7 @@
         // Apply filters
         vectorStoresArray = vectorStoresArray.filter(store => {
             // Name filter
-            if (vectorStoreFilters.name && !(store.name || 'Untitled').toLowerCase().includes(vectorStoreFilters.name)) {
+            if (vectorStoreFilters.name && !(store.name || 'Untitled store').toLowerCase().includes(vectorStoreFilters.name)) {
                 return false;
             }
             // Creation date filter
@@ -1458,7 +1460,7 @@
             let compareResult = 0;
 
             if (vectorStoreSortField === 'name') {
-                compareResult = (a.name || 'Untitled').localeCompare(b.name || 'Untitled');
+                compareResult = (a.name || 'Untitled store').localeCompare(b.name || 'Untitled store');
             } else if (vectorStoreSortField === 'created_at') {
                 compareResult = a.created_at - b.created_at;
             } else if (vectorStoreSortField === 'last_active_at') {
@@ -1589,7 +1591,7 @@
         const metadata = collectMetadata(vectorStoreId);
 
         const payload = {
-            name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
+            name: document.getElementById(`name-${vectorStoreId ?? 'Untitled store'}`).value,
             expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
             metadata: metadata
         };
@@ -1672,7 +1674,7 @@
         const metadata = collectMetadata(vectorStoreId);
 
         const payload = {
-            name: document.getElementById(`name-${vectorStoreId ?? 'Untitled'}`).value,
+            name: document.getElementById(`name-${vectorStoreId ?? 'Untitled store'}`).value,
             expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
             metadata: metadata
         };
@@ -1758,7 +1760,7 @@
 
         // Add vector store info
         vectorStoreInfo.textContent = '';
-        vectorStoreInfo.textContent = vectorStores[vectorStoreId] && vectorStores[vectorStoreId].name && vectorStores[vectorStoreId].name.trim() !== '' ? vectorStores[vectorStoreId].name : 'Untitled';
+        vectorStoreInfo.textContent = vectorStores[vectorStoreId] && vectorStores[vectorStoreId].name && vectorStores[vectorStoreId].name.trim() !== '' ? vectorStores[vectorStoreId].name : 'Untitled store';
 
         if (assistantsUsingVS.length > 0) {
             // Show the list of assistants
@@ -1784,7 +1786,7 @@
     async function confirmDeleteVectorStore() {
         const vectorStoreId = vectorStoreToDeleteId;
         const url = "{% url 'api-1.0.0:delete_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}".replace('VS_ID_PLACEHOLDER', vectorStoreId);
-        const vectorStoreName = vectorStores[vectorStoreId] && vectorStores[vectorStoreId].name && vectorStores[vectorStoreId].name.trim() !== '' ? vectorStores[vectorStoreId].name : 'Untitled';
+        const vectorStoreName = vectorStores[vectorStoreId] && vectorStores[vectorStoreId].name && vectorStores[vectorStoreId].name.trim() !== '' ? vectorStores[vectorStoreId].name : 'Untitled store';
 
         // Hide the modal
         const deleteModal = bootstrap.Modal.getInstance(document.getElementById('vectorStoreDeleteModal'));
@@ -1900,7 +1902,7 @@
         // Iterate over the global vectorStores object to create options
         for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
             const isSelected = vsId === selectedVectorStoreId ? 'selected' : '';
-            selectHtml += `<option value="${vsId}" ${isSelected}>${vectorStore.name ?? 'Untitled'}</option>`;
+            selectHtml += `<option value="${vsId}" ${isSelected}>${vectorStore.name ?? 'Untitled store'}</option>`;
         }
 
         // Close the select element
@@ -1913,6 +1915,9 @@
         const assistantItem = document.createElement('div');
         assistantItem.className = 'assistant-item';
         assistantItem.id = `assistant-${assistant.id}`;
+
+        // Get the assistant name
+        const assistantName = assistant.name || 'Untitled assistant';
 
         // Get the vector store name
         let vs_name = 'No vector store assigned';  // Default if not assigned
@@ -1946,7 +1951,7 @@
         // Apply filters
         assistantsArray = assistantsArray.filter(assistant => {
             // Filter by name
-            if (assistantFilters.name && !assistant.name.toLowerCase().includes(assistantFilters.name)) {
+            if (assistantFilters.name && !(assistant.name || 'Untitled assistant').toLowerCase().includes(assistantFilters.name)) {
                 return false;
             }
             // Filter by creation date
@@ -2012,7 +2017,7 @@
             let compareResult = 0;
 
             if (assistantSortField === 'name') {
-                compareResult = a.name.localeCompare(b.name);
+                compareResult = (a.name || 'Untitled assistant').localeCompare(b.name || 'Untitled assistant');
             } else if (assistantSortField === 'created_at') {
                 compareResult = a.created_at - b.created_at;
             }
@@ -2128,7 +2133,7 @@
         const metadata = collectMetadata(assistantId);
 
         const payload = {
-            name: document.getElementById(`name-${assistantId}`).value,
+            name: document.getElementById(`name-${assistantId} ?? 'Untitled assistant'}`).value,
             description: document.getElementById(`description-${assistantId}`).value,
             instructions: document.getElementById(`instructions-${assistantId}`).value,
             model: document.getElementById(`model-${assistantId}`).value,
@@ -2236,7 +2241,7 @@
         const metadata = collectMetadata(assistantId);
 
         const payload = {
-            name: document.getElementById(`name-${assistantId}`).value,
+            name: document.getElementById(`name-${assistantId ?? 'Untitled assistant'}`).value,
             description: document.getElementById(`description-${assistantId}`).value,
             instructions: document.getElementById(`instructions-${assistantId}`).value,
             model: document.getElementById(`model-${assistantId}`).value,
@@ -2307,7 +2312,7 @@
 
         // Add assistant info
         assistantInfo.textContent = '';
-        assistantInfo.textContent = assistants[assistantId].name;
+        assistantInfo.textContent = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
 
         // Show the modal
         const deleteModal = new bootstrap.Modal(document.getElementById('assistantDeleteModal'));
@@ -2321,7 +2326,7 @@
     async function confirmDeleteAssistant() {
         const assistantId = assistantToDeleteId;
         const url = "{% url 'api-1.0.0:delete_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}".replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
-        const assistantName = assistants[assistantId].name;
+        const assistantName = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
 
         // Hide the modal
         const deleteModal = bootstrap.Modal.getInstance(document.getElementById('assistantDeleteModal'));
@@ -2397,7 +2402,7 @@
         fileItem.id = `file-${file.id}`;
 
         // File's vector stores
-        const vectorStoresHtml = renderVSList(fileVectorStores[file.id]);
+        const vectorStoresHtml = renderFileVSList(fileVectorStores[file.id]);
 
         // All vector stores to be displayed in the edit mode
         const vectorStoresForm = renderFileVSSelect(file.id);
@@ -2717,7 +2722,7 @@
             // Show the list of vector stores
             vectorStoresUsingFileDiv.classList.remove('d-none');
             vectorStoresUsingFile.forEach(vsId => {
-                const vsName = vectorStores[vsId] && vectorStores[vsId].name && vectorStores[vsId].name.trim() !== '' ? vectorStores[vsId].name : 'Untitled';
+                const vsName = vectorStores[vsId] && vectorStores[vsId].name && vectorStores[vsId].name.trim() !== '' ? vectorStores[vsId].name : 'Untitled store';
                 const li = document.createElement('li');
                 li.textContent = vsName;
                 vectorStoreNamesListElement.appendChild(li);
@@ -2817,7 +2822,7 @@
                 const label = document.createElement('label');
                 label.classList.add('form-check-label');
                 label.setAttribute('for', `vs-${vsId}`);
-                label.textContent = vectorStore.name ?? 'Untitled';
+                label.textContent = vectorStore.name ?? 'Untitled store';
 
                 checkbox.appendChild(input);
                 checkbox.appendChild(label);
