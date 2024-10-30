@@ -605,9 +605,9 @@
         return checkBoxes;
     }
 
-    function toggleAssistantFileSearch(tempId) {
-        const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${tempId}`);
-        const vectorStoreDiv = document.getElementById(`vector-store-div-${tempId}`);
+    function toggleAssistantFileSearch(assistantId) {
+        const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${assistantId}`);
+        const vectorStoreDiv = document.getElementById(`vector-store-div-${assistantId}`);
         if (fileSearchSwitch.checked) {
             vectorStoreDiv.style.display = 'block';
         } else {
@@ -644,9 +644,25 @@
                 const assistant = assistants[id];
                 document.getElementById(`name-${id}`).value = assistant.name;
                 document.getElementById(`description-${id}`).value = assistant.description || '';
-                document.getElementById(`vs-${id}`).value = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '';
                 document.getElementById(`instructions-${id}`).value = assistant.instructions || '';
                 document.getElementById(`model-${id}`).value = assistant.model || 'gpt-4o';
+
+                // Initialize switches
+                const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${id}`);
+                const codeInterpreterSwitch = document.getElementById(`codeInterpreterSwitch-${id}`);
+
+                if (fileSearchSwitch) {
+                    const hasFileSearch = assistant.tools.some(tool => tool.type === 'file_search');
+                    fileSearchSwitch.checked = hasFileSearch;
+
+                    // Initialize vector store visibility
+                    toggleAssistantFileSearch(id);
+                }
+
+                if (codeInterpreterSwitch) {
+                    codeInterpreterSwitch.checked = assistant.tools.some(tool => tool.type === 'code_interpreter');
+                }
+
                 // Initialize metadata fields
                 initializeMetadataFields(id, assistant.metadata);
             } else if (type === 'vectorStore') {
@@ -2113,9 +2129,8 @@
 
         const payload = {
             name: document.getElementById(`name-${assistantId}`).value,
-            instructions: document.getElementById(`instructions-${assistantId}`).value,
             description: document.getElementById(`description-${assistantId}`).value,
-            vector_store_id: document.getElementById(`vs-${assistantId}`).value,
+            instructions: document.getElementById(`instructions-${assistantId}`).value,
             model: document.getElementById(`model-${assistantId}`).value,
             tools: tools,
             tool_resources: tool_resources,
@@ -2195,14 +2210,38 @@
         const modifyAssistantUrlTemplate = "{% url 'api-1.0.0:modify_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
         const url = modifyAssistantUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
 
+        const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${assistantId}`);
+        const fileSearchEnabled = fileSearchSwitch ? fileSearchSwitch.checked : false;
+        const codeInterpreterSwitch = document.getElementById(`codeInterpreterSwitch-${assistantId}`);
+        const codeInterpreterEnabled = codeInterpreterSwitch ? codeInterpreterSwitch.checked : false;
+        const vectorStoreId = fileSearchEnabled ? document.getElementById(`vs-${assistantId}`).value : null;
+
+        // Build tools array based on switches
+        const tools = [];
+        if (codeInterpreterEnabled) {
+            tools.push({ "type": "code_interpreter" });
+        }
+        if (fileSearchEnabled) {
+            tools.push({ "type": "file_search" });
+        }
+
+        // Build tool_resources
+        const tool_resources = {};
+        if (fileSearchEnabled && vectorStoreId) {
+            tool_resources["file_search"] = {
+                "vector_store_ids": [vectorStoreId]
+            };
+        }
+
         const metadata = collectMetadata(assistantId);
 
         const payload = {
             name: document.getElementById(`name-${assistantId}`).value,
-            instructions: document.getElementById(`instructions-${assistantId}`).value,
             description: document.getElementById(`description-${assistantId}`).value,
-            vector_store_id: document.getElementById(`vs-${assistantId}`).value,
+            instructions: document.getElementById(`instructions-${assistantId}`).value,
             model: document.getElementById(`model-${assistantId}`).value,
+            tools: tools,
+            tool_resources: tool_resources,
             metadata: metadata
         };
 
