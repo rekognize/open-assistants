@@ -642,7 +642,7 @@
             // Entering edit mode, reset the form fields
             if (type === 'assistant') {
                 const assistant = assistants[id];
-                document.getElementById(`name-${id}`).value = assistant.name;
+                document.getElementById(`name-${id}`).value = assistant.name || '';
                 document.getElementById(`description-${id}`).value = assistant.description || '';
                 document.getElementById(`instructions-${id}`).value = assistant.instructions || '';
                 document.getElementById(`model-${id}`).value = assistant.model || 'gpt-4o';
@@ -1746,7 +1746,7 @@
         for (const [assistantId, assistant] of Object.entries(assistants)) {
             const assignedVsId = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || null;
             if (assignedVsId === vectorStoreId) {
-                assistantsUsingVS.push(assistant.name);
+                assistantsUsingVS.push(assistant.name || 'Untitled assistant');
             }
         }
 
@@ -1924,7 +1924,7 @@
         const vs_id = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || null;
 
         if (vs_id && vectorStores[vs_id]) {
-            vs_name = vectorStores[vs_id].name;
+            vs_name = vectorStores[vs_id].name ?? 'Untitled store';
         }
 
         const selectVectorStore = renderAssistantVSSelect(assistant.id);
