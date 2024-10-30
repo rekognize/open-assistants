@@ -77,24 +77,16 @@ async def modify_assistant(request, assistant_id, payload: AssistantSchema):
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
-    if payload.vector_store_id:
-        tools = [{
-            "type": "file_search"
-        }]
-        tool_resources = {
-            "file_search": {
-                "vector_store_ids": [payload.vector_store_id]
-            }
-        }
-    else:
-        tools, tool_resources = [], {}
+    # Use tools and tool_resources from the payload
+    tools = payload.tools or []
+    tool_resources = payload.tool_resources or {}
 
     try:
         assistant = await client.beta.assistants.update(
             assistant_id,
             name=payload.name,
-            instructions=payload.instructions,
             description=payload.description,
+            instructions=payload.instructions,
             model=payload.model,
             tools=tools,
             tool_resources=tool_resources,
@@ -103,7 +95,7 @@ async def modify_assistant(request, assistant_id, payload: AssistantSchema):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
-    return JsonResponse(serialize_to_dict(assistant), status=201)
+    return JsonResponse(serialize_to_dict(assistant), status=200)
 
 
 @api.delete("/assistants/{assistant_id}")
