@@ -27,7 +27,7 @@ class AssistantSchema(Schema):
     description: Optional[str] = None
     instructions: str
     model: str
-    tools: Optional[List[Dict[str, str]]] = None
+    tools: Optional[List[Dict[str, Any]]] = None
     tool_resources: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, str]] = None
 

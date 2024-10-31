@@ -444,6 +444,8 @@
 
 <script>
 
+    const functionDefinitions = {{ function_definitions_json|safe }};
+
     /* Utility functions */
 
     function timeSince(date) {
@@ -613,6 +615,37 @@
         } else {
             vectorStoreDiv.style.display = 'none';
         }
+    }
+
+    function renderFunctionCheckboxes(assistantId) {
+        const functionsListDiv = document.getElementById(`functions-list-${assistantId}`);
+        functionsListDiv.innerHTML = ''; // Clear any existing content
+
+        functionDefinitions.forEach(funcDef => {
+            const functionName = funcDef.name;
+
+            // Create the checkbox input
+            const checkbox = document.createElement('div');
+            checkbox.classList.add('form-check');
+
+            const input = document.createElement('input');
+            input.classList.add('form-check-input');
+            input.type = 'checkbox';
+            input.value = functionName;
+            input.id = `function-${functionName}-${assistantId}`;
+
+            const label = document.createElement('label');
+            label.classList.add('form-check-label');
+            label.setAttribute('for', `function-${functionName}-${assistantId}`);
+            label.textContent = functionName;
+
+            // Append input and label to the checkbox div
+            checkbox.appendChild(input);
+            checkbox.appendChild(label);
+
+            // Append the checkbox to the functions list div
+            functionsListDiv.appendChild(checkbox);
+        });
     }
 
     function toggleEditMode(id, type) {
@@ -2073,6 +2106,7 @@
         } else {
             assistantsList.appendChild(assistantItem);
         }
+        renderFunctionCheckboxes(tempId);
     }
 
     function removeAssistantCard(assistantId) {
@@ -2117,6 +2151,16 @@
         const codeInterpreterEnabled = codeInterpreterSwitch ? codeInterpreterSwitch.checked : false;
         const vectorStoreId = fileSearchEnabled ? document.getElementById(`vs-${assistantId}`).value : null;
 
+        // Collect selected functions
+        const selectedFunctionNames = [];
+        const functionCheckboxes = document.querySelectorAll(`input[id^="function-"][id$="-${assistantId}"]:checked`);
+        functionCheckboxes.forEach(checkbox => {
+            selectedFunctionNames.push(checkbox.value);
+        });
+
+        // For each selected function name, find the function definition
+        const selectedFunctions = functionDefinitions.filter(funcDef => selectedFunctionNames.includes(funcDef.name));
+
         // Build tools array based on switches
         const tools = [];
         if (codeInterpreterEnabled) {
@@ -2125,6 +2169,13 @@
         if (fileSearchEnabled) {
             tools.push({ "type": "file_search" });
         }
+        // Add selected functions to tools
+        selectedFunctions.forEach(funcDef => {
+            tools.push({
+                "type": "function",
+                "function": funcDef
+            });
+        });
 
         // Build tool_resources
         const tool_resources = {};
