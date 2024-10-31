@@ -17,6 +17,7 @@ from openai.types.beta.threads import Text, TextDelta, ImageFile
 from .models import Project
 from .utils import get_openai_client_sync, format_time, verify_openai_key
 from ..api.utils import APIError, get_openai_client
+from ..tools import FUNCTION_DEFINITIONS
 
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,11 @@ class HomeView(TemplateView):
 def manage_assistants(request):
     if not Project.objects.filter(user=request.user).exists():
         return redirect('home')
-    return render(request, "manage.html")
+
+    function_definitions_json = json.dumps(FUNCTION_DEFINITIONS)
+    return render(request, "manage.html", {
+        'function_definitions_json': function_definitions_json,
+    })
 
 
 # Chat
