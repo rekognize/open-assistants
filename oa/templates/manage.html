@@ -1595,7 +1595,7 @@
         const metadata = collectMetadata(vectorStoreId);
 
         const payload = {
-            name: document.getElementById(`name-${vectorStoreId ?? 'Untitled store'}`).value,
+            name: document.getElementById(`name-${vectorStoreId}`).value,
             expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
             metadata: metadata
         };
@@ -1678,7 +1678,7 @@
         const metadata = collectMetadata(vectorStoreId);
 
         const payload = {
-            name: document.getElementById(`name-${vectorStoreId ?? 'Untitled store'}`).value,
+            name: document.getElementById(`name-${vectorStoreId}`).value,
             expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
             metadata: metadata
         };
@@ -2245,7 +2245,7 @@
         const metadata = collectMetadata(assistantId);
 
         const payload = {
-            name: document.getElementById(`name-${assistantId ?? 'Untitled assistant'}`).value,
+            name: document.getElementById(`name-${assistantId}`).value,
             description: document.getElementById(`description-${assistantId}`).value,
             instructions: document.getElementById(`instructions-${assistantId}`).value,
             model: document.getElementById(`model-${assistantId}`).value,
