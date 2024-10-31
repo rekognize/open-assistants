@@ -700,6 +700,19 @@
                     codeInterpreterSwitch.checked = assistant.tools.some(tool => tool.type === 'code_interpreter');
                 }
 
+                // Initialize functions checkboxes
+                renderFunctionCheckboxes(id);
+
+                // Check the functions that are already selected
+                const functionTools = assistant.tools.filter(tool => tool.type === 'function');
+                functionTools.forEach(funcTool => {
+                    const functionName = funcTool.function.name;
+                    const checkbox = document.getElementById(`function-${functionName}-${id}`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+
                 // Initialize metadata fields
                 initializeMetadataFields(id, assistant.metadata);
             } else if (type === 'vectorStore') {
@@ -1681,8 +1694,8 @@
                     errorMessage = 'Unknown error occurred.';
                 }
 
-                showToast("Failed to update vector store!", errorMessage);
-                console.error('Failed to update vector store!', errorMessage);
+                showToast("Failed to save new vector store!", errorMessage);
+                console.error('Failed to save new vector store!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
@@ -2243,8 +2256,8 @@
                     errorMessage = 'Unknown error occurred.';
                 }
 
-                showToast("Failed to update vector store!", errorMessage);
-                console.error('Failed to update vector store!', errorMessage);
+                showToast("Failed to save new assistant!", errorMessage);
+                console.error('Failed to save new assistant!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
@@ -2276,6 +2289,16 @@
         const codeInterpreterEnabled = codeInterpreterSwitch ? codeInterpreterSwitch.checked : false;
         const vectorStoreId = fileSearchEnabled ? document.getElementById(`vs-${assistantId}`).value : null;
 
+        // Collect selected functions
+        const selectedFunctionNames = [];
+        const functionCheckboxes = document.querySelectorAll(`input[id^="function-"][id$="-${assistantId}"]:checked`);
+        functionCheckboxes.forEach(checkbox => {
+            selectedFunctionNames.push(checkbox.value);
+        });
+
+        // For each selected function name, find the function definition
+        const selectedFunctions = functionDefinitions.filter(funcDef => selectedFunctionNames.includes(funcDef.name));
+
         // Build tools array based on switches
         const tools = [];
         if (codeInterpreterEnabled) {
@@ -2284,6 +2307,13 @@
         if (fileSearchEnabled) {
             tools.push({ "type": "file_search" });
         }
+        // Add selected functions to tools
+        selectedFunctions.forEach(funcDef => {
+            tools.push({
+                "type": "function",
+                "function": funcDef
+            });
+        });
 
         // Build tool_resources
         const tool_resources = {};
@@ -2344,8 +2374,8 @@
                     errorMessage = 'Unknown error occurred.';
                 }
 
-                showToast("Failed to update vector store!", errorMessage);
-                console.error('Failed to update vector store!', errorMessage);
+                showToast("Failed to update assistant!", errorMessage);
+                console.error('Failed to update assistant!', errorMessage);
             }
         } catch (error) {
             showToast("Unexpected error:", error);
