@@ -4,7 +4,7 @@ from .config import INSTALLED_TOOLS
 
 
 FUNCTION_DEFINITIONS = []
-
+FUNCTION_IMPLEMENTATIONS = {}
 
 for module_name in INSTALLED_TOOLS:
     # Import the module
@@ -23,3 +23,6 @@ for module_name in INSTALLED_TOOLS:
 
                 # Add the definition output to FUNCTION_DEFINITIONS
                 FUNCTION_DEFINITIONS.append(definition)
+
+                # Map function name to the class itself
+                FUNCTION_IMPLEMENTATIONS[definition['name']] = cls
