@@ -17,8 +17,7 @@ from openai.types.beta.threads import Text, TextDelta, ImageFile
 from .models import Project
 from .utils import get_openai_client_sync, format_time, verify_openai_key
 from ..api.utils import APIError, get_openai_client
-from ..tools import FUNCTION_DEFINITIONS
-
+from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +40,10 @@ def manage_assistants(request):
 # Chat
 
 class EventHandler(AssistantEventHandler):
-    def __init__(self):
+    def __init__(self, shared_data):
         super().__init__()
         self.current_message = ""
-        self.response_data = []
+        self.shared_data = shared_data  # Use shared_data instead of response_data
         self.stream_done = False
         self.current_annotations = []
 
@@ -52,7 +51,7 @@ class EventHandler(AssistantEventHandler):
         print("on_message_created called")
         self.current_message = ""
         self.current_annotations = []
-        self.response_data.append({"type": "message_created"})
+        self.shared_data.append({"type": "message_created"})
 
     def on_text_delta(self, delta: TextDelta, snapshot: Text):
         print(f"on_text_delta called with delta: {delta.value}")
@@ -74,7 +73,7 @@ class EventHandler(AssistantEventHandler):
                 self.current_annotations.append(annotation_dict)
 
         # Send the updated message and annotations to the client
-        self.response_data.append({
+        self.shared_data.append({
             "type": "text_delta",
             "text": self.current_message,
             "annotations": self.current_annotations
@@ -83,7 +82,7 @@ class EventHandler(AssistantEventHandler):
     def on_message_done(self, message):
         print("on_message_done called")
         # Send the final message content and annotations to the client
-        self.response_data.append({
+        self.shared_data.append({
             "type": "message_done",
             "text": self.current_message,
             "annotations": self.current_annotations
@@ -95,7 +94,7 @@ class EventHandler(AssistantEventHandler):
         self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
 
         # No annotations for images
-        self.response_data.append({
+        self.shared_data.append({
             "type": "image_file",
             "text": self.current_message,
             "annotations": []
@@ -104,7 +103,7 @@ class EventHandler(AssistantEventHandler):
     def on_end(self):
         print("on_end called")
         self.stream_done = True
-        self.response_data.append({"type": "end_of_stream"})
+        self.shared_data.append({"type": "end_of_stream"})
 
 
 def serve_image_file(request, file_id):
@@ -150,7 +149,8 @@ def stream_responses(request, thread_id, assistant_id):
         return JsonResponse({"error": e.message}, status=e.status)
 
     def event_stream():
-        event_handler = EventHandler()
+        shared_data = []
+        event_handler = EventHandler(shared_data=shared_data)
         try:
             with client.beta.threads.runs.stream(
                 thread_id=thread_id,
@@ -159,23 +159,71 @@ def stream_responses(request, thread_id, assistant_id):
             ) as stream:
                 # Process events as they arrive
                 for event in stream:
-                    # The event handler methods are called automatically
-                    # Retrieve and yield data as it becomes available
-                    while event_handler.response_data:
-                        data = event_handler.response_data.pop(0)
-                        print(f"Streaming data: {data}")
-                        yield f"data: {json.dumps(data)}\n\n"
-                        # Check for end of stream
-                        if data.get("type") == "end_of_stream":
-                            return  # Exit the generator to end streaming
+                    print(f"Received event: {event.event}")
 
-                # After the stream ends, process any remaining response_data
-                while event_handler.response_data:
-                    data = event_handler.response_data.pop(0)
+                    # Handle 'requires_action' events here
+                    if event.event == "thread.run.requires_action":
+                        run_id = event.data.id
+                        required_action = event.data.required_action
+                        if required_action.type == "submit_tool_outputs":
+                            tool_calls = required_action.submit_tool_outputs.tool_calls
+                            tool_outputs = []
+
+                            for tool_call in tool_calls:
+                                tool_call_id = tool_call.id
+                                function_name = tool_call.function.name
+                                function_args_json = tool_call.function.arguments
+                                function_args = json.loads(function_args_json)
+
+                                print(f"Function call received: {function_name} with arguments {function_args}")
+
+                                # Execute the function and get the output
+                                if function_name in FUNCTION_IMPLEMENTATIONS:
+                                    function_class = FUNCTION_IMPLEMENTATIONS[function_name]
+                                    try:
+                                        # Instantiate the class with the arguments
+                                        function_instance = function_class(**function_args)
+                                        output = function_instance.main()
+                                        print(f"Output: {output}")
+                                        # Ensure the output is JSON-serializable
+                                        output_json = json.dumps(output)
+                                    except Exception as e:
+                                        output = f"Error executing function {function_name}: {str(e)}"
+                                        output_json = json.dumps({"error": output})
+                                else:
+                                    output = f"Function {function_name} not found"
+                                    output_json = json.dumps({"error": output})
+
+                                tool_outputs.append({"tool_call_id": tool_call_id, "output": output_json})
+
+                            # Create a new EventHandler instance for the submit_tool_outputs_stream
+                            tool_output_event_handler = EventHandler(shared_data=shared_data)
+
+                            # Submit tool outputs
+                            with client.beta.threads.runs.submit_tool_outputs_stream(
+                                thread_id=thread_id,
+                                run_id=run_id,
+                                tool_outputs=tool_outputs,
+                                event_handler=tool_output_event_handler,
+                            ) as tool_output_stream:
+                                # Process events from the tool output stream
+                                for tool_event in tool_output_stream:
+                                    pass
+
+                    # Retrieve and yield data as it becomes available
+                    while shared_data:
+                        data = shared_data.pop(0)
+                        yield f"data: {json.dumps(data)}\n\n"
+                        if data.get("type") == "end_of_stream":
+                            return
+
+                # After the stream ends, process any remaining shared_data
+                while shared_data:
+                    data = shared_data.pop(0)
                     print(f"Streaming data after stream ends: {data}")
                     yield f"data: {json.dumps(data)}\n\n"
                     if data.get("type") == "end_of_stream":
-                        return  # Exit the generator to end streaming
+                        return
 
         except Exception as e:
             # Yield an error message to the client
