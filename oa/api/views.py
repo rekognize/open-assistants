@@ -4,7 +4,7 @@ from ninja.files import UploadedFile
 from typing import List
 from django.http import JsonResponse
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema
-from .utils import serialize_to_dict, APIError, get_openai_client
+from .utils import serialize_to_dict, APIError, aget_openai_client
 
 api = NinjaAPI()
 
@@ -14,7 +14,7 @@ api = NinjaAPI()
 @api.post("/assistants")
 async def create_assistant(request, payload: AssistantSchema):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -41,7 +41,7 @@ async def create_assistant(request, payload: AssistantSchema):
 @api.get("/assistants")
 async def list_assistants(request):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -58,7 +58,7 @@ async def list_assistants(request):
 @api.get("/assistants/{assistant_id}")
 async def retrieve_assistant(request, assistant_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -73,7 +73,7 @@ async def retrieve_assistant(request, assistant_id):
 @api.post("/assistants/{assistant_id}")
 async def modify_assistant(request, assistant_id, payload: AssistantSchema):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -101,7 +101,7 @@ async def modify_assistant(request, assistant_id, payload: AssistantSchema):
 @api.delete("/assistants/{assistant_id}")
 async def delete_assistant(request, assistant_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -118,7 +118,7 @@ async def delete_assistant(request, assistant_id):
 @api.post("/vector_stores")
 async def create_vector_store(request, payload: VectorStoreSchema):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -146,7 +146,7 @@ async def create_vector_store(request, payload: VectorStoreSchema):
 @api.get("/vector_stores")
 async def list_vector_stores(request):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -164,7 +164,7 @@ async def list_vector_stores(request):
 @api.get("/vector_stores/{vector_store_id}")
 async def retrieve_vector_store(request, vector_store_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -179,7 +179,7 @@ async def retrieve_vector_store(request, vector_store_id):
 @api.post("/vector_stores/{vector_store_id}")
 async def modify_vector_store(request, vector_store_id, payload: VectorStoreSchema):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -206,7 +206,7 @@ async def modify_vector_store(request, vector_store_id, payload: VectorStoreSche
 @api.delete("/vector_stores/{vector_store_id}")
 async def delete_vector_store(request, vector_store_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -223,7 +223,7 @@ async def delete_vector_store(request, vector_store_id):
 @api.get("/vector_stores/{vector_store_id}/files")
 async def list_vector_store_files(request, vector_store_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -242,7 +242,7 @@ async def list_vector_store_files(request, vector_store_id):
 @api.get("/vector_stores/{vector_store_id}/files/{file_id}")
 async def retrieve_vector_store_file(request, vector_store_id, file_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -266,7 +266,7 @@ async def upload_files(
         payload: FileUploadSchema = Form(...)
 ):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -346,7 +346,7 @@ async def upload_files(
 @api.get("/files")
 async def list_files(request):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -363,7 +363,7 @@ async def list_files(request):
 @api.get("/files/{file_id}")
 async def retrieve_file(request, file_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -379,7 +379,7 @@ async def retrieve_file(request, file_id):
 async def add_file_to_vector_stores(request, file_id, payload: VectorStoreIdsSchema):
     """Adds the file to the given vector stores."""
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -402,7 +402,7 @@ async def add_file_to_vector_stores(request, file_id, payload: VectorStoreIdsSch
 async def remove_file_from_vector_stores(request, file_id, payload: VectorStoreIdsSchema):
     """Removes the file from the given vector stores."""
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -424,7 +424,7 @@ async def remove_file_from_vector_stores(request, file_id, payload: VectorStoreI
 @api.delete("/files/{file_id}")
 async def delete_file(request, file_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -441,7 +441,7 @@ async def delete_file(request, file_id):
 @api.post("/threads")
 async def create_thread(request):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -460,7 +460,7 @@ async def create_thread(request):
 @api.get("/threads/{thread_id}")
 async def retrieve_thread(request, thread_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -475,7 +475,7 @@ async def retrieve_thread(request, thread_id):
 @api.post("/threads/{thread_id}")
 async def modify_thread(request, thread_id, payload: ThreadSchema):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -503,7 +503,7 @@ async def modify_thread(request, thread_id, payload: ThreadSchema):
 @api.post("/threads/{thread_id}/messages")
 async def create_message(request, thread_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 

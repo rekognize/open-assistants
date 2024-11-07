@@ -16,7 +16,7 @@ from openai.types.beta.threads import Text, TextDelta, ImageFile
 
 from .models import Project
 from .utils import format_time, verify_openai_key
-from ..api.utils import APIError, get_openai_client
+from ..api.utils import APIError, aget_openai_client
 from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
 
 logger = logging.getLogger(__name__)
@@ -108,7 +108,7 @@ class EventHandler(AsyncAssistantEventHandler):
 
 async def serve_image_file(request, file_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -144,7 +144,7 @@ def create_stream_url(request, thread_id, assistant_id):
 
 async def stream_responses(request, thread_id, assistant_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -245,7 +245,7 @@ async def stream_responses(request, thread_id, assistant_id):
 
 async def get_messages(request, thread_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -349,7 +349,7 @@ async def fetch_image_file(client, file_id):
 
 async def get_thread_files(request, thread_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -387,7 +387,7 @@ async def get_thread_files(request, thread_id):
 class DownloadFileView(View):
     async def get(self, request, thread_id, file_id):
         try:
-            client = await get_openai_client(request)
+            client = await aget_openai_client(request)
         except APIError as e:
             return JsonResponse({"error": e.message}, status=e.status)
 
