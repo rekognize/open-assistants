@@ -59,7 +59,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'oa.wsgi.application'
+ASGI_APPLICATION = 'oa.asgi.application'
 
 
 # Database
