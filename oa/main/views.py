@@ -4,6 +4,7 @@ import json
 import logging
 import os
 
+from asgiref.sync import async_to_sync
 from django.db import IntegrityError
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
@@ -106,19 +107,21 @@ class EventHandler(AsyncAssistantEventHandler):
         self.shared_data.append({"type": "end_of_stream"})
 
 
-async def serve_image_file(request, file_id):
+def serve_image_file(request, file_id):
     try:
-        client = await aget_openai_client(request)
+        image_binary = async_to_sync(fetch_image_binary)(request, file_id)
+        return HttpResponse(image_binary, content_type='image/png')
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        content_response = await client.files.content(file_id)
-        image_binary = await content_response.read()
-        return HttpResponse(image_binary, content_type='image/png')
     except OpenAIError as e:
         logger.error(f"Error fetching image file: {e}")
         return HttpResponseNotFound('Image not found')
+
+async def fetch_image_binary(request, file_id):
+    client = await aget_openai_client(request)
+    content_response = await client.files.content(file_id)
+    image_binary = content_response.read()
+    return image_binary
 
 
 def thread_detail(request):
