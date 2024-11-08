@@ -11,11 +11,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
-from openai import AssistantEventHandler, OpenAIError
+from openai import AsyncAssistantEventHandler, OpenAIError
 from openai.types.beta.threads import Text, TextDelta, ImageFile
 
 from .models import Project
-from .utils import get_openai_client_sync, format_time, verify_openai_key
+from .utils import format_time, verify_openai_key
 from ..api.utils import APIError, aget_openai_client
 from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
 
@@ -39,7 +39,7 @@ def manage_assistants(request):
 
 # Chat
 
-class EventHandler(AssistantEventHandler):
+class EventHandler(AsyncAssistantEventHandler):
     def __init__(self, shared_data):
         super().__init__()
         self.current_message = ""
@@ -47,14 +47,14 @@ class EventHandler(AssistantEventHandler):
         self.stream_done = False
         self.current_annotations = []
 
-    def on_message_created(self, message):
+    async def on_message_created(self, message):
         print("on_message_created called")
         self.current_message = ""
         self.current_annotations = []
         self.shared_data.append({"type": "message_created"})
 
-    def on_text_delta(self, delta: TextDelta, snapshot: Text):
-        print(f"on_text_delta called with delta: {delta.value}")
+    async def on_text_delta(self, delta: TextDelta, snapshot: Text):
+        # print(f"on_text_delta called with delta: {delta.value}")
 
         if delta.value:
             self.current_message += delta.value
@@ -79,7 +79,7 @@ class EventHandler(AssistantEventHandler):
             "annotations": self.current_annotations
         })
 
-    def on_message_done(self, message):
+    async def on_message_done(self, message):
         print("on_message_done called")
         # Send the final message content and annotations to the client
         self.shared_data.append({
@@ -88,7 +88,7 @@ class EventHandler(AssistantEventHandler):
             "annotations": self.current_annotations
         })
 
-    def on_image_file_done(self, image_file: ImageFile) -> None:
+    async def on_image_file_done(self, image_file: ImageFile) -> None:
         print(f"on_image_file_done called with file_id: {image_file.file_id}")
         image_url = reverse('serve_image_file', args=[image_file.file_id])
         self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
@@ -100,21 +100,21 @@ class EventHandler(AssistantEventHandler):
             "annotations": []
         })
 
-    def on_end(self):
+    async def on_end(self):
         print("on_end called")
         self.stream_done = True
         self.shared_data.append({"type": "end_of_stream"})
 
 
-def serve_image_file(request, file_id):
+async def serve_image_file(request, file_id):
     try:
-        client = get_openai_client_sync(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
     try:
-        content_response = client.files.content(file_id)
-        image_binary = content_response.read()
+        content_response = await client.files.content(file_id)
+        image_binary = await content_response.read()
         return HttpResponse(image_binary, content_type='image/png')
     except OpenAIError as e:
         logger.error(f"Error fetching image file: {e}")
@@ -142,24 +142,24 @@ def create_stream_url(request, thread_id, assistant_id):
     return JsonResponse({'success': True, 'stream_url': stream_url})
 
 
-def stream_responses(request, thread_id, assistant_id):
+async def stream_responses(request, thread_id, assistant_id):
     try:
-        client = get_openai_client_sync(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
-    def event_stream():
+    async def event_stream():
         shared_data = []
         event_handler = EventHandler(shared_data=shared_data)
         try:
-            with client.beta.threads.runs.stream(
+            async with client.beta.threads.runs.stream(
                 thread_id=thread_id,
                 assistant_id=assistant_id,
                 event_handler=event_handler,
             ) as stream:
                 # Process events as they arrive
-                for event in stream:
-                    print(f"Received event: {event.event}")
+                async for event in stream:
+                    print(f"Received event: {event}")
 
                     # Handle 'requires_action' events here
                     if event.event == "thread.run.requires_action":
@@ -183,8 +183,9 @@ def stream_responses(request, thread_id, assistant_id):
                                     try:
                                         # Instantiate the class with the arguments
                                         function_instance = function_class(**function_args)
-                                        output = function_instance.main()
-                                        print(f"Output: {output}")
+                                        # If 'main' is synchronous, run it in a thread
+                                        output = await asyncio.to_thread(function_instance.main)
+                                        print(f"Output successful for: {function_name}")
                                         # Ensure the output is JSON-serializable
                                         output_json = json.dumps(output)
                                     except Exception as e:
@@ -200,20 +201,25 @@ def stream_responses(request, thread_id, assistant_id):
                             tool_output_event_handler = EventHandler(shared_data=shared_data)
 
                             # Submit tool outputs
-                            with client.beta.threads.runs.submit_tool_outputs_stream(
+                            async with client.beta.threads.runs.submit_tool_outputs_stream(
                                 thread_id=thread_id,
                                 run_id=run_id,
                                 tool_outputs=tool_outputs,
                                 event_handler=tool_output_event_handler,
                             ) as tool_output_stream:
                                 # Process events from the tool output stream
-                                for tool_event in tool_output_stream:
+                                async for tool_event in tool_output_stream:
+                                    print(f"tool_event: {tool_event}")
                                     pass
 
-                    # Retrieve and yield data as it becomes available
+                    # Yield data to the client immediately
                     while shared_data:
                         data = shared_data.pop(0)
                         yield f"data: {json.dumps(data)}\n\n"
+
+                        # Flush the response to the client
+                        await asyncio.sleep(0)  # Yield control to the event loop
+
                         if data.get("type") == "end_of_stream":
                             return
 
@@ -222,6 +228,7 @@ def stream_responses(request, thread_id, assistant_id):
                     data = shared_data.pop(0)
                     print(f"Streaming data after stream ends: {data}")
                     yield f"data: {json.dumps(data)}\n\n"
+                    await asyncio.sleep(0)  # Yield control to the event loop
                     if data.get("type") == "end_of_stream":
                         return
 
