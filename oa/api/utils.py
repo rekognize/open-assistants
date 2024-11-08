@@ -34,14 +34,14 @@ async def aget_object_or_404(model, *args, **kwargs):
         raise APIError(f"{model._meta.object_name} not found")
 
 
-async def get_authenticated_user(request):
+async def aget_authenticated_user(request):
     user = await aget_user(request)
     if not user.is_authenticated:
         raise APIError("The user is not authenticated.", status=401)
     return user
 
 
-async def get_user_project(user, project_id):
+async def aget_user_project(user, project_id):
     if project_id:
         try:
             project = await aget_object_or_404(Project, id=int(project_id), user=user)
@@ -54,13 +54,13 @@ async def get_user_project(user, project_id):
     return project
 
 
-async def get_openai_client(request):
-    user = await get_authenticated_user(request)
+async def aget_openai_client(request):
+    user = await aget_authenticated_user(request)
 
     # Try to get project_id from the session
     project_id = request.session.get('selected_project_id')
 
     # Fetch the project using the project_id
-    project = await get_user_project(user, project_id)
+    project = await aget_user_project(user, project_id)
 
     return AsyncOpenAI(api_key=project.key)
