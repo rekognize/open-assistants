@@ -552,3 +552,44 @@ async def create_message(request, thread_id):
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse(serialize_to_dict(response), status=201)
+
+
+# Runs
+
+@api.get("/runs/{thread_id}/")
+async def list_runs(request, thread_id):
+    try:
+        client = await aget_openai_client(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+
+    try:
+        runs = await client.beta.threads.runs.list(
+            thread_id=thread_id
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({
+        'runs': serialize_to_dict(runs.data)
+    })
+
+
+@api.post("/runs/{thread_id}/cancel/{run_id}")
+async def cancel_run(request, thread_id, run_id):
+    try:
+        client = await aget_openai_client(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+
+    try:
+        run = await client.beta.threads.runs.cancel(
+            thread_id= thread_id,
+            run_id= run_id
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({
+        'assistants': serialize_to_dict(run.data)
+    })
