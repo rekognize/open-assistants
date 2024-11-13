@@ -162,7 +162,7 @@ async def stream_responses(request, thread_id, assistant_id):
             ) as stream:
                 # Process events as they arrive
                 async for event in stream:
-                    print(f"Received event: {event}")
+                    print(f"Received event: {event.event}")
 
                     # Handle 'requires_action' events here
                     if event.event == "thread.run.requires_action":
@@ -178,6 +178,7 @@ async def stream_responses(request, thread_id, assistant_id):
                                 function_args_json = tool_call.function.arguments
                                 function_args = json.loads(function_args_json)
 
+                                print("tool_call_id:", tool_call_id)
                                 print(f"Function call received: {function_name} with arguments {function_args}")
 
                                 # Execute the function and get the output
@@ -212,8 +213,13 @@ async def stream_responses(request, thread_id, assistant_id):
                             ) as tool_output_stream:
                                 # Process events from the tool output stream
                                 async for tool_event in tool_output_stream:
-                                    print(f"tool_event: {tool_event}")
-                                    pass
+                                    print(f"tool_event: {tool_event.event}")
+
+                                    while shared_data:
+                                        data = shared_data.pop(0)
+                                        yield f"data: {json.dumps(data)}\n\n"
+
+                                        await asyncio.sleep(0)
 
                     # Yield data to the client immediately
                     while shared_data:
@@ -222,9 +228,6 @@ async def stream_responses(request, thread_id, assistant_id):
 
                         # Flush the response to the client
                         await asyncio.sleep(0)  # Yield control to the event loop
-
-                        if data.get("type") == "end_of_stream":
-                            return
 
                 # After the stream ends, process any remaining shared_data
                 while shared_data:
