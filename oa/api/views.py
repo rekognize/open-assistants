@@ -556,7 +556,7 @@ async def create_message(request, thread_id):
 
 # Runs
 
-@api.get("/runs/{thread_id}/")
+@api.get("/threads/{thread_id}/runs")
 async def list_runs(request, thread_id):
     try:
         client = await aget_openai_client(request)
@@ -575,7 +575,25 @@ async def list_runs(request, thread_id):
     })
 
 
-@api.post("/runs/{thread_id}/cancel/{run_id}")
+@api.get("/threads/{thread_id}/runs/{run_id}")
+async def retrieve_run(request, thread_id, run_id):
+    try:
+        client = await aget_openai_client(request)
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+
+    try:
+        run = await client.beta.threads.runs.retrieve(
+            thread_id= thread_id,
+            run_id= run_id
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse(serialize_to_dict(run))
+
+
+@api.post("/threads/{thread_id}/runs/{run_id}/cancel")
 async def cancel_run(request, thread_id, run_id):
     try:
         client = await aget_openai_client(request)
