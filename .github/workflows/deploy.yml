@@ -32,7 +32,7 @@ jobs:
         env:
           DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
         run: |
-          ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@your_server_ip <<EOF
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@3.87.35.129 <<EOF
             cd /home/ubuntu/$DEPLOY_DIR
             git fetch origin
             git reset --hard origin/${{ github.ref_name }}
