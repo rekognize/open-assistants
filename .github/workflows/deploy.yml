@@ -1,0 +1,38 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to Server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          # Define the server and branch-specific directory
+          if [ "${{ github.ref_name }}" == "dev" ]; then
+            DEPLOY_DIR="OpenAssistants-dev"
+          elif [ "${{ github.ref_name }}" == "main" ]; then
+            DEPLOY_DIR="OpenAssistants-main"
+          fi
+
+          # Deploy code via SSH
+          ssh -i ${{ env.SSH_PRIVATE_KEY }} -o StrictHostKeyChecking=no ubuntu@3.87.35.129 <<EOF
+            cd /home/ubuntu/$DEPLOY_DIR
+            git fetch origin
+            git reset --hard origin/${{ github.ref_name }}
+            # Additional commands for Django:
+            pip install -r requirements.txt
+            python manage.py migrate
+            python manage.py collectstatic --noinput
+            sudo systemctl restart gunicorn  # Replace with your WSGI server
+          EOF
