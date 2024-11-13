@@ -14,20 +14,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Deploy to Server
-        env:
-          SSH_PRIVATE_KEY: |
-            ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Set deployment directory
+        id: vars
         run: |
-          # Define the server and branch-specific directory
           if [ "${{ github.ref_name }}" == "dev" ]; then
-            DEPLOY_DIR="OpenAssistants-dev"
+            echo "DEPLOY_DIR=OpenAssistants-dev" >> $GITHUB_ENV
           elif [ "${{ github.ref_name }}" == "main" ]; then
-            DEPLOY_DIR="OpenAssistants-main"
+            echo "DEPLOY_DIR=OpenAssistants-main" >> $GITHUB_ENV
           fi
 
-          # Deploy code via SSH
-          ssh -i ${{ env.SSH_PRIVATE_KEY }} -o StrictHostKeyChecking=no ubuntu@3.87.35.129 <<EOF
+      - name: Add SSH Key
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Deploy to Server
+        env:
+          DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+        run: |
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@your_server_ip <<EOF
             cd /home/ubuntu/$DEPLOY_DIR
             git fetch origin
             git reset --hard origin/${{ github.ref_name }}
