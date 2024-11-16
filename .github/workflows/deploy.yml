@@ -14,13 +14,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set deployment directory
+      - name: Set deployment parameters
         id: vars
         run: |
           if [ "${{ github.ref_name }}" == "dev" ]; then
             echo "DEPLOY_DIR=OpenAssistants-dev" >> $GITHUB_ENV
+            echo "ASGI_SERVER=dev_uvicorn" >> $GITHUB_ENV
           elif [ "${{ github.ref_name }}" == "main" ]; then
             echo "DEPLOY_DIR=OpenAssistants-main" >> $GITHUB_ENV
+            echo "ASGI_SERVER=main_uvicorn" >> $GITHUB_ENV
           fi
 
       - name: Add SSH Key
@@ -31,6 +33,7 @@ jobs:
       - name: Deploy to Server
         env:
           DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+          ASGI_SERVER: ${{ env.ASGI_SERVER }}
         run: |
           ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@3.87.35.129 <<EOF
             cd /home/ubuntu/$DEPLOY_DIR
@@ -40,5 +43,5 @@ jobs:
             pip install -r requirements.txt
             python manage.py migrate
             python manage.py collectstatic --noinput
-            sudo systemctl restart gunicorn  # Replace with your WSGI server
+            sudo supervisorctl restart {{ ASGI_SERVER }}
           EOF
