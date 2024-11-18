@@ -11,6 +11,7 @@ beautifulsoup4
 googlesearch-python
 
 # private
+django-storages
 django-sesame
 django-widget-tweaks
 django-recaptcha

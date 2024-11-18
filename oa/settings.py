@@ -110,12 +110,38 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
-STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-MEDIA_URL = '/media/'
+IS_LOCAL = os.getenv("IS_LOCAL", "false").lower() == "true"
+
+if IS_LOCAL:
+    # Local settings for static and media files
+    STATIC_URL = "/static/"
+    STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+    STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+else:
+    BRANCH_NAME = os.getenv("BRANCH_NAME")
+    S3_BUCKET_NAME = f"openassistants-{BRANCH_NAME}".lower()
+
+    # AWS S3 Configuration
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+    AWS_S3_REGION_NAME = os.getenv("AWS_REGION_NAME")
+
+    AWS_STORAGE_BUCKET_NAME = f"openassistants-{BRANCH_NAME}".lower()
+
+    # Use S3 for static and media files
+    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+
+    # Static files (CSS, JavaScript, Images)
+    STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
+    STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+    # Media files (Uploaded by users)
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 
 # Default primary key field type
