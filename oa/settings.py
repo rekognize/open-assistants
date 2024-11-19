@@ -147,7 +147,6 @@ if not IS_LOCAL:
         "staticfiles": {
             "BACKEND": "storages.backends.s3.S3Storage",
             "OPTIONS": {
-                "default_acl": "public-read",
                 "file_overwrite": True,
                 "querystring_auth": False,
             },
