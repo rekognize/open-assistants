@@ -141,12 +141,14 @@ if not IS_LOCAL:
         "default": {  # user uploaded media files
             "BACKEND": "storages.backends.s3.S3Storage",
             "OPTIONS": {
+                "location": "media",
                 "file_overwrite": False
             },
         },
         "staticfiles": {
             "BACKEND": "storages.backends.s3.S3Storage",
             "OPTIONS": {
+                "location": "static",
                 "file_overwrite": True,
                 "querystring_auth": False,
             },
