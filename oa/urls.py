@@ -8,7 +8,7 @@ from oa.main import views as main_views
 urlpatterns = [
     path('accounts/', include('accounts.urls', namespace='accounts')),
 
-    path('admin/', admin.site.urls),
+    path('oaAdmin/', admin.site.urls),
 
     path("api/", api.urls),
 
