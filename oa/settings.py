@@ -127,6 +127,9 @@ IS_LOCAL = os.getenv("IS_LOCAL", "false").lower() == "true"
 if not IS_LOCAL:
     BRANCH_NAME = os.getenv("BRANCH_NAME")
 
+    # Force HTTPS (to fix the HTTP stream_url returned from OpenAI API)
+    SECURE_SSL_REDIRECT = True
+
     # AWS S3 Configuration
     AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
