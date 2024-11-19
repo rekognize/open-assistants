@@ -163,8 +163,7 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://openassistants.io",
-    "https://test.openassistants.io",
+    "https://*.openassistants.io",
 ]
 
 SECRET_KEY = os.getenv("SECRET_KEY")
