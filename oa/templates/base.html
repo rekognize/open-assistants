@@ -154,6 +154,30 @@
 
     // Function to show toast messages
     function showToast(title, body = "", style = "danger") {
+        // List of valid Bootstrap alert styles
+        const validStyles = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark', 'muted', 'white'];
+
+        // Map Django message tags to Bootstrap alert classes
+        const styleMapping = {
+            'debug': 'secondary',
+            'info': 'info',
+            'success': 'success',
+            'warning': 'warning',
+            'error': 'danger'
+        };
+
+        // Use the provided style directly if it's a valid Bootstrap class
+        let alertStyle;
+        if (validStyles.includes(style)) {
+            alertStyle = style;
+        } else if (styleMapping[style]) {
+            // If it's a Django message tag, map it
+            alertStyle = styleMapping[style];
+        } else {
+            // Default to 'primary' if no match
+            alertStyle = 'primary';
+        }
+
         const toastContainer = document.getElementById('toast-container');
         const toastTemplate = document.getElementById('toast-template');
 
@@ -163,7 +187,7 @@
 
         // Set the toast message
         newToast.innerHTML = `
-        <div class="toast-header text-${style}">
+        <div class="toast-header text-${alertStyle}">
             <strong class="me-auto">${title}</strong>
             <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
@@ -280,6 +304,21 @@
     }
 
 </script>
+
+{% if messages %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        {% for message in messages %}
+            (function() {
+                var messageTags = '{{ message.tags|escapejs }}';
+                var firstTag = messageTags.split(' ')[0];
+                var title = firstTag.charAt(0).toUpperCase() + firstTag.slice(1);
+                showToast(title, '{{ message.message|escapejs }}', firstTag);
+            })();
+        {% endfor %}
+    });
+</script>
+{% endif %}
 
 {% block extra_scripts %}{% endblock %}
 
