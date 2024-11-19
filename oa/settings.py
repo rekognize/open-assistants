@@ -129,6 +129,7 @@ if not IS_LOCAL:
 
     # Force HTTPS (to fix the HTTP stream_url returned from OpenAI API)
     SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
     # AWS S3 Configuration
     AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
