@@ -13,12 +13,6 @@ SECRET_KEY = 'django-insecure-621mr=g-bw*ojnya^d#0dsj$$k^1bup=mh3jl^+6-i2841&oj$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'localhost',
-    'openassistants.io',
-    'test.openassistants.io',
-]
-
 
 # Application definition
 
@@ -29,8 +23,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    'storages',
 
     'oa.main',
 ]
@@ -108,72 +100,71 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-
-IS_LOCAL = os.getenv("IS_LOCAL", "false").lower() == "true"
-
-if IS_LOCAL:
-    # Local settings for static and media files
-    STATIC_URL = "/static/"
-    STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
-    MEDIA_URL = "/media/"
-    MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-
-else:
-    BRANCH_NAME = os.getenv("BRANCH_NAME")
-    S3_BUCKET_NAME = f"openassistants-{BRANCH_NAME}".lower()
-
-    # AWS S3 Configuration
-    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-    AWS_S3_REGION_NAME = os.getenv("AWS_REGION_NAME")
-
-    AWS_STORAGE_BUCKET_NAME = f"openassistants-{BRANCH_NAME}".lower()
-
-    # Use S3 for static and media files
-    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-
-    # Static files (CSS, JavaScript, Images)
-    STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
-    STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-
-    # Media files (Uploaded by users)
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
-    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.1/howto/static-files/
+
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+
 #
 # Settings for the private version
 #
 
-SECRET_KEY = '621mr=g-bw*ojnya^d#0dsj$$k^1bup=mh3jl^+6-i2841&oj$!/&T5*=|-R3<'
+# Override static settings to use S3
+IS_LOCAL = os.getenv("IS_LOCAL", "false").lower() == "true"
 
+if not IS_LOCAL:
+    BRANCH_NAME = os.getenv("BRANCH_NAME")
+
+    # AWS S3 Configuration
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+    AWS_S3_REGION_NAME = os.getenv("AWS_REGION_NAME")
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_FILE_OVERWRITE = False
+    # AWS_DEFAULT_ACL = 'public-read'
+
+    AWS_STORAGE_BUCKET_NAME = f"openassistants-{BRANCH_NAME}".lower()
+
+    STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/static/'
+    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
+
+    STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+
+ALLOWED_HOSTS = [
+    'localhost',
+    'openassistants.io',
+    'test.openassistants.io',
+]
+
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db-private.sqlite3',
+        'NAME': BASE_DIR / 'db-private.sqlite3',  # private db
     }
 }
 
-
 INSTALLED_APPS += [
+    "storages",
     "django_recaptcha",
     "widget_tweaks",
-
     'accounts',
 ]
-
 
 # Logging configuration
 LOGGING = {
@@ -242,6 +233,7 @@ RECAPTCHA_PRIVATE_KEY = os.getenv('RECAPTCHA_PRIVATE_KEY')
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+DEFAULT_FROM_EMAIL = 'hello@openassistants.io'
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
@@ -253,9 +245,3 @@ SESAME_MAX_AGE = 300
 
 STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY')
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
-
-
-try:
-    from settings_local import *
-except ImportError:
-    pass
