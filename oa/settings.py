@@ -251,9 +251,13 @@ RECAPTCHA_PUBLIC_KEY = os.getenv('RECAPTCHA_PUBLIC_KEY')
 RECAPTCHA_PRIVATE_KEY = os.getenv('RECAPTCHA_PRIVATE_KEY')
 
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
 DEFAULT_FROM_EMAIL = 'hello@openassistants.io'
+
+if IS_LOCAL:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django_ses.SESBackend'
+
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
