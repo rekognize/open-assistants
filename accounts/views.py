@@ -54,10 +54,10 @@ def email_login(request):
             link = request.build_absolute_uri(link)
             link += get_query_string(user)
             user.email_user(
-                subject=_("giChat login link"),
+                subject=_("OpenAssistants login link"),
                 message=_(
                     "Hello,\n\n"
-                    "You requested that we send you a link to log in to gi.chat:\n\n"
+                    "You requested that we send you a link to log in to OpenAssistants.io:\n\n"
                     "%(link)s\n\n\n"
                     "Thank you!"
                 ) % {'link': link}
