@@ -162,6 +162,11 @@ ALLOWED_HOSTS = [
     'test.openassistants.io',
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://openassistants.io",
+    "https://test.openassistants.io",
+]
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 DATABASES = {
