@@ -314,7 +314,12 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         {% for message in messages %}
-            showToast('Info', '{{ message.message|escapejs }}', '{{ message.tags }}');
+            (function() {
+                var messageTags = '{{ message.tags|escapejs }}';
+                var firstTag = messageTags.split(' ')[0];
+                var title = firstTag.charAt(0).toUpperCase() + firstTag.slice(1);
+                showToast(title, '{{ message.message|escapejs }}', firstTag);
+            })();
         {% endfor %}
     });
 </script>
