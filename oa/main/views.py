@@ -10,12 +10,13 @@ from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http4
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views import View
 from django.views.generic import TemplateView
 from openai import AsyncAssistantEventHandler, OpenAIError
 from openai.types.beta.threads import Text, TextDelta, ImageFile
 
-from .models import Project
+from .models import Project, SharedLink
 from .utils import format_time, verify_openai_key
 from ..api.utils import APIError, aget_openai_client
 from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
@@ -516,3 +517,38 @@ def delete_project(request, project_id):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+
+@login_required
+def share_thread(request, thread_id):
+    if request.method == 'POST':
+        # Create a new shareable link
+        new_link = SharedLink.objects.create(thread_id=thread_id)
+        link_url = request.build_absolute_uri(reverse('view_shared_thread', args=[new_link.token]))
+        return JsonResponse({
+            'status': 'success',
+            'message': _('New shareable link created.'),
+            'link': {'token': str(new_link.token), 'url': link_url}
+        })
+
+    elif request.method == 'GET':
+        links = SharedLink.objects.filter(thread_id=thread_id)
+
+        data = {'links': [{'token': link.token,
+                           'url': request.build_absolute_uri(f'/shared/{link.token}/')} for link in links]}
+        return JsonResponse(data)
+
+
+@login_required
+def delete_shared_link(request, link_token):
+    if request.method == 'POST':
+        link = get_object_or_404(SharedLink, token=link_token)
+        link.delete()
+        return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
+
+
+def view_shared_thread(request, token):
+    shared_link = get_object_or_404(SharedLink, token=token)
+    thread_id = shared_link.thread_id
+
+    return render(request, 'chat/shared_chat.html', {'thread_id': thread_id})
