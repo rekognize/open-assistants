@@ -6,7 +6,8 @@ import os
 
 from asgiref.sync import async_to_sync
 from django.db import IntegrityError
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
+    HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
@@ -521,34 +522,63 @@ def delete_project(request, project_id):
 
 @login_required
 def share_thread(request, thread_id):
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return HttpResponseBadRequest('Invalid request')
+
     if request.method == 'POST':
-        # Create a new shareable link
-        new_link = SharedLink.objects.create(thread_id=thread_id)
-        link_url = request.build_absolute_uri(reverse('view_shared_thread', args=[new_link.token]))
-        return JsonResponse({
-            'status': 'success',
-            'message': _('New shareable link created.'),
-            'link': {'token': str(new_link.token), 'url': link_url}
-        })
+        # Check the number of existing shared links for the thread
+        links_count = SharedLink.objects.filter(thread_id=thread_id).count()
+        if links_count >= 5:
+            return JsonResponse({
+                'status': 'info',
+                'message': _('You can only create up to 5 links per thread.')
+            })
+
+        try:
+            # Create a new shareable link
+            new_link = SharedLink.objects.create(thread_id=thread_id)
+            link_url = request.build_absolute_uri(reverse('view_shared_thread', args=[new_link.token]))
+            return JsonResponse({
+                'status': 'success',
+                'message': _('New shareable link created.'),
+                'link': {'token': str(new_link.token), 'url': link_url}
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     elif request.method == 'GET':
         links = SharedLink.objects.filter(thread_id=thread_id)
 
-        data = {'links': [{'token': link.token,
-                           'url': request.build_absolute_uri(f'/shared/{link.token}/')} for link in links]}
+        if links:
+            data = {'links': [{'token': link.token,
+                               'url': request.build_absolute_uri(f'/shared/{link.token}/')} for link in links]}
+        else:
+            data = {'message': _('No links available.')}
         return JsonResponse(data)
 
 
 @login_required
 def delete_shared_link(request, link_token):
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return HttpResponseBadRequest('Invalid request')
+
     if request.method == 'POST':
-        link = get_object_or_404(SharedLink, token=link_token)
-        link.delete()
-        return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
+        try:
+            link = get_object_or_404(SharedLink, token=link_token)
+            link.delete()
+            return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 def view_shared_thread(request, token):
     shared_link = get_object_or_404(SharedLink, token=token)
     thread_id = shared_link.thread_id
 
-    return render(request, 'chat/shared_chat.html', {'thread_id': thread_id})
+    # Initial context
+    context = {
+        'thread_id': thread_id,
+        'is_shared_thread': True,
+    }
+
+    return render(request, 'chat/shared_chat.html', context)
