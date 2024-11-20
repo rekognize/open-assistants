@@ -26,3 +26,12 @@ class Thread(models.Model):
 
     def __str__(self):
         return self.openai_id or str(self.uuid)
+
+
+class SharedLink(models.Model):
+    thread_id = models.CharField(max_length=100)
+    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Link for {self.thread_id}"

@@ -1,0 +1,55 @@
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const shareThreadButton = document.getElementById('share-thread-button');
+
+    shareThreadButton.addEventListener('click', function() {
+        const url = `/t/share/${threadId}/`;
+
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            const linksList = document.getElementById('shared-links-list');
+            linksList.innerHTML = ''; // Clear the list before adding new items
+            data.links.forEach(link => {
+                const listItem = document.createElement('div');
+                listItem.innerHTML = `<a href="${link.url}" target="_blank">${link.url}</a>`;
+                linksList.appendChild(listItem);
+            });
+        });
+    });
+});
+
+document.getElementById('create-shared-link').addEventListener('click', function() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch(`/t/share/${threadId}/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken,
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Update the UI with the new link
+            const linksList = document.getElementById('shared-links-list');
+            const listItem = document.createElement('div');
+            listItem.innerHTML = `<a href="${data.link.url}" target="_blank">${data.link.url}</a>`;
+            linksList.appendChild(listItem);
+
+            showToast('Success', data.message, data.status)
+        } else {
+            showToast('Error', 'Failed to create a link!', data.status)
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+});
+</script>

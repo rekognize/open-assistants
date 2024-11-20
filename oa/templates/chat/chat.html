@@ -88,6 +88,9 @@
                 <div id="assistant-info" class="mt-3 text-secondary">
                     <span id="assistant-description"></span>
                 </div>
+
+                <button type="button" class="btn btn-light btn-sm" id="share-thread-button" data-bs-toggle="modal" data-bs-target="#shareThreadModal">Share</button>
+
             </div>
 
             <!-- Display thread files -->
@@ -173,11 +176,15 @@
         </div>
     </div>
 </div>
+
+{% include "modals/share_thread_modal.html" %}
+
 {% endblock %}
 
 
 {% block extra_scripts %}
 
     {% include 'chat/chat_js.html' %}
+    {% include "modals/share_thread_js.html" %}
 
 {% endblock %}
