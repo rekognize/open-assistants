@@ -48,7 +48,7 @@ def email_login(request):
                 user.set_unusable_password()
                 user.save()
 
-            messages.success(request, _("Login link sent. Please check you email."))
+            messages.success(request, _("Login link is sent. Please check your email."))
 
             link = reverse("accounts:email_auth")
             link = request.build_absolute_uri(link)
