@@ -585,7 +585,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Handle Server-Sent Events (SSE)
     function handleSSE(url, assistantName) {
-        const eventSource = new EventSource(url);
+        // Include the token in the URL
+        const sseUrlWithToken = url + '?token=' + encodeURIComponent(token);
+        const eventSource = new EventSource(sseUrlWithToken);
         let currentText = "";
         let assistantMessageElement = null;
         let assistantResponseContent = null;

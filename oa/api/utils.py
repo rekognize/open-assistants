@@ -67,7 +67,7 @@ async def aget_openai_client(request):
         return AsyncOpenAI(api_key=project.key)
     else:
         # User is anonymous, check for token
-        token = request.headers.get('X-Token')
+        token = request.headers.get('X-Token') or request.GET.get('token')
         if token:
             try:
                 shared_link = await SharedLink.objects.select_related('project').aget(token=token)

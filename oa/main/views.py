@@ -601,7 +601,6 @@ def shared_thread_detail(request, token):
     # Initial context
     context = {
         'assistant_id': assistant_id,
-        'project': shared_link.project,
         'token': token,
         'is_shared_thread': True,
     }
