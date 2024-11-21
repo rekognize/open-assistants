@@ -28,9 +28,11 @@ class Thread(models.Model):
 
 
 class SharedLink(models.Model):
-    thread_id = models.CharField(max_length=100)
+    assistant_id = models.CharField(max_length=100)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='shared_links')
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     created = models.DateTimeField(auto_now_add=True)
+    name = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
-        return f"Link for {self.thread_id}"
+        return f"Shared link for {self.assistant_id}"
