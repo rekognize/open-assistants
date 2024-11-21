@@ -520,24 +520,38 @@ def delete_project(request, project_id):
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
 
 
+# Sharing
+
 @login_required
-def share_thread(request, thread_id):
+def share_assistant(request, assistant_id):
     if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return HttpResponseBadRequest('Invalid request')
 
+    # Retrieve the selected project
+    selected_project_id = request.session.get('selected_project_id')
+    selected_project = None
+
+    if selected_project_id:
+        try:
+            selected_project = Project.objects.get(id=int(selected_project_id), user=request.user)
+        except (ValueError, Project.DoesNotExist):
+            return JsonResponse({'status': 'error', 'message': _('Invalid project selected.')}, status=400)
+    else:
+        return JsonResponse({'status': 'error', 'message': _('No project selected.')}, status=400)
+
     if request.method == 'POST':
-        # Check the number of existing shared links for the thread
-        links_count = SharedLink.objects.filter(thread_id=thread_id).count()
+        # Check the number of existing shared links for the assistant
+        links_count = SharedLink.objects.filter(assistant_id=assistant_id, project=selected_project).count()
         if links_count >= 5:
             return JsonResponse({
                 'status': 'info',
-                'message': _('You can only create up to 5 links per thread.')
+                'message': _('You can only create up to 5 links per assistant.')
             })
 
         try:
             # Create a new shareable link
-            new_link = SharedLink.objects.create(thread_id=thread_id)
-            link_url = request.build_absolute_uri(reverse('view_shared_thread', args=[new_link.token]))
+            new_link = SharedLink.objects.create(assistant_id=assistant_id, project=selected_project)
+            link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[new_link.token]))
             return JsonResponse({
                 'status': 'success',
                 'message': _('New shareable link created.'),
@@ -547,14 +561,21 @@ def share_thread(request, thread_id):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     elif request.method == 'GET':
-        links = SharedLink.objects.filter(thread_id=thread_id)
+        links = SharedLink.objects.filter(assistant_id=assistant_id, project=selected_project)
 
-        if links:
-            data = {'links': [{'token': link.token,
-                               'url': request.build_absolute_uri(f'/shared/{link.token}/')} for link in links]}
-        else:
-            data = {'message': _('No links available.')}
-        return JsonResponse(data)
+        try:
+            if links:
+                data = {'links': [{'token': link.token,
+                                   'url': request.build_absolute_uri(f'/shared/{link.token}/'),
+                                   'name': link.name
+                                   } for link in links]}
+            else:
+                data = {'message': _('No links available.')}
+            return JsonResponse(data)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
 
 
 @login_required
@@ -570,14 +591,16 @@ def delete_shared_link(request, link_token):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
 
-def view_shared_thread(request, token):
+
+def shared_thread_detail(request, token):
     shared_link = get_object_or_404(SharedLink, token=token)
-    thread_id = shared_link.thread_id
+    assistant_id = shared_link.assistant_id
 
     # Initial context
     context = {
-        'thread_id': thread_id,
+        'assistant_id': assistant_id,
         'is_shared_thread': True,
     }
 

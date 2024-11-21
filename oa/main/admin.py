@@ -23,6 +23,7 @@ class ThreadAdmin(admin.ModelAdmin):
 
 @admin.register(SharedLink)
 class SharedLinkAdmin(admin.ModelAdmin):
-    list_display = ('thread_id', 'token', 'created')
-    search_fields = ('thread_id', 'token')
+    list_display = ('assistant_id', 'name', 'token', 'created', 'project')
+    search_fields = ('assistant_id', 'name', 'token', 'created', 'project__name', 'project__key')
     readonly_fields = ('token', 'created')
+    list_filter = ['project']
