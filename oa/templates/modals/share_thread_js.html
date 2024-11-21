@@ -41,7 +41,12 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 document.getElementById('create-shared-link').addEventListener('click', function() {
+    const createButton = document.getElementById('create-shared-link');
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // Disable button and add loading spinner
+    createButton.disabled = true;
+    createButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...`;
 
     fetch(`/t/share/${threadId}/`, {
         method: 'POST',
@@ -78,6 +83,10 @@ document.getElementById('create-shared-link').addEventListener('click', function
     .catch(error => {
         console.error('Error:', error);
         showToast('Error', 'An unexpected error occurred.', 'danger');
+    }).finally(() => {
+        // Re-enable button and reset text
+        createButton.disabled = false;
+        createButton.innerHTML = 'Create New Link';
     });
 });
 
