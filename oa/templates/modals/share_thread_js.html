@@ -68,30 +68,33 @@ document.getElementById('create-shared-link').addEventListener('click', function
             `;
             linksList.appendChild(linkElement);
 
-            showToast('Success', data.message, data.status)
+            showToast('Success', data.message, data.status);
         } else if (data.status === 'info') {
-            showToast('Info', data.message, 'info')
+            showToast('Info', data.message, 'info');
         } else {
-            showToast('Error', 'Failed to create a link!')
+            showToast('Error', 'Failed to create a link!');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showToast('Error', 'An unexpected error occurred.', 'danger')
+        showToast('Error', 'An unexpected error occurred.', 'danger');
     });
 });
 
+let isSetup = false;
+
 function setupLinkButtons() {
+    if (isSetup) return;  // Prevent re-initialization
+    isSetup = true;
+
     document.getElementById('shared-links-list').addEventListener('click', function(event) {
-        // Delegate the click event for the copy buttons
         if (event.target.closest('.copy-link-btn')) {
             const url = event.target.closest('.copy-link-btn').getAttribute('data-url');
             navigator.clipboard.writeText(url).then(() => {
-                showToast('Success', 'Link copied to clipboard.', 'success')
+                showToast('Success', 'Link copied to clipboard.', 'success');
             }).catch(err => console.error('Error copying link: ', err));
         }
 
-        // Delegate the click event for the delete buttons
         if (event.target.closest('.delete-link-btn')) {
             const token = event.target.closest('.delete-link-btn').getAttribute('data-token');
             const deleteSharedLinkConfirmationModal = new bootstrap.Modal(document.getElementById('deleteSharedLinkConfirmationModal'));
@@ -99,8 +102,6 @@ function setupLinkButtons() {
 
             document.getElementById('confirm-delete-shared-link').onclick = function() {
                 deleteSharedLink(token);
-                // Hide the modal
-                deleteSharedLinkConfirmationModal.hide();
             };
         }
     });
@@ -125,16 +126,16 @@ function deleteSharedLink(token) {
             const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteSharedLinkConfirmationModal'));
             deleteModal.hide();
 
-            showToast('Success', data.message, 'success')
+            showToast('Success', data.message, 'success');
         } else if (data.status === 'info') {
-            showToast('Info', data.message, 'info')
+            showToast('Info', data.message, 'info');
         } else {
-            showToast('Error', 'An error occurred while deleting the link!')
+            showToast('Error', 'An error occurred while deleting the link!');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showToast('Error', 'An unexpected error occurred.', 'danger')
+        showToast('Error', 'An unexpected error occurred.', 'danger');
     });
 }
 </script>
