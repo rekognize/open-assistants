@@ -1,0 +1,212 @@
+<script>
+// Function to get CSRF token from cookie
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim(); // Remove whitespace at start and end of string
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// CSRF token needed for POST requests
+const csrftoken = getCookie('csrftoken');
+
+// Variable to store the current assistant ID
+let currentAssistantId = null;
+
+// Handle the modal show event
+document.getElementById('shareAssistantModal').addEventListener('show.bs.modal', function (event) {
+    // Button that triggered the modal
+    const button = event.relatedTarget;
+    const assistantId = button.getAttribute('data-assistant-id');
+
+    currentAssistantId = assistantId;
+
+    // Clear any existing shared links
+    const sharedLinksList = document.getElementById('shared-links-list');
+    sharedLinksList.innerHTML = '';
+
+    // Fetch existing shared links
+    fetchSharedLinks(assistantId);
+});
+
+// Function to fetch existing shared links
+function fetchSharedLinks(assistantId) {
+    fetch(`/a/share/${assistantId}/`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const linksList = document.getElementById('shared-links-list');
+        if (data.links && data.links.length > 0) {
+            // Remove any existing message
+            linksList.innerHTML = '';
+
+            data.links.forEach(link => {
+                const linkItem = createLinkItem(link);
+                linksList.appendChild(linkItem);
+            });
+        } else {
+            linksList.innerHTML = '<p class="text-secondary small">No shared links available.</p>';
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching shared links:', error);
+        showToast('Error', 'An error occurred while fetching shared links.', 'danger');
+    });
+}
+
+// Function to create a link item element
+function createLinkItem(link) {
+    const linkItem = document.createElement('div');
+    linkItem.classList.add('shared-link-item', 'mb-3');
+    linkItem.setAttribute('data-token', link.token);
+
+    linkItem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <a href="${link.url}" target="_blank">${link.url}</a>
+            </div>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-secondary copy-link-btn" data-url="${link.url}">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger delete-shared-link-button">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    return linkItem;
+}
+
+// Handle click on 'Create New Link' button
+document.getElementById('create-shared-link').addEventListener('click', function () {
+    if (!currentAssistantId) {
+        showToast('Error', 'Assistant ID is missing.', 'danger');
+        return;
+    }
+
+    const createButton = document.getElementById('create-shared-link');
+    // Disable button and show spinner
+    createButton.disabled = true;
+    createButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...`;
+
+    fetch(`/a/share/${currentAssistantId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const link = data.link;
+            const linksList = document.getElementById('shared-links-list');
+
+            // Remove 'No shared links available.' message if present
+            if (linksList.innerHTML.includes('No shared links available.')) {
+                linksList.innerHTML = '';
+            }
+
+            const linkItem = createLinkItem(link);
+            linksList.prepend(linkItem);
+
+            showToast('Success', data.message, 'success');
+        } else if (data.status === 'info') {
+            showToast('Info', data.message, 'info');
+        } else {
+            showToast('Error', data.message || 'Failed to create a link!', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating shared link:', error);
+        showToast('Error', 'An unexpected error occurred while creating the link.', 'danger');
+    })
+    .finally(() => {
+        // Re-enable button and reset text
+        createButton.disabled = false;
+        createButton.innerHTML = 'Create New Link';
+    });
+});
+
+// Handle copy link button click using event delegation
+document.getElementById('shared-links-list').addEventListener('click', function (event) {
+    if (event.target.closest('.copy-link-btn')) {
+        const url = event.target.closest('.copy-link-btn').getAttribute('data-url');
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('Success', 'Link copied to clipboard.', 'success');
+        }).catch(err => console.error('Error copying link: ', err));
+    }
+
+    if (event.target.closest('.delete-shared-link-button')) {
+        const linkItem = event.target.closest('.shared-link-item');
+        const token = linkItem.getAttribute('data-token');
+
+        // Store the token in the confirmation modal
+        const deleteModal = document.getElementById('deleteSharedLinkConfirmationModal');
+        deleteModal.setAttribute('data-token', token);
+
+        // Show the confirmation modal
+        const modal = new bootstrap.Modal(deleteModal);
+        modal.show();
+    }
+});
+
+// Handle confirmation of delete shared link
+document.getElementById('confirm-delete-shared-link').addEventListener('click', function () {
+    const deleteModal = document.getElementById('deleteSharedLinkConfirmationModal');
+    const token = deleteModal.getAttribute('data-token');
+
+    fetch(`/a/share/delete/${token}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Remove the link item from the list
+            const linkItem = document.querySelector(`#shared-links-list .shared-link-item[data-token="${token}"]`);
+            if (linkItem) {
+                linkItem.remove();
+            }
+
+            // Check if there are no more shared links
+            const linksList = document.getElementById('shared-links-list');
+            const remainingLinks = linksList.querySelectorAll('.shared-link-item');
+            if (remainingLinks.length === 0) {
+                linksList.innerHTML = '<p class="text-secondary small">No shared links available.</p>';
+            }
+
+            // Hide the confirmation modal
+            const modal = bootstrap.Modal.getInstance(deleteModal);
+            modal.hide();
+
+            showToast('Success', data.message, 'success');
+        } else if (data.status === 'info') {
+            showToast('Info', data.message, 'info');
+        } else {
+            showToast('Error', data.message || 'An error occurred while deleting the link!', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting shared link:', error);
+        showToast('Error', 'An unexpected error occurred while deleting the link.', 'danger');
+    });
+});
+</script>
