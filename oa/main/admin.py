@@ -4,7 +4,7 @@ from .models import Project, Thread, SharedLink
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ['name', 'user', 'key']
+    list_display = ['name', 'user', 'key', 'is_oa_project']
     readonly_fields = ('list_threads',)
 
     def list_threads(self, obj):
@@ -25,3 +25,4 @@ class ThreadAdmin(admin.ModelAdmin):
 class SharedLinkAdmin(admin.ModelAdmin):
     list_display = ('thread_id', 'token', 'created')
     search_fields = ('thread_id', 'token')
+    readonly_fields = ('token', 'created')
