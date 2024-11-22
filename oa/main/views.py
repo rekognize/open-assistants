@@ -6,16 +6,18 @@ import os
 
 from asgiref.sync import async_to_sync
 from django.db import IntegrityError
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
+    HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views import View
 from django.views.generic import TemplateView
 from openai import AsyncAssistantEventHandler, OpenAIError
 from openai.types.beta.threads import Text, TextDelta, ImageFile
 
-from .models import Project
+from .models import Project, SharedLink
 from .utils import format_time, verify_openai_key
 from ..api.utils import APIError, aget_openai_client
 from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
@@ -450,6 +452,10 @@ def create_project(request):
         if not is_valid:
             return JsonResponse({'success': False, 'error': error_message})
 
+        # Check if the user already has a project with this key
+        if Project.objects.filter(user=request.user, key=key).exists():
+            return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
+
         try:
             project = Project.objects.create(user=request.user, name=name, key=key)
             return JsonResponse({
@@ -460,8 +466,6 @@ def create_project(request):
                     'partial_key': project.get_partial_key()
                 }
             })
-        except IntegrityError:
-            return JsonResponse({'success': False, 'error': 'The key provided is already in use. Please enter a different key.'})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
@@ -485,6 +489,9 @@ def edit_project(request, project_id):
 
             # Update the key only if it is provided
             if key:
+                # Check if another project with the same key exists for the user
+                if Project.objects.filter(user=request.user, key=key).exclude(id=project_id).exists():
+                    return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
                 project.key = key
 
             project.save()
@@ -497,8 +504,6 @@ def edit_project(request, project_id):
                     'partial_key': project.get_partial_key()
                 }
             })
-        except IntegrityError:
-            return JsonResponse({'success': False, 'error': 'The key provided is already in use. Please enter a different key.'})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
@@ -516,3 +521,91 @@ def delete_project(request, project_id):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+
+# Sharing
+
+@login_required
+def share_assistant(request, assistant_id):
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return HttpResponseBadRequest('Invalid request')
+
+    # Retrieve the selected project
+    selected_project_id = request.session.get('selected_project_id') or request.GET.get('selected_project_id')
+    selected_project = None
+
+    if selected_project_id:
+        try:
+            selected_project = Project.objects.get(id=int(selected_project_id), user=request.user)
+        except (ValueError, Project.DoesNotExist):
+            return JsonResponse({'status': 'error', 'message': _('Invalid project selected.')}, status=400)
+    else:
+        return JsonResponse({'status': 'error', 'message': _('No project selected.')}, status=400)
+
+    if request.method == 'POST':
+        # Check the number of existing shared links for the assistant
+        links_count = SharedLink.objects.filter(assistant_id=assistant_id, project=selected_project).count()
+        if links_count >= 5:
+            return JsonResponse({
+                'status': 'info',
+                'message': _('You can only create up to 5 links per assistant.')
+            })
+
+        try:
+            # Create a new shareable link
+            new_link = SharedLink.objects.create(assistant_id=assistant_id, project=selected_project)
+            link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[new_link.token]))
+            return JsonResponse({
+                'status': 'success',
+                'message': _('New shareable link created.'),
+                'link': {'token': str(new_link.token), 'url': link_url}
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    elif request.method == 'GET':
+        links = SharedLink.objects.filter(assistant_id=assistant_id, project=selected_project)
+
+        try:
+            if links:
+                data = {'links': [{'token': link.token,
+                                   'url': request.build_absolute_uri(f'/shared/{link.token}/'),
+                                   'name': link.name
+                                   } for link in links]}
+            else:
+                data = {'message': _('No links available.')}
+            return JsonResponse(data)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
+
+@login_required
+def delete_shared_link(request, link_token):
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return HttpResponseBadRequest('Invalid request')
+
+    if request.method == 'POST':
+        try:
+            link = get_object_or_404(SharedLink, token=link_token)
+            link.delete()
+            return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
+
+def shared_thread_detail(request, token):
+    shared_link = get_object_or_404(SharedLink, token=token)
+    assistant_id = shared_link.assistant_id
+
+    # Initial context
+    context = {
+        'assistant_id': assistant_id,
+        'token': token,
+        'is_shared_thread': True,
+    }
+
+    return render(request, 'chat/chat.html', context)

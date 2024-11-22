@@ -1,0 +1,750 @@
+<script>
+// Define globals
+let assistantId = '{{ assistant_id }}';
+let token = '{{ token }}';
+let threadId, assistantName;
+
+// Set the DOM elements
+const dropZone = document.getElementById('dropZone');
+const dataFilesInput = document.getElementById('dataFiles');
+const loadingUpload = document.getElementById('loading-upload');
+const submitButton = document.getElementById('message-submit-button');
+const messageContainer = document.getElementById('messages');
+const formContainer = document.getElementById('message-form-container');
+const awaitingResponse = document.getElementById('awaiting-response');
+const assistantResponseContent = document.getElementById('assistant-response-content');
+const streamingAssistantName = document.getElementById('streaming-assistant-name');
+const textarea = document.getElementById('autoresizing');
+const form = document.getElementById('messageForm');
+
+function getURLParameter(name) {
+    return new URLSearchParams(window.location.search).get(name);
+}
+
+document.addEventListener("DOMContentLoaded", async function () {
+    // Call initializePage and wait for it to complete
+    await initializePage();
+
+    // Initialize the page
+    async function initializePage() {
+        if (!assistantId || assistantId === 'None') {
+            showToast("Error!", "No assistant info found.");
+            return;
+        }
+
+        try {
+            await retrieveAssistant(assistantId);
+        } catch (error) {
+            console.error('Assistant retrieval failed:', error);
+            // Do not proceed to create a thread
+            return;
+        }
+
+        let threadIdFromURL = getURLParameter('t');
+
+        if (threadIdFromURL) {
+            try {
+                const threadData = await retrieveThread(threadIdFromURL);
+                threadId = threadData.id;
+            } catch (error) {
+                console.error('Error retrieving thread:', error);
+                // await createThread(assistantId);
+                // updateURLWithThreadId();
+            }
+        } else {
+            await createThread(assistantId);
+            updateURLWithThreadId();
+        }
+
+        // Show loading indicators initially
+        toggleLoading('thread-files', true);
+
+        // After thread is created or retrieved
+        await fetchMessages(threadId);
+        await fetchThreadFiles(threadId);
+    }
+
+    // Helper function to update the URL with thread_id
+    function updateURLWithThreadId() {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?t=' + threadId;
+        window.history.replaceState({path: newUrl}, '', newUrl);
+    }
+
+    // Retrieve assistant details
+    async function retrieveAssistant(assistantId) {
+        const retrieveAssistantUrlTemplate = "{% url 'api-1.0.0:retrieve_assistant' assistant_id='ASST_ID_PLACEHOLDER' %}";
+        const retrieveAssistantUrl = retrieveAssistantUrlTemplate.replace('ASST_ID_PLACEHOLDER', assistantId);
+
+        try {
+            const response = await fetch(retrieveAssistantUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to fetch assistant!", parsedError.errorMessage);
+                console.error('Failed to fetch assistant!', parsedError);
+                throw new Error('Failed to retrieve assistant');
+
+            } else {
+                const assistantData = await response.json();
+
+                // Set the global
+                assistantName = assistantData.name;
+
+                // Populate assistant details in the DOM
+                document.getElementById('assistant-name').textContent = assistantData.name;
+                if (assistantData.description) {
+                    document.getElementById('assistant-description').textContent = assistantData.description;
+                }
+
+                console.log('Assistant details:', assistantData);
+                return assistantData;
+            }
+        } catch (error) {
+            console.error('Error fetching assistant details:', error);
+            throw error; // Re-throw the error to be caught in initializePage
+        }
+    }
+
+    // Create a new thread
+    async function createThread(assistantId) {
+        const createThreadUrl = "{% url 'api-1.0.0:create_thread' %}";
+
+        try {
+            const response = await fetch(`${createThreadUrl}?asst=${assistantId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to create thread!", parsedError.errorMessage);
+                console.error('Failed to create thread!', parsedError);
+                throw new Error('Failed to create thread');
+            } else {
+                const threadData = await response.json();
+
+                // Set the global threadId
+                threadId = threadData.id;
+
+                console.log('Thread details:', threadData);
+                return threadData;
+                }
+        } catch (error) {
+            console.error('Error creating thread:', error);
+            throw error;
+        }
+    }
+
+    async function retrieveThread(threadId) {
+        const retrieveThreadUrlTemplate = "{% url 'api-1.0.0:retrieve_thread' thread_id='THREAD_ID_PLACEHOLDER' %}";
+        const retrieveThreadUrl = retrieveThreadUrlTemplate.replace('THREAD_ID_PLACEHOLDER', threadId);
+
+        try {
+            const response = await fetch(retrieveThreadUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to retrieve thread!", parsedError.errorMessage);
+                console.error('Failed to retrieve thread!', parsedError);
+                throw new Error('Failed to retrieve thread');
+            } else {
+                const threadData = await response.json();
+
+                console.log('Retrieve thread:', threadData);
+                return threadData;
+            }
+        } catch (error) {
+            console.error('Error retrieving thread:', error);
+            throw error; // Re-throw the error to be caught in initializePage
+        }
+    }
+
+    // Upload files to be attached to messages
+    let attachments = [];
+
+    async function uploadThreadFiles(files) {
+        const formData = new FormData();
+
+        for (const file of files) {
+            formData.append('files', file);
+        }
+
+        // Show the loading indicator
+        loadingUpload.style.display = 'block';
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch(`{% url 'api-1.0.0:upload_files' %}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                console.log('uploadThreadFiles', data);
+
+                // Extract filenames
+                const uploadedFilenames = data.uploaded_files.map(file => file.filename).join(', ');
+                const failedFilenames = data.failed_files.map(file => file.filename).join(', ');
+
+                const supportedFileIds = new Set(data['supported_files'].map(file => file['id']));
+
+                if (data['uploaded_files'].length > 0) {
+                    for (const file of data['uploaded_files']) {
+                        let tools = [{'type': 'code_interpreter'}];
+
+                        // Check if the file is in the supported_files list
+                        if (supportedFileIds.has(file['id'])) {
+                            tools.unshift({'type': 'file_search'});
+                        }
+
+                        attachments.push({
+                            'file_id': file['id'],
+                            'filename': file['filename'],
+                            'bytes': file['bytes'],
+                            'tools': tools
+                        });
+                    }
+                }
+
+                if (uploadedFilenames) {
+                    showToast("Files uploaded!", uploadedFilenames, "success");
+                }
+                if (failedFilenames) {
+                    showToast("Failed to upload!", failedFilenames, "danger");
+                }
+                console.log('attachments', attachments);
+
+                // Update the attachments list
+                updateAttachmentsList();
+
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Error uploading files!", parsedError.errorMessage);
+                console.error('Error uploading files!', parsedError);
+            }
+        } catch (error) {
+            showToast("Error uploading files:", error);
+            console.error('Error uploading files:', error);
+        } finally {
+            // Hide the loading indicator
+            loadingUpload.style.display = 'none';
+            submitButton.disabled = false;
+        }
+    }
+
+    function updateAttachmentsList() {
+        const attachmentsSection = document.getElementById('attachments-section');
+        const attachmentsList = document.getElementById('attachments-list');
+
+        if (attachments.length === 0) {
+            // Hide the attachments section
+            attachmentsSection.classList.add('d-none');
+            return;
+        } else {
+            // Show the attachments section
+            attachmentsSection.classList.remove('d-none');
+        }
+
+        // Clear the existing list
+        attachmentsList.innerHTML = '';
+
+        // For each attachment, create a list item
+        for (const attachment of attachments) {
+            // Create a list item
+            const li = document.createElement('li');
+            li.classList.add('list-group-item', 'd-flex', 'align-items-center', 'text-secondary', 'small');
+
+            // Create an icon for the file
+            const icon = document.createElement('i');
+            icon.classList.add('bi', 'bi-file-earmark', 'me-2');
+
+            // Create a span for the filename
+            const filenameSpan = document.createElement('span');
+            filenameSpan.textContent = attachment.filename;
+
+            // Create a span for the file size
+            const fileSizeSpan = document.createElement('span');
+            fileSizeSpan.classList.add('ms-auto');
+            fileSizeSpan.textContent = bytesToSize(attachment.bytes);
+
+            // Append the icon, filename, and file size to the list item
+            li.appendChild(icon);
+            li.appendChild(filenameSpan);
+            li.appendChild(fileSizeSpan);
+
+            // Append the list item to the attachments list
+            attachmentsList.appendChild(li);
+        }
+    }
+
+    // Post message
+    async function createMessage(message, attachments) {
+        console.log("Creating message with content:", message);
+        console.log("Attachments:", attachments);
+
+        const createMessageUrlTemplate = "{% url 'api-1.0.0:create_message' thread_id='THREAD_ID_PLACEHOLDER' %}";
+        const createMessageUrl = createMessageUrlTemplate.replace('THREAD_ID_PLACEHOLDER', threadId);
+
+        const payload = {
+            message: message,
+            attachments: attachments
+        };
+
+        try {
+            const response = await fetch(createMessageUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                console.log('createMessage', data);
+
+                return data;
+
+            } else {
+                const data = await response.json();
+                console.error('Error posting message:', data.error);
+                showToast("Error posting message!", data.error);
+            }
+        } catch (error) {
+            console.error('Error posting message:', error);
+            showToast("Error posting message:", error.message);
+        }
+    }
+
+    // Create run
+    async function createRun() {
+        const formData = new FormData();
+        formData.append('assistant_id', assistantId);
+        formData.append('thread_id', threadId);
+
+        // Dynamically construct the URL
+        const createStreamUrl = `/chat/${assistantId}/stream/${threadId}/`;
+
+        try {
+            const response = await fetch(createStreamUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                return await response.json();
+
+            } else {
+                const data = await response.json();
+                console.error('Error creating run:', data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    if (dropZone) {
+        dropZone.addEventListener('click', function () {
+            dataFilesInput.click();
+        });
+
+        dropZone.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            dropZone.classList.add('hover');
+        });
+
+        dropZone.addEventListener('dragleave', function () {
+            dropZone.classList.remove('hover');
+        });
+
+        dropZone.addEventListener('drop', function (e) {
+            e.preventDefault();
+            dropZone.classList.remove('hover');
+            uploadThreadFiles(e.dataTransfer.files);
+        });
+
+        dataFilesInput.addEventListener('change', function (e) {
+            uploadThreadFiles(e.target.files);
+        });
+    }
+
+    async function fetchThreadFiles(threadId) {
+        console.log("Fetching files for threadId:", threadId);
+        try {
+            const url = `/t/${threadId}/files/`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                    'X-Token': token
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const fileList = document.getElementById('thread-files-list');
+                fileList.innerHTML = '';
+                if (data.files.length === 0) {
+                    document.getElementById('no-files').style.display = 'block';
+                } else {
+                    document.getElementById('no-files').style.display = 'none';
+                    data.files.forEach(file => {
+                        const listItem = document.createElement('li');
+                        const fileSize = bytesToSize(file.bytes);
+                        listItem.innerHTML = `<small>${file.file_name} (${fileSize})</small>`;
+                        fileList.appendChild(listItem);
+                    });
+                }
+            } else {
+                console.error('Error fetching thread files:', data.error);
+            }
+        } catch (error) {
+            console.error('Error fetching thread files:', error);
+        } finally {
+            toggleLoading('thread-files', false);
+        }
+    }
+
+    async function fetchMessages(threadId) {
+        console.log("Fetching messages for threadId:", threadId);
+        try {
+            const url = `/t/${threadId}/messages/`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                    'X-Token': token
+                }
+            });
+
+            const data = await response.json();
+            messageContainer.innerHTML = '';
+
+            if (data.success) {
+                if (data.messages.length === 0) {
+                    const noMessages = document.createElement('div');
+                    noMessages.id = 'no-messages';
+                    noMessages.innerHTML = `
+                        <p>Start the conversation by typing a message below.</p>
+                    `;
+                    messageContainer.appendChild(noMessages);
+                } else {
+                    messageContainer.style.justifyContent = 'flex-start';
+                    data.messages.forEach(message => {
+                        const messageElement = createMessageElement(message.role, message.message, message.name);
+                        messageContainer.appendChild(messageElement);
+                    });
+                }
+            } else {
+                console.error('Error fetching messages:', data.error);
+                const errorMessage = document.createElement('div');
+                errorMessage.textContent = 'Error loading messages.';
+                messageContainer.appendChild(errorMessage);
+            }
+
+            scrollToBottom();
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+        }
+    }
+
+    // Scroll to the bottom of the message container when the page loads
+    scrollToBottom();
+
+    // Scroll to the bottom of the message container
+    function scrollToBottom() {
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+
+    function createMessageElement(role, content, assistantName = null) {
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message');
+        if (role === 'user') {
+            messageDiv.classList.add('user-message');
+        } else {
+            messageDiv.classList.add('assistant-message');
+        }
+        const displayName = assistantName || role;
+        messageDiv.innerHTML = `
+            <p><strong>${displayName}</strong></p>
+            <div class="message-content">${marked.parse(content)}</div>
+        `;
+        return messageDiv;
+    }
+
+    let eventSource = null;
+
+    // Submit message
+    if (form) {
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const message = textarea.value.trim();
+
+            if (message === '') {
+                console.error('Content is missing');
+                textarea.focus();
+                return;
+            }
+
+            // Remove "no messages" message if it exists
+            const noMessages = document.getElementById('no-messages');
+            if (noMessages) {
+                noMessages.remove();
+            }
+
+            // Add user's message to the container
+            const userMessageElement = createMessageElement('user', message);
+            messageContainer.appendChild(userMessageElement);
+            scrollToBottom();
+
+            // Show the "awaiting response" container and reset assistant content
+            awaitingResponse.classList.remove("d-none");
+            assistantResponseContent.innerHTML = 'Awaiting response...';
+            streamingAssistantName.textContent = assistantName;
+
+            // Hide the textarea while waiting for the response
+            formContainer.classList.add('d-none');
+
+            try {
+                await createMessage(message, attachments);
+                // Clear attachments after sending
+                attachments = [];
+
+                // Update attachments list and thread files list
+                updateAttachmentsList();
+                await fetchThreadFiles(threadId);
+            } catch(e) {
+                console.error('Error:', e)
+            }
+
+            try {
+                const runData = await createRun();
+
+                console.log('runData', runData);
+
+                // Clear the textarea
+                textarea.value = '';
+                textarea.style.height = 'auto';
+
+                // Initiate SSE
+                if (eventSource) {
+                    eventSource.close();
+                }
+                eventSource = handleSSE(runData.stream_url, assistantName);
+
+                scrollToBottom();
+
+            } catch(e) {
+                console.error('Error:', e);
+                // Handle errors, e.g., show an error message to the user
+                formContainer.classList.remove('d-none');
+                awaitingResponse.classList.add("d-none");
+                textarea.focus();
+            }
+        });
+    }
+
+    // Handle Server-Sent Events (SSE)
+    function handleSSE(url, assistantName) {
+        // Include the token in the URL
+        const sseUrlWithToken = url + '?token=' + encodeURIComponent(token);
+        const eventSource = new EventSource(sseUrlWithToken);
+        let currentText = "";
+        let assistantMessageElement = null;
+        let assistantResponseContent = null;
+        let currentAnnotations = [];
+
+        eventSource.onmessage = async function(event) {
+            const data = JSON.parse(event.data);
+            console.log("Received SSE data:", data.type);
+
+            if (data.type === 'message_created') {
+                console.log("message_created event received");
+                // Create a new message element
+                assistantMessageElement = createMessageElement('assistant', '', assistantName);
+                messageContainer.appendChild(assistantMessageElement);
+                assistantResponseContent = assistantMessageElement.querySelector('.message-content');
+                currentText = '';
+                currentAnnotations = [];
+                scrollToBottom();
+            } else if (['text_delta', 'text_created', 'image_file'].includes(data.type)) {
+                currentText = data.text;
+                currentAnnotations = data.annotations || [];
+                const processedContent = await processAnnotations(currentText, currentAnnotations);
+                if (assistantResponseContent) {
+                    assistantResponseContent.innerHTML = `${marked.parse(processedContent)}`;
+                }
+                scrollToBottom();
+            } else if (data.type === 'message_done') {
+                console.log("message_done event received");
+                currentText = data.text;
+                currentAnnotations = data.annotations || [];
+                const processedContent = await processAnnotations(currentText, currentAnnotations);
+                if (assistantResponseContent) {
+                    assistantResponseContent.innerHTML = `${marked.parse(processedContent)}`;
+                }
+            } else if (data.type === 'end_of_stream') {
+                console.log("end_of_stream event received");
+                eventSource.close();
+                formContainer.classList.remove('d-none');
+                awaitingResponse.classList.add("d-none");
+                textarea.focus();
+                scrollToBottom();
+            } else if (data.type === 'error') {
+                console.error("Error received:", data.message);
+                eventSource.close();
+                formContainer.classList.remove('d-none');
+                awaitingResponse.classList.add("d-none");
+                showToast("Error", data.message);
+                textarea.focus();
+            }
+        };
+
+        eventSource.onerror = function(error) {
+            console.error('SSE error:', error);
+            eventSource.close();
+            formContainer.classList.remove('d-none');
+            awaitingResponse.classList.add("d-none");
+            textarea.focus();
+        };
+
+        eventSource.onopen = function() {
+            console.log("SSE connection opened");
+            awaitingResponse.classList.remove('d-none');
+        };
+
+        eventSource.onclose = function() {
+            console.log("SSE connection closed");
+            if (!eventSource.readyState) {
+                formContainer.classList.remove('d-none');
+                awaitingResponse.classList.add("d-none");
+                textarea.focus();
+            }
+        };
+
+        return eventSource;
+    }
+
+    async function fetchFileName(fileId) {
+        console.log("Fetching filename for fileId:", fileId);
+        try {
+            const response = await fetch(`/files/${fileId}/`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                    'X-Token': token
+                }
+            });
+            if (response.ok) {
+                const fileData = await response.json();
+                return fileData.filename || 'Unknown File';
+            } else {
+                console.error("Failed to fetch filename");
+                return 'Unknown File';
+            }
+        } catch (error) {
+            console.error("Error fetching filename:", error);
+            return 'Unknown File';
+        }
+    }
+
+    async function processAnnotations(content, annotations) {
+        for (let index = 0; index < annotations.length; index++) {
+            const annotation = annotations[index];
+            if (annotation.file_citation) {
+                const fileId = annotation.file_citation.file_id;
+                const filename = await fetchFileName(fileId);
+                const replacementText = ` [${index + 1}] (${filename})`;
+                content = content.replace(annotation.text, replacementText);
+            } else if (annotation.file_path) {
+                const fileId = annotation.file_path.file_id;
+                const downloadUrl = `/t/${threadId}/download/${fileId}/?token=${token}`;
+                const replacementText = `<a href="${downloadUrl}">Download File</a>`;
+                content = content.replace(annotation.text, replacementText);
+            }
+        }
+        return content;
+    }
+
+    // Auto-resize textarea
+    if (textarea) {
+        textarea.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                if (event.shiftKey) {
+                    // If Shift + Enter, insert a newline
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    this.value = this.value.substring(0, start) + '\n' + this.value.substring(end);
+                    this.selectionStart = this.selectionEnd = start + 1;
+                    event.preventDefault();
+                } else {
+                    // If only Enter, submit the form
+                    event.preventDefault();
+
+                    // Trim the value to check for any content
+                    const messageContent = textarea.value.trim();
+
+                    if (messageContent === "") {
+                        // If the message is blank, prevent submission
+                        textarea.focus();
+                    } else {
+                        // If the message is not blank, submit the form
+                        form.dispatchEvent(new Event('submit', { 'bubbles': true, 'cancelable': true }));
+                    }
+                }
+            }
+        });
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+
+        textarea.addEventListener('paste', function() {
+            setTimeout(() => {
+                this.style.height = 'auto';
+                this.style.height = this.scrollHeight + 'px';
+            }, 0);
+        });
+    }
+});
+</script>

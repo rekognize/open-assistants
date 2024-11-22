@@ -1,10 +1,10 @@
 from django.contrib import admin
-from .models import Project, Thread
+from .models import Project, Thread, SharedLink
 
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ['name', 'user', 'key']
+    list_display = ['name', 'user', 'key', 'is_oa_project']
     readonly_fields = ('list_threads',)
 
     def list_threads(self, obj):
@@ -18,4 +18,12 @@ class ThreadAdmin(admin.ModelAdmin):
     list_display = ('uuid', 'openai_id', 'created_at', 'project')
     search_fields = ('uuid', 'openai_id', 'created_at', 'project__name', 'project__key')
     readonly_fields = ('openai_id', 'uuid')
+    list_filter = ['project']
+
+
+@admin.register(SharedLink)
+class SharedLinkAdmin(admin.ModelAdmin):
+    list_display = ('assistant_id', 'name', 'token', 'created', 'project')
+    search_fields = ('assistant_id', 'name', 'token', 'created', 'project__name', 'project__key')
+    readonly_fields = ('token', 'created')
     list_filter = ['project']
