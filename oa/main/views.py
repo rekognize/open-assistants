@@ -528,7 +528,7 @@ def share_assistant(request, assistant_id):
         return HttpResponseBadRequest('Invalid request')
 
     # Retrieve the selected project
-    selected_project_id = request.session.get('selected_project_id')
+    selected_project_id = request.session.get('selected_project_id') or request.GET.get('selected_project_id')
     selected_project = None
 
     if selected_project_id:

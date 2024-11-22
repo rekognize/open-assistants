@@ -39,7 +39,7 @@ document.getElementById('shareAssistantModal').addEventListener('show.bs.modal',
 
 // Function to fetch existing shared links
 function fetchSharedLinks(assistantId) {
-    fetch(`/a/share/${assistantId}/`, {
+    fetch(`/a/share/${assistantId}/?selected_project_id=${selected_project_id}`, {
         method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -103,7 +103,7 @@ document.getElementById('create-shared-link').addEventListener('click', function
     createButton.disabled = true;
     createButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...`;
 
-    fetch(`/a/share/${currentAssistantId}/`, {
+    fetch(`/a/share/${currentAssistantId}/?selected_project_id=${selected_project_id}`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': csrftoken,
