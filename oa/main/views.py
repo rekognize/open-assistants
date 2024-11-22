@@ -452,6 +452,10 @@ def create_project(request):
         if not is_valid:
             return JsonResponse({'success': False, 'error': error_message})
 
+        # Check if the user already has a project with this key
+        if Project.objects.filter(user=request.user, key=key).exists():
+            return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
+
         try:
             project = Project.objects.create(user=request.user, name=name, key=key)
             return JsonResponse({
@@ -462,8 +466,6 @@ def create_project(request):
                     'partial_key': project.get_partial_key()
                 }
             })
-        except IntegrityError:
-            return JsonResponse({'success': False, 'error': 'The key provided is already in use. Please enter a different key.'})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
@@ -487,6 +489,9 @@ def edit_project(request, project_id):
 
             # Update the key only if it is provided
             if key:
+                # Check if another project with the same key exists for the user
+                if Project.objects.filter(user=request.user, key=key).exclude(id=project_id).exists():
+                    return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
                 project.key = key
 
             project.save()
@@ -499,8 +504,6 @@ def edit_project(request, project_id):
                     'partial_key': project.get_partial_key()
                 }
             })
-        except IntegrityError:
-            return JsonResponse({'success': False, 'error': 'The key provided is already in use. Please enter a different key.'})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
