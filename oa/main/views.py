@@ -5,7 +5,6 @@ import logging
 import os
 
 from asgiref.sync import async_to_sync
-from django.db import IntegrityError
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
     HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
@@ -259,16 +258,17 @@ async def stream_responses(request, thread_id, assistant_id):
 
 
 async def get_messages(request, thread_id):
+    token = request.headers.get('X-Token') or request.GET.get('token')
     try:
         client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
-    messages = await fetch_messages(client, thread_id)
+    messages = await fetch_messages(client, thread_id, token)
     return JsonResponse({'success': True, 'messages': messages})
 
 
-async def fetch_messages(client, thread_id):
+async def fetch_messages(client, thread_id, token=None):
     try:
         response = await client.beta.threads.messages.list(
             thread_id=thread_id,
@@ -303,6 +303,10 @@ async def fetch_messages(client, thread_id):
                             if file_path := getattr(annotation, 'file_path', None):
                                 file_path_file_id = getattr(file_path, 'file_id', None)
                                 download_link = reverse('download_file', args=[thread_id, file_path_file_id])
+
+                                # Include the token in the download link
+                                if token:
+                                    download_link += f'?token={token}'
 
                                 # Replace the annotation text with the download link
                                 text_content = text_content.replace(annotation.text, download_link)
