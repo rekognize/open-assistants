@@ -687,8 +687,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             } else if (annotation.file_path) {
                 const fileId = annotation.file_path.file_id;
                 const downloadUrl = `/t/${threadId}/download/${fileId}/`;
-                const replacementText = `<a href="${downloadUrl}">Download File</a>`;
-                content = content.replace(annotation.text, replacementText);
+
+                content = content.replace(annotation.text, downloadUrl);
             }
         }
         return content;
