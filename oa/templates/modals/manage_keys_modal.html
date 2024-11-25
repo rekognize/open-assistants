@@ -7,10 +7,10 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <ul id="project-list" class="list-group">
+                <ul id="project-list" class="list-group-flush">
                     {% for project in user_projects %}
                         <li id="project-{{ project.id }}"
-                            class="list-group-item d-flex justify-content-between align-items-center">
+                            class="list-group-item d-flex justify-content-between align-items-center mb-3">
                             <div class="d-flex align-items-center flex-grow-1">
                                 <div class="me-3 d-flex align-items-center" style="min-width: 200px; max-width: 500px;">
                                     {% if project.name %}

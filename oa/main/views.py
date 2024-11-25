@@ -5,7 +5,6 @@ import logging
 import os
 
 from asgiref.sync import async_to_sync
-from django.db import IntegrityError
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
     HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
@@ -43,12 +42,13 @@ def manage_assistants(request):
 # Chat
 
 class EventHandler(AsyncAssistantEventHandler):
-    def __init__(self, shared_data):
+    def __init__(self, shared_data, token=None):
         super().__init__()
         self.current_message = ""
         self.shared_data = shared_data  # Use shared_data instead of response_data
         self.stream_done = False
         self.current_annotations = []
+        self.token = token
 
     async def on_message_created(self, message):
         print("on_message_created called")
@@ -94,6 +94,8 @@ class EventHandler(AsyncAssistantEventHandler):
     async def on_image_file_done(self, image_file: ImageFile) -> None:
         print(f"on_image_file_done called with file_id: {image_file.file_id}")
         image_url = reverse('serve_image_file', args=[image_file.file_id])
+        if self.token:
+            image_url += f'?token={self.token}'
         self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
 
         # No annotations for images
@@ -148,6 +150,10 @@ def create_stream_url(request, thread_id, assistant_id):
 
 
 async def stream_responses(request, thread_id, assistant_id):
+    token = request.GET.get('token')
+    if token:
+        request.GET = request.GET.copy()
+        request.GET['token'] = token
     try:
         client = await aget_openai_client(request)
     except APIError as e:
@@ -155,7 +161,7 @@ async def stream_responses(request, thread_id, assistant_id):
 
     async def event_stream():
         shared_data = []
-        event_handler = EventHandler(shared_data=shared_data)
+        event_handler = EventHandler(shared_data=shared_data, token=token)
         try:
             async with client.beta.threads.runs.stream(
                 thread_id=thread_id,
@@ -252,16 +258,17 @@ async def stream_responses(request, thread_id, assistant_id):
 
 
 async def get_messages(request, thread_id):
+    token = request.headers.get('X-Token') or request.GET.get('token')
     try:
         client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
-    messages = await fetch_messages(client, thread_id)
+    messages = await fetch_messages(client, thread_id, token)
     return JsonResponse({'success': True, 'messages': messages})
 
 
-async def fetch_messages(client, thread_id):
+async def fetch_messages(client, thread_id, token=None):
     try:
         response = await client.beta.threads.messages.list(
             thread_id=thread_id,
@@ -296,6 +303,10 @@ async def fetch_messages(client, thread_id):
                             if file_path := getattr(annotation, 'file_path', None):
                                 file_path_file_id = getattr(file_path, 'file_id', None)
                                 download_link = reverse('download_file', args=[thread_id, file_path_file_id])
+
+                                # Include the token in the download link
+                                if token:
+                                    download_link += f'?token={token}'
 
                                 # Replace the annotation text with the download link
                                 text_content = text_content.replace(annotation.text, download_link)

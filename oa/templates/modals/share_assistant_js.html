@@ -26,8 +26,12 @@ document.getElementById('shareAssistantModal').addEventListener('show.bs.modal',
     // Button that triggered the modal
     const button = event.relatedTarget;
     const assistantId = button.getAttribute('data-assistant-id');
+    const assistantName = button.getAttribute('data-assistant-name');
+    const assistantNameInfo = document.getElementById('assistantNameInfo');
 
     currentAssistantId = assistantId;
+    assistantNameInfo.textContent = '';
+    assistantNameInfo.textContent = assistantName && assistantName !== '' ? assistantName : 'Untitled assistant';
 
     // Clear any existing shared links
     const sharedLinksList = document.getElementById('shared-links-list');
