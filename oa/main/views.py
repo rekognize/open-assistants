@@ -43,12 +43,13 @@ def manage_assistants(request):
 # Chat
 
 class EventHandler(AsyncAssistantEventHandler):
-    def __init__(self, shared_data):
+    def __init__(self, shared_data, token=None):
         super().__init__()
         self.current_message = ""
         self.shared_data = shared_data  # Use shared_data instead of response_data
         self.stream_done = False
         self.current_annotations = []
+        self.token = token
 
     async def on_message_created(self, message):
         print("on_message_created called")
@@ -94,6 +95,8 @@ class EventHandler(AsyncAssistantEventHandler):
     async def on_image_file_done(self, image_file: ImageFile) -> None:
         print(f"on_image_file_done called with file_id: {image_file.file_id}")
         image_url = reverse('serve_image_file', args=[image_file.file_id])
+        if self.token:
+            image_url += f'?token={self.token}'
         self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
 
         # No annotations for images
@@ -148,6 +151,10 @@ def create_stream_url(request, thread_id, assistant_id):
 
 
 async def stream_responses(request, thread_id, assistant_id):
+    token = request.GET.get('token')
+    if token:
+        request.GET = request.GET.copy()
+        request.GET['token'] = token
     try:
         client = await aget_openai_client(request)
     except APIError as e:
@@ -155,7 +162,7 @@ async def stream_responses(request, thread_id, assistant_id):
 
     async def event_stream():
         shared_data = []
-        event_handler = EventHandler(shared_data=shared_data)
+        event_handler = EventHandler(shared_data=shared_data, token=token)
         try:
             async with client.beta.threads.runs.stream(
                 thread_id=thread_id,
