@@ -36,12 +36,28 @@ jobs:
           ASGI_SERVER: ${{ env.ASGI_SERVER }}
         run: |
           ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@3.87.35.129 <<EOF
+            # Navigate to the deployment directory
             cd /home/ubuntu/$DEPLOY_DIR
+            
+            # Fetch and reset code
             git fetch origin
             git reset --hard origin/${{ github.ref_name }}
-            # Additional commands for Django:
+            
+            # Activate virtual environment
+            if [ -f "venv/bin/activate" ]; then
+              source venv/bin/activate
+            else
+              python3 -m venv venv
+              source venv/bin/activate
+            fi
+            
+            # Install requirements
             pip install -r requirements.txt
-            python manage.py migrate
-            python manage.py collectstatic --noinput
+            
+            # Django commands
+            python manage.py migrate --noinput || { echo "Migrations failed"; exit 1; }
+            python manage.py collectstatic --noinput || { echo "Collectstatic failed"; exit 1; }
+            
+            # Restart the server
             sudo supervisorctl restart $ASGI_SERVER
           EOF
