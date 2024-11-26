@@ -10,7 +10,7 @@
             <div class="modal-body">
                 <!-- Confirmation message -->
                 <span>Are you sure you want to delete this assistant?</span>
-                <div id="assistantInfo" class="alert alert-warning mt-2 py-2 small" role="alert"></div>
+                <div id="assistantInfo" class="alert alert-info mt-2 py-2 small" role="alert"></div>
             </div>
             <div class="modal-footer py-2">
                 <small class="small text-secondary me-auto">
@@ -35,10 +35,10 @@
             <div class="modal-body">
                 <!-- The content will be populated dynamically -->
                 <span>Are you sure you want to delete this vector store?</span>
-                <div id="vectorStoreInfo" class="alert alert-warning mt-2 py-2 small" role="alert"></div>
+                <div id="vectorStoreInfo" class="alert alert-info mt-2 py-2 small" role="alert"></div>
                 <div id="assistantsUsingVectorStore" class="d-none mt-2">
                     <p>The following assistant(s) are using this vector store:</p>
-                    <ul id="assistantNamesList"></ul>
+                    <ul id="assistantNamesList" class="alert alert-warning py-2 small" role="list"></ul>
                 </div>
             </div>
             <div class="modal-footer py-2">
@@ -62,10 +62,10 @@
             <div class="modal-body">
                 <!-- Confirmation message -->
                 <span>Are you sure you want to delete this file?</span>
-                <div id="fileInfo" class="alert alert-warning mt-2 py-2 small" role="alert"></div>
+                <div id="fileInfo" class="alert alert-info mt-2 py-2 small" role="alert"></div>
                 <div id="vectorStoresUsingFile" class="d-none mt-2">
                     <p>This file is associated with the following vector store(s):</p>
-                    <ul id="vectorStoreNamesList"></ul>
+                    <ul id="vectorStoreNamesList" class="alert alert-warning py-2 small" role="list"></ul>
                 </div>
             </div>
             <div class="modal-footer py-2">
