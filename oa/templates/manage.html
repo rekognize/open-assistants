@@ -654,24 +654,20 @@
         const card = cardBody.closest('.card');
         const cardFooter = card.querySelector('.card-footer');
 
-        const briefInfo = cardBody.querySelector('.brief-info');
-        const editMode = cardBody.querySelector('.edit-mode');
+        // Toggle brief-info and edit-mode in the card body
+        const briefInfoBody = cardBody.querySelector('.brief-info');
+        const editModeBody = cardBody.querySelector('.edit-mode');
+        briefInfoBody.classList.toggle('d-none');
+        editModeBody.classList.toggle('d-none');
 
-        const briefInfoFooter = cardFooter.querySelector('.brief-info');
-        const editModeFooter = cardFooter.querySelector('.edit-mode');
+        // Toggle brief-info and edit-mode in the card footer
+        const briefInfoFooter = cardFooter.querySelectorAll('.brief-info');
+        const editModeFooter = cardFooter.querySelectorAll('.edit-mode');
+        briefInfoFooter.forEach(element => element.classList.toggle('d-none'));
+        editModeFooter.forEach(element => element.classList.toggle('d-none'));
 
-        // Toggle the visibility of the form and info sections
-        briefInfo.classList.toggle('d-none');
-        editMode.classList.toggle('d-none');
-
-        // Toggle the visibility of the footer buttons
-        if (briefInfoFooter && editModeFooter) {
-            briefInfoFooter.classList.toggle('d-none');
-            editModeFooter.classList.toggle('d-none');
-        }
-
-        if (!briefInfo.classList.contains('d-none')) {
-            // Leaving edit mode
+        if (!briefInfoBody.classList.contains('d-none')) {
+            // Exiting edit mode
             card.classList.remove('border-warning');
         } else {
             // Entering edit mode
@@ -1217,6 +1213,7 @@
     }
 
     function applyFileFilters() {
+        // Read filter values
         fileFilters.name = document.getElementById('fileFilterName').value.toLowerCase();
         fileFilters.startDate = document.getElementById('fileFilterStartDate').value
             ? new Date(document.getElementById('fileFilterStartDate').value)
@@ -1236,7 +1233,13 @@
         fileFilters.vectorStoreId = document.getElementById('fileFilterVectorStore').value;
         fileFilters.fileType = document.getElementById('fileFilterType').value;
 
-        displayFiles(); // Re-display files with filters applied
+        displayFiles();
+
+        // Update button styles and icons
+        updateVectorStoreFilesButtonStyles();
+
+        // Update the filter icon
+        updateFilterIcon('fileFilterDropdown', fileFilters);
 
         // Close the dropdown menu
         const dropdownElement = document.getElementById('fileFilterDropdown');
@@ -1244,9 +1247,6 @@
         if (dropdownInstance) {
             dropdownInstance.hide();
         }
-
-        // Update the filter icon based on active filters
-        updateFilterIcon('fileFilterDropdown', fileFilters);
     }
 
     function resetFileFilters() {
@@ -1258,7 +1258,14 @@
             vectorStoreId: '',
             fileType: ''
         };
+
         displayFiles();
+
+        // Update button styles and icons
+        updateVectorStoreFilesButtonStyles();
+
+        // Update the filter icon
+        updateFilterIcon('fileFilterDropdown', fileFilters);
 
         // Close the dropdown menu
         const dropdownElement = document.getElementById('fileFilterDropdown');
@@ -1266,9 +1273,6 @@
         if (dropdownInstance) {
             dropdownInstance.hide();
         }
-
-        // Update the filter icon to reflect no active filters
-        updateFilterIcon('fileFilterDropdown', fileFilters);
     }
 
     function populateAssistantFilterOptions() {
@@ -1601,6 +1605,12 @@
         } else {
             vectorStoresList.appendChild(vectorStoreItem);
         }
+
+        // Scroll to the top of vector-stores-list
+        const vectorStoresListSection = document.getElementById('vector-stores-list');
+        if (vectorStoresListSection) {
+            vectorStoresListSection.scrollIntoView({ behavior: 'smooth' });
+        }
     }
 
     function removeVectorStoreCard(vectorStoreId) {
@@ -1674,6 +1684,14 @@
 
                 // Update related UI elements
                 updateVectorStoreRelatedUI();
+
+                // Scroll to the newly added vector store's card
+                const newVectorStoreId = data.id;
+                const vectorStoreCard = document.getElementById(`vector-store-${newVectorStoreId}`);
+                if (vectorStoreCard) {
+                    vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
             } else {
                 const errorData = await response.json();
                 let errorMessage = '';
@@ -1751,6 +1769,12 @@
 
                 // Update related UI elements
                 updateVectorStoreRelatedUI();
+
+                // Scroll to the updated vector store's card
+                const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
+                if (vectorStoreCard) {
+                    vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
 
             } else {
                 const errorData = await response.json();
@@ -1903,6 +1927,52 @@
 
         // Re-initialize tooltips if necessary
         initializeTooltips();
+    }
+
+    function toggleFileFilterByVectorStore(storeId, buttonElement) {
+        hideTooltip(buttonElement);
+
+        if (fileFilters.vectorStoreId === storeId) {
+            // Remove the vector store filter
+            fileFilters.vectorStoreId = '';
+        } else {
+            // Set the vector store filter to this storeId
+            fileFilters.vectorStoreId = storeId;
+        }
+
+        // Update the file filter dropdown to reflect the selected vector store
+        document.getElementById('fileFilterVectorStore').value = fileFilters.vectorStoreId;
+
+        // Update the styles and icons of all vector store 'Files' buttons
+        updateVectorStoreFilesButtonStyles();
+
+        // Display the files with the updated filters
+        displayFiles();
+
+        // Update the file filter icon based on active filters
+        updateFilterIcon('fileFilterDropdown', fileFilters);
+    }
+
+    function updateVectorStoreFilesButtonStyles() {
+        const buttons = document.querySelectorAll('.vector-store-files-button');
+        buttons.forEach(button => {
+            const storeId = button.getAttribute('data-store-id');
+            const iconElement = button.querySelector('i');
+
+            if (fileFilters.vectorStoreId === storeId && fileFilters.vectorStoreId !== '') {
+                // The filter is active for this store
+                button.classList.remove('btn-outline-secondary');
+                button.classList.add('btn-secondary');
+                iconElement.classList.remove('bi-archive');
+                iconElement.classList.add('bi-archive-fill');
+            } else {
+                // The filter is not active
+                button.classList.remove('btn-secondary');
+                button.classList.add('btn-outline-secondary');
+                iconElement.classList.remove('bi-archive-fill');
+                iconElement.classList.add('bi-archive');
+            }
+        });
     }
 
 
@@ -2121,6 +2191,12 @@
             assistantsList.appendChild(assistantItem);
         }
         renderFunctionCheckboxes(tempId);
+
+        // Scroll to the top of assistants-list
+        const assistantsListSection = document.getElementById('assistants-list');
+        if (assistantsListSection) {
+            assistantsListSection.scrollIntoView({ behavior: 'smooth' });
+        }
     }
 
     function removeAssistantCard(assistantId) {
@@ -2235,6 +2311,13 @@
 
                 // Re-display the assistants list
                 displayAssistants();
+
+                // Scroll to the newly added assistant's card
+                const newAssistantId = data.id;
+                const assistantCard = document.getElementById(`assistant-${newAssistantId}`);
+                if (assistantCard) {
+                    assistantCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
 
             } else {
                 const errorData = await response.json();
@@ -2354,6 +2437,13 @@
 
                 // Re-display the assistants list
                 displayAssistants();
+
+                // Scroll to the updated assistant's card
+                const assistantCard = document.getElementById(`assistant-${assistantId}`);
+                if (assistantCard) {
+                    assistantCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
             } else {
                 const errorData = await response.json();
                 let errorMessage = '';
@@ -2782,6 +2872,12 @@
         spinner.classList.add('d-none');
         buttonText.classList.remove('d-none');
         button.disabled = false;
+
+        // Scroll to the updated file's card
+        const fileCard = document.getElementById(`file-${fileId}`);
+        if (fileCard) {
+            fileCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     let fileToDeleteId = null; // To store the ID of the file to delete
@@ -3152,6 +3248,12 @@
                 // Hide the modal after successful upload
                 const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
                 modal.hide();
+
+                // Scroll to the top of files-list
+                const filesListSection = document.getElementById('files-list');
+                if (filesListSection) {
+                    filesListSection.scrollIntoView({ behavior: 'smooth' });
+                }
 
                 if (uploadedFilenames) {
                     showToast("Files uploaded!", uploadedFilenames, "success");

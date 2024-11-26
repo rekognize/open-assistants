@@ -119,6 +119,7 @@
 
             <div>
 
+                <!-- Edit Mode Toggle Buttons -->
                 <div class="brief-info">
                     <button type="button" onclick="toggleEditMode('${assistant.id}', 'assistant')"
                             class="btn btn-sm btn-outline-secondary"
@@ -127,6 +128,7 @@
                     </button>
                 </div>
 
+                <!-- Save/Cancel Buttons in Edit Mode -->
                 <div class="edit-mode d-none">
                     <button type="button" class="btn btn-sm btn-outline-success btnModifyAssistant"
                             onclick="modifyAssistant('${assistant.id}');"
@@ -144,7 +146,8 @@
 
             </div>
 
-            <div>
+            <!-- Action Buttons to Hide in Edit Mode -->
+            <div class="brief-info">
                 <a class="btn btn-sm btn-outline-secondary"
                    href="{% url 'thread_detail' %}?a=${assistant.id}" target="_blank"
                    data-bs-toggle="tooltip" data-bs-title="Start a conversation">

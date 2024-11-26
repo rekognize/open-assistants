@@ -88,6 +88,7 @@
 
             <div>
 
+                <!-- Edit Mode Toggle Buttons -->
                 <div class="brief-info">
                     <button type="button" onclick="toggleEditMode('${store.id}', 'vectorStore')"
                             class="btn btn-sm btn-outline-secondary"
@@ -96,6 +97,7 @@
                     </button>
                 </div>
 
+                <!-- Save/Cancel Buttons in Edit Mode -->
                 <div class="edit-mode d-none">
                     <button type="button" class="btn btn-sm btn-outline-success btnModifyVectorStore"
                             onclick="modifyVectorStore('${store.id}');"
@@ -112,9 +114,12 @@
 
             </div>
 
-            <div>
-                <button type="button" class="btn btn-sm btn-outline-secondary"
-                        data-bs-toggle="tooltip" data-bs-title="Files">
+            <!-- Action Buttons to Hide in Edit Mode -->
+            <div class="brief-info">
+                <button type="button" class="btn btn-sm btn-outline-secondary vector-store-files-button"
+                        data-bs-toggle="tooltip" data-bs-title="Files"
+                        data-store-id="${store.id}"
+                        onclick="hideTooltip(this); toggleFileFilterByVectorStore('${store.id}', this)">
                     <i class="bi bi-archive"></i>
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-secondary"
