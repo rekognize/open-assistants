@@ -1678,6 +1678,14 @@
 
                 // Update related UI elements
                 updateVectorStoreRelatedUI();
+
+                // Scroll to the newly added vector store's card
+                const newVectorStoreId = data.id;
+                const vectorStoreCard = document.getElementById(`vector-store-${newVectorStoreId}`);
+                if (vectorStoreCard) {
+                    vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
             } else {
                 const errorData = await response.json();
                 let errorMessage = '';
@@ -1755,6 +1763,12 @@
 
                 // Update related UI elements
                 updateVectorStoreRelatedUI();
+
+                // Scroll to the updated vector store's card
+                const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
+                if (vectorStoreCard) {
+                    vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
 
             } else {
                 const errorData = await response.json();
@@ -2286,6 +2300,13 @@
                 // Re-display the assistants list
                 displayAssistants();
 
+                // Scroll to the newly added assistant's card
+                const newAssistantId = data.id;
+                const assistantCard = document.getElementById(`assistant-${newAssistantId}`);
+                if (assistantCard) {
+                    assistantCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
             } else {
                 const errorData = await response.json();
                 let errorMessage = '';
@@ -2404,6 +2425,13 @@
 
                 // Re-display the assistants list
                 displayAssistants();
+
+                // Scroll to the updated assistant's card
+                const assistantCard = document.getElementById(`assistant-${assistantId}`);
+                if (assistantCard) {
+                    assistantCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
             } else {
                 const errorData = await response.json();
                 let errorMessage = '';
@@ -2832,6 +2860,12 @@
         spinner.classList.add('d-none');
         buttonText.classList.remove('d-none');
         button.disabled = false;
+
+        // Scroll to the updated file's card
+        const fileCard = document.getElementById(`file-${fileId}`);
+        if (fileCard) {
+            fileCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     let fileToDeleteId = null; // To store the ID of the file to delete
@@ -3202,6 +3236,12 @@
                 // Hide the modal after successful upload
                 const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
                 modal.hide();
+
+                // Scroll to the top of files-list
+                const filesListSection = document.getElementById('files-list');
+                if (filesListSection) {
+                    filesListSection.scrollIntoView({ behavior: 'smooth' });
+                }
 
                 if (uploadedFilenames) {
                     showToast("Files uploaded!", uploadedFilenames, "success");
