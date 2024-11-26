@@ -1217,6 +1217,7 @@
     }
 
     function applyFileFilters() {
+        // Read filter values
         fileFilters.name = document.getElementById('fileFilterName').value.toLowerCase();
         fileFilters.startDate = document.getElementById('fileFilterStartDate').value
             ? new Date(document.getElementById('fileFilterStartDate').value)
@@ -1236,7 +1237,13 @@
         fileFilters.vectorStoreId = document.getElementById('fileFilterVectorStore').value;
         fileFilters.fileType = document.getElementById('fileFilterType').value;
 
-        displayFiles(); // Re-display files with filters applied
+        displayFiles();
+
+        // Update button styles and icons
+        updateVectorStoreFilesButtonStyles();
+
+        // Update the filter icon
+        updateFilterIcon('fileFilterDropdown', fileFilters);
 
         // Close the dropdown menu
         const dropdownElement = document.getElementById('fileFilterDropdown');
@@ -1244,9 +1251,6 @@
         if (dropdownInstance) {
             dropdownInstance.hide();
         }
-
-        // Update the filter icon based on active filters
-        updateFilterIcon('fileFilterDropdown', fileFilters);
     }
 
     function resetFileFilters() {
@@ -1258,7 +1262,14 @@
             vectorStoreId: '',
             fileType: ''
         };
+
         displayFiles();
+
+        // Update button styles and icons
+        updateVectorStoreFilesButtonStyles();
+
+        // Update the filter icon
+        updateFilterIcon('fileFilterDropdown', fileFilters);
 
         // Close the dropdown menu
         const dropdownElement = document.getElementById('fileFilterDropdown');
@@ -1266,9 +1277,6 @@
         if (dropdownInstance) {
             dropdownInstance.hide();
         }
-
-        // Update the filter icon to reflect no active filters
-        updateFilterIcon('fileFilterDropdown', fileFilters);
     }
 
     function populateAssistantFilterOptions() {
@@ -1903,6 +1911,52 @@
 
         // Re-initialize tooltips if necessary
         initializeTooltips();
+    }
+
+    function toggleFileFilterByVectorStore(storeId, buttonElement) {
+        hideTooltip(buttonElement);
+
+        if (fileFilters.vectorStoreId === storeId) {
+            // Remove the vector store filter
+            fileFilters.vectorStoreId = '';
+        } else {
+            // Set the vector store filter to this storeId
+            fileFilters.vectorStoreId = storeId;
+        }
+
+        // Update the file filter dropdown to reflect the selected vector store
+        document.getElementById('fileFilterVectorStore').value = fileFilters.vectorStoreId;
+
+        // Update the styles and icons of all vector store 'Files' buttons
+        updateVectorStoreFilesButtonStyles();
+
+        // Display the files with the updated filters
+        displayFiles();
+
+        // Update the file filter icon based on active filters
+        updateFilterIcon('fileFilterDropdown', fileFilters);
+    }
+
+    function updateVectorStoreFilesButtonStyles() {
+        const buttons = document.querySelectorAll('.vector-store-files-button');
+        buttons.forEach(button => {
+            const storeId = button.getAttribute('data-store-id');
+            const iconElement = button.querySelector('i');
+
+            if (fileFilters.vectorStoreId === storeId && fileFilters.vectorStoreId !== '') {
+                // The filter is active for this store
+                button.classList.remove('btn-outline-secondary');
+                button.classList.add('btn-secondary');
+                iconElement.classList.remove('bi-archive');
+                iconElement.classList.add('bi-archive-fill');
+            } else {
+                // The filter is not active
+                button.classList.remove('btn-secondary');
+                button.classList.add('btn-outline-secondary');
+                iconElement.classList.remove('bi-archive-fill');
+                iconElement.classList.add('bi-archive');
+            }
+        });
     }
 
 
