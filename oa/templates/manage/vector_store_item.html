@@ -113,8 +113,10 @@
             </div>
 
             <div>
-                <button type="button" class="btn btn-sm btn-outline-secondary"
-                        data-bs-toggle="tooltip" data-bs-title="Files">
+                <button type="button" class="btn btn-sm btn-outline-secondary vector-store-files-button"
+                        data-bs-toggle="tooltip" data-bs-title="Files"
+                        data-store-id="${store.id}"
+                        onclick="hideTooltip(this); toggleFileFilterByVectorStore('${store.id}', this)">
                     <i class="bi bi-archive"></i>
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-secondary"
