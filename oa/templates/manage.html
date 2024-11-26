@@ -1605,6 +1605,12 @@
         } else {
             vectorStoresList.appendChild(vectorStoreItem);
         }
+
+        // Scroll to the top of vector-stores-list
+        const vectorStoresListSection = document.getElementById('vector-stores-list');
+        if (vectorStoresListSection) {
+            vectorStoresListSection.scrollIntoView({ behavior: 'smooth' });
+        }
     }
 
     function removeVectorStoreCard(vectorStoreId) {
@@ -2185,6 +2191,12 @@
             assistantsList.appendChild(assistantItem);
         }
         renderFunctionCheckboxes(tempId);
+
+        // Scroll to the top of assistants-list
+        const assistantsListSection = document.getElementById('assistants-list');
+        if (assistantsListSection) {
+            assistantsListSection.scrollIntoView({ behavior: 'smooth' });
+        }
     }
 
     function removeAssistantCard(assistantId) {
