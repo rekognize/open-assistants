@@ -56,6 +56,7 @@
 
             <div>
 
+                <!-- Edit Mode Toggle Buttons -->
                 <div class="brief-info">
                     <button type="button" onclick="toggleEditMode('${file.id}', 'file')"
                             class="btn btn-sm btn-outline-secondary"
@@ -64,6 +65,7 @@
                     </button>
                 </div>
 
+                <!-- Save/Cancel Buttons in Edit Mode -->
                 <div class="edit-mode d-none">
                     <button type="button" class="btn btn-sm btn-outline-success btnModifyFile"
                             onclick="modifyFileVectorStores('${file.id}');"
@@ -81,7 +83,8 @@
 
             </div>
 
-            <div>
+            <!-- Action Buttons to Hide in Edit Mode -->
+            <div class="brief-info">
                 <button type="button" class="btn btn-sm btn-outline-danger"
                         data-bs-toggle="tooltip" data-bs-title="Delete" onclick="deleteFile('${file.id}')">
                     <i class="bi bi-trash"></i>

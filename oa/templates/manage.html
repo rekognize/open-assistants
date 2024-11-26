@@ -654,24 +654,20 @@
         const card = cardBody.closest('.card');
         const cardFooter = card.querySelector('.card-footer');
 
-        const briefInfo = cardBody.querySelector('.brief-info');
-        const editMode = cardBody.querySelector('.edit-mode');
+        // Toggle brief-info and edit-mode in the card body
+        const briefInfoBody = cardBody.querySelector('.brief-info');
+        const editModeBody = cardBody.querySelector('.edit-mode');
+        briefInfoBody.classList.toggle('d-none');
+        editModeBody.classList.toggle('d-none');
 
-        const briefInfoFooter = cardFooter.querySelector('.brief-info');
-        const editModeFooter = cardFooter.querySelector('.edit-mode');
+        // Toggle brief-info and edit-mode in the card footer
+        const briefInfoFooter = cardFooter.querySelectorAll('.brief-info');
+        const editModeFooter = cardFooter.querySelectorAll('.edit-mode');
+        briefInfoFooter.forEach(element => element.classList.toggle('d-none'));
+        editModeFooter.forEach(element => element.classList.toggle('d-none'));
 
-        // Toggle the visibility of the form and info sections
-        briefInfo.classList.toggle('d-none');
-        editMode.classList.toggle('d-none');
-
-        // Toggle the visibility of the footer buttons
-        if (briefInfoFooter && editModeFooter) {
-            briefInfoFooter.classList.toggle('d-none');
-            editModeFooter.classList.toggle('d-none');
-        }
-
-        if (!briefInfo.classList.contains('d-none')) {
-            // Leaving edit mode
+        if (!briefInfoBody.classList.contains('d-none')) {
+            // Exiting edit mode
             card.classList.remove('border-warning');
         } else {
             // Entering edit mode
