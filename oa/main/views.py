@@ -70,8 +70,11 @@ class EventHandler(AsyncAssistantEventHandler):
                 annotation_dict = annotation.to_dict()
 
                 if hasattr(annotation, 'file_citation') and annotation.file_citation:
-                    # Don't have access to the client, use a placeholder
-                    annotation_dict['file_citation']['filename'] = 'Unknown File'  # Placeholder
+                    # Manually construct the file_citation dictionary
+                    annotation_dict['file_citation'] = {
+                        'file_id': annotation.file_citation.file_id,
+                        'filename': 'Unknown File'  # Placeholder
+                    }
 
                 self.current_annotations.append(annotation_dict)
 
