@@ -712,12 +712,24 @@
 
                 // Initialize metadata fields
                 initializeMetadataFields(id, assistant.metadata);
+
+                // Scroll to the assistant's card
+                const assistantCard = document.getElementById(`assistant-${id}`);
+                if (assistantCard) {
+                    assistantCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             } else if (type === 'vectorStore') {
                 const vectorStore = vectorStores[id];
                 document.getElementById(`name-${id}`).value = vectorStore.name || '';
                 document.getElementById(`expiration-days-${id}`).value = vectorStore.expires_after?.days || '';
                 // Initialize metadata fields
                 initializeMetadataFields(id, vectorStore.metadata);
+
+                // Scroll to the vector store's card
+                const vectorStoreCard = document.getElementById(`vector-store-${id}`);
+                if (vectorStoreCard) {
+                    vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             } else if (type === 'file') {
                 const file = files[id];
                 const checkboxes = cardBody.querySelectorAll('.form-check-input');
@@ -726,6 +738,12 @@
                     const isSelected = fileVectorStores[file.id]?.includes(vectorStoreId);
                     checkbox.checked = isSelected;
                 });
+
+                // Scroll to the file's card
+                const fileCard = document.getElementById(`file-${id}`);
+                if (fileCard) {
+                    fileCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             }
         }
     }
@@ -1689,7 +1707,7 @@
                 const newVectorStoreId = data.id;
                 const vectorStoreCard = document.getElementById(`vector-store-${newVectorStoreId}`);
                 if (vectorStoreCard) {
-                    vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
             } else {
@@ -1773,7 +1791,7 @@
                 // Scroll to the updated vector store's card
                 const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
                 if (vectorStoreCard) {
-                    vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
             } else {
@@ -2316,7 +2334,7 @@
                 const newAssistantId = data.id;
                 const assistantCard = document.getElementById(`assistant-${newAssistantId}`);
                 if (assistantCard) {
-                    assistantCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    assistantCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
             } else {
@@ -2441,7 +2459,7 @@
                 // Scroll to the updated assistant's card
                 const assistantCard = document.getElementById(`assistant-${assistantId}`);
                 if (assistantCard) {
-                    assistantCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    assistantCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
             } else {
@@ -2876,7 +2894,7 @@
         // Scroll to the updated file's card
         const fileCard = document.getElementById(`file-${fileId}`);
         if (fileCard) {
-            fileCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            fileCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
 
