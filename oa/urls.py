@@ -23,7 +23,7 @@ urlpatterns = [
     path('t/<str:thread_id>/messages/', main_views.get_messages, name='get_messages'),
     path('t/<str:thread_id>/files/', main_views.get_thread_files, name='get_thread_files'),
     path('t/<str:thread_id>/download/<str:file_id>/', main_views.DownloadFileView.as_view(), name='download_file'),
-    path('files/<str:file_id>/', main_views.serve_image_file, name='serve_image_file'),
+    path('files/image/<str:file_id>/', main_views.serve_image_file, name='serve_image_file'),
 
     path('projects/set/', main_views.set_project, name='set_project'),
     path('projects/create/', main_views.create_project, name='create_project'),
