@@ -595,7 +595,14 @@ document.addEventListener("DOMContentLoaded", async function () {
                 currentText = '';
                 currentAnnotations = [];
                 scrollToBottom();
-            } else if (['text_delta', 'text_created', 'image_file'].includes(data.type)) {
+            } else if (['text_delta', 'text_created'].includes(data.type)) {
+                currentText = data.text;
+                if (assistantResponseContent) {
+                    assistantResponseContent.innerHTML = `${marked.parse(currentText)}`;
+                }
+                scrollToBottom();
+            } else if (data.type === 'image_file') {
+                console.log("image_file event received");
                 currentText = data.text;
                 currentAnnotations = data.annotations || [];
                 const processedContent = await processAnnotations(currentText, currentAnnotations);
@@ -653,26 +660,33 @@ document.addEventListener("DOMContentLoaded", async function () {
         return eventSource;
     }
 
-    async function fetchFileName(fileId) {
-        console.log("Fetching filename for fileId:", fileId);
+    async function fetchFile(fileId) {
+        const retrieveFileUrlTemplate = "{% url 'api-1.0.0:retrieve_file' file_id='FILE_ID_PLACEHOLDER' %}";
+        const retrieveFile = retrieveFileUrlTemplate.replace('FILE_ID_PLACEHOLDER', fileId);
         try {
-            const response = await fetch(`/files/${fileId}/`, {
+            const response = await fetch(retrieveFile, {
                 method: 'GET',
                 headers: {
                     'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 }
             });
-            if (response.ok) {
-                const fileData = await response.json();
-                return fileData.filename || 'Unknown File';
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to retrieve file!", parsedError.errorMessage);
+                console.error('Failed to retrieve file!', parsedError);
+                throw new Error('Failed to retrieve file');
             } else {
-                console.error("Failed to fetch filename");
-                return 'Unknown File';
+                const fileData = await response.json();
+
+                console.log('Retrieve file:', fileData);
+                return fileData;
             }
         } catch (error) {
-            console.error("Error fetching filename:", error);
-            return 'Unknown File';
+            console.error("Error fetching file:", error);
+            throw error;
         }
     }
 
@@ -681,8 +695,17 @@ document.addEventListener("DOMContentLoaded", async function () {
             const annotation = annotations[index];
             if (annotation.file_citation) {
                 const fileId = annotation.file_citation.file_id;
-                const filename = await fetchFileName(fileId);
-                const replacementText = ` [${index + 1}] (${filename})`;
+                let replacementText;
+                try {
+                    const file = await fetchFile(fileId);
+                    if (file) {
+                        replacementText = ` [${index + 1}] (${file.filename})`;
+                    } else {
+                        replacementText = ` [${index + 1}] (Reference file is not available)`;
+                    }
+                } catch (error) {
+                    replacementText = ` [${index + 1}] (Error retrieving file)`;
+                }
                 content = content.replace(annotation.text, replacementText);
             } else if (annotation.file_path) {
                 const fileId = annotation.file_path.file_id;
