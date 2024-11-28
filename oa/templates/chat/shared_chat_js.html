@@ -1,6 +1,5 @@
 <script>
 // Define globals
-const fileCache = new Map();
 let assistantId = '{{ assistant_id }}';
 let token = '{{ token }}';
 let threadId, assistantName;
@@ -607,7 +606,14 @@ document.addEventListener("DOMContentLoaded", async function () {
                 currentText = '';
                 currentAnnotations = [];
                 scrollToBottom();
-            } else if (['text_delta', 'text_created', 'image_file'].includes(data.type)) {
+            } else if (['text_delta', 'text_created'].includes(data.type)) {
+                currentText = data.text;
+                if (assistantResponseContent) {
+                    assistantResponseContent.innerHTML = `${marked.parse(currentText)}`;
+                }
+                scrollToBottom();
+            } else if (data.type === 'image_file') {
+                console.log("image_file event received");
                 currentText = data.text;
                 currentAnnotations = data.annotations || [];
                 const processedContent = await processAnnotations(currentText, currentAnnotations);
@@ -666,10 +672,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     async function fetchFile(fileId) {
-        if (fileCache.has(fileId)) {
-            // Return the cached file data
-            return fileCache.get(fileId);
-        }
         const retrieveFileUrlTemplate = "{% url 'api-1.0.0:retrieve_file' file_id='FILE_ID_PLACEHOLDER' %}";
         const retrieveFile = retrieveFileUrlTemplate.replace('FILE_ID_PLACEHOLDER', fileId);
         try {
