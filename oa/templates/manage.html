@@ -696,6 +696,16 @@
                 if (codeInterpreterSwitch) {
                     codeInterpreterSwitch.checked = assistant.tools.some(tool => tool.type === 'code_interpreter');
                 }
+                
+                // Reset the vector store dropdown to original value
+                const vsDropdownContainer = document.getElementById(`vector-store-div-${id}`);
+                if (vsDropdownContainer) {
+                    const selectHtml = renderAssistantVSSelect(id);  // Re-render dropdown with original data
+                    vsDropdownContainer.innerHTML = `
+                        ${selectHtml}
+                        <label for="vs-${id}">Vector store</label>
+                    `;  // Update the dropdown HTML and re-add the label
+                }
 
                 // Initialize functions checkboxes
                 renderFunctionCheckboxes(id);
