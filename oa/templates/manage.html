@@ -83,6 +83,16 @@
 {% block content %}
 
 <div class="container mt-4 mb-4">
+    <div class="row mb-2">
+
+        <div class="col-md d-flex justify-content-end">
+            <a class="text-secondary" href="#" data-bs-toggle="modal" data-bs-target="#getStartedModal">
+                <i class="bi bi-patch-question-fill"></i>
+            </a>
+        </div>
+
+    </div>
+
     <div class="row">
 
         <!-- Assistants Column -->
@@ -437,6 +447,7 @@
 {% include "modals/file_upload_modal.html" %}
 {% include "modals/deletion_confirmation_modals.html" %}
 {% include "modals/share_assistant_modal.html" %}
+{% include "modals/get_started_modal.html" %}
 
 {% endblock %}
 
@@ -3344,5 +3355,6 @@
 </script>
 
 {% include "modals/share_assistant_js.html" %}
+{% include "modals/get_started_js.html" %}
 
 {% endblock %}

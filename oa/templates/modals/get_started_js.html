@@ -1,0 +1,368 @@
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentStep = 1;
+    const totalSteps = 3;
+
+    const backButton = document.getElementById('getStartedBackButton');
+    const nextButton = document.getElementById('getStartedNextButton');
+    const resetButton = document.getElementById('getStartedResetButton');
+    const progressBar = document.getElementById('getStartedProgressBar');
+
+    let assistantData = {}; // To hold assistant form data
+    let vectorStoreData = {}; // To hold vector store data
+    let fileData = {}; // To hold file data
+
+    const maxNameLength = 256;
+    const maxDescriptionLength = 512;
+
+    const assistantNameInput = document.getElementById('assistantName');
+    const assistantDescriptionInput = document.getElementById('assistantDescription');
+    const assistantInstructionsInput = document.getElementById('assistantInstructions');
+    const assistantModelSelect = document.getElementById('assistantModel');
+
+    const nameHelp = document.getElementById('nameHelp');
+    const descriptionHelp = document.getElementById('descriptionHelp');
+
+    // Function to show the current step and hide others
+    function showStep(step) {
+        for (let i = 1; i <= totalSteps; i++) {
+            const stepDiv = document.getElementById('getStartedStep' + i);
+            if (i === step) {
+                stepDiv.classList.remove('d-none');
+            } else {
+                stepDiv.classList.add('d-none');
+            }
+        }
+        // Update progress bar
+        const progressPercent = (step / totalSteps) * 100;
+        progressBar.style.width = progressPercent + '%';
+        progressBar.setAttribute('aria-valuenow', progressPercent);
+        progressBar.innerText = 'Step ' + step + ' of ' + totalSteps;
+
+        // Enable or disable back button
+        backButton.disabled = (step === 1);
+
+        // Change next button text on last step
+        if (step === totalSteps) {
+            nextButton.innerText = 'Finish';
+        } else {
+            nextButton.innerText = 'Next';
+        }
+
+        // Populate summary on the last step
+        if (step === totalSteps) {
+            populateSummary();
+        }
+    }
+
+    // Back button click handler
+    backButton.addEventListener('click', function() {
+        if (currentStep > 1) {
+            currentStep--;
+            showStep(currentStep);
+        }
+    });
+
+    // Next button click handler
+    nextButton.addEventListener('click', function() {
+        // Validate current step before moving to next
+        const isValid = validateStep(currentStep);
+        if (isValid) {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                showStep(currentStep);
+            } else {
+                // Last step, submit data
+                const modalElement = document.getElementById('getStartedModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                modalInstance.hide();
+
+                showToast('Setup Completed', 'Your assistant has been set up.', 'success');
+                // Optionally refresh the page or update the UI
+            }
+        }
+    });
+
+    // Reset button click handler
+    resetButton.addEventListener('click', function() {
+        resetModal();
+    });
+
+    // Function to reset the modal
+    function resetModal() {
+        // Reset steps
+        currentStep = 1;
+        showStep(currentStep);
+        // Reset data
+        assistantData = {};
+        vectorStoreData = {};
+        fileData = {};
+        // Reset buttons
+        backButton.disabled = true;
+        nextButton.innerText = 'Next';
+
+        // Reset forms
+        document.getElementById('assistantForm').reset();
+        assistantNameInput.value = '';
+        assistantDescriptionInput.value = '';
+        assistantInstructionsInput.value = '';
+        assistantModelSelect.value = 'gpt-4o';
+
+        // Reset help texts
+        nameHelp.classList.add('d-none');
+        descriptionHelp.classList.add('d-none');
+
+        // Reset vector store options
+        document.getElementById('noVectorStoreOption').checked = true;
+        toggleVectorStoreOptions();
+
+        // Reset vector store creation fields
+        document.getElementById('vectorStoreName').value = '';
+        document.getElementById('vectorStoreExpirationDays').value = '';
+
+        // Reset file upload
+        document.getElementById('uploadFileCheckbox').checked = false;
+        toggleFileUploadForm();
+        document.getElementById('fileUploadInput').value = '';
+
+        // Reload vector stores
+        loadExistingVectorStores();
+    }
+
+    // Function to validate the current step
+    function validateStep(step) {
+        let isValid = true;
+        // Implement validation logic for each step
+        if (step === 1) {
+            // Validate assistant creation form
+            const assistantName = assistantNameInput.value.trim();
+            const assistantDescription = assistantDescriptionInput.value.trim();
+            const assistantInstructions = assistantInstructionsInput.value.trim();
+            const assistantModel = assistantModelSelect.value;
+
+            // Character limit validation
+            if (assistantName.length > maxNameLength) {
+                isValid = false;
+                nameHelp.classList.remove('d-none');
+                showToast('Validation Error', 'Assistant name exceeds maximum length of 256 characters.', 'warning');
+            } else {
+                nameHelp.classList.add('d-none');
+            }
+
+            if (assistantDescription.length > maxDescriptionLength) {
+                isValid = false;
+                descriptionHelp.classList.remove('d-none');
+                showToast('Validation Error', 'Description exceeds maximum length of 512 characters.', 'warning');
+            } else {
+                descriptionHelp.classList.add('d-none');
+            }
+
+            if (!assistantName || !assistantInstructions || !assistantModel) {
+                isValid = false;
+                showToast('Validation Error', 'Please fill in all required fields in Assistant creation.', 'warning');
+            }
+
+            if (isValid) {
+                // Store assistant data
+                assistantData.name = assistantName;
+                assistantData.description = assistantDescription;
+                assistantData.instructions = assistantInstructions;
+                assistantData.model = assistantModel;
+            }
+        } if (step === 2) {
+            // Validate vector store creation form
+            const vectorStoreOption = document.querySelector('input[name="vectorStoreOption"]:checked').value;
+
+            // Reset vectorStoreData before proceeding
+            vectorStoreData = {};
+            fileData = {};
+
+            if (vectorStoreOption === 'none') {
+                // No vector store selected
+                // vectorStoreData and fileData are already reset
+            } else if (vectorStoreOption === 'select') {
+                // Validate existing vector store selection
+                const existingVectorStoreSelect = document.getElementById('existingVectorStoreSelect');
+                const selectedVectorStoreId = existingVectorStoreSelect.value;
+                if (!selectedVectorStoreId) {
+                    isValid = false;
+                    showToast('Validation Error', 'Please select a vector store.', 'warning');
+                } else {
+                    vectorStoreData.id = selectedVectorStoreId;
+                }
+            } else if (vectorStoreOption === 'create') {
+                const vectorStoreName = document.getElementById('vectorStoreName').value.trim();
+                const vectorStoreExpirationDays = document.getElementById('vectorStoreExpirationDays').value;
+                if (!vectorStoreName) {
+                    isValid = false;
+                    showToast('Validation Error', 'Please enter a name for the vector store.', 'warning');
+                }
+
+                // Handle file upload
+                const uploadFile = document.getElementById('uploadFileCheckbox').checked;
+                if (uploadFile) {
+                    const fileInput = document.getElementById('fileUploadInput');
+                    if (fileInput.files.length === 0) {
+                        isValid = false;
+                        showToast('Validation Error', 'Please select at least one file to upload.', 'warning');
+                    } else {
+                        // Store file data
+                        fileData.files = fileInput.files;
+                    }
+                } else {
+                    // Clear file data if not uploading
+                    fileData = {};
+                }
+
+                if (isValid) {
+                    // Store vector store data
+                    vectorStoreData.name = vectorStoreName;
+                    vectorStoreData.expiration_days = vectorStoreExpirationDays;
+                }
+            }
+        }
+        return isValid;
+    }
+
+    // Function to populate the summary
+    function populateSummary() {
+        const summaryContent = document.getElementById('summaryContent');
+        let html = '<h6>Assistant Details</h6>';
+        html += '<p><strong>Name:</strong> ' + assistantData.name + '</p>';
+        html += '<p><strong>Description:</strong> ' + (assistantData.description || 'N/A') + '</p>';
+        html += '<p><strong>Instructions:</strong> ' + assistantData.instructions + '</p>';
+        html += '<p><strong>Model:</strong> ' + assistantData.model + '</p>';
+
+        if (vectorStoreData.id) {
+            html += '<h6>Selected Vector Store</h6>';
+            const vectorStoreName = vectorStores[vectorStoreData.id]?.name ?? 'Unknown';
+            html += '<p><strong>Name:</strong> ' + vectorStoreName + '</p>';
+        } else if (vectorStoreData.name) {
+            html += '<h6>Vector Store to be Created</h6>';
+            html += '<p><strong>Name:</strong> ' + vectorStoreData.name + '</p>';
+            html += '<p><strong>Expiration Days:</strong> ' + (vectorStoreData.expiration_days || 'N/A') + '</p>';
+
+            if (fileData.files && fileData.files.length > 0) {
+                html += '<h6>Files to Upload</h6>';
+                html += '<ul>';
+                for (let i = 0; i < fileData.files.length; i++) {
+                    html += '<li>' + fileData.files[i].name + '</li>';
+                }
+                html += '</ul>';
+            } else {
+                html += '<p>No files will be uploaded.</p>';
+            }
+        } else {
+            html += '<p>No vector store will be associated.</p>';
+        }
+
+        summaryContent.innerHTML = html;
+    }
+
+    // Event listeners for character limit validation
+    assistantNameInput.addEventListener('input', function() {
+        const currentLength = assistantNameInput.value.length;
+        if (currentLength > maxNameLength) {
+            nameHelp.classList.remove('d-none');
+        } else {
+            nameHelp.classList.add('d-none');
+        }
+    });
+
+    assistantDescriptionInput.addEventListener('input', function() {
+        const currentLength = assistantDescriptionInput.value.length;
+        if (currentLength > maxDescriptionLength) {
+            descriptionHelp.classList.remove('d-none');
+        } else {
+            descriptionHelp.classList.add('d-none');
+        }
+    });
+
+    // Event listeners for vector store options
+    const vectorStoreOptions = document.querySelectorAll('input[name="vectorStoreOption"]');
+    vectorStoreOptions.forEach(function(option) {
+        option.addEventListener('change', function() {
+            toggleVectorStoreOptions();
+        });
+    });
+
+    function toggleVectorStoreOptions() {
+        const selectedOption = document.querySelector('input[name="vectorStoreOption"]:checked').value;
+        const selectSection = document.getElementById('selectVectorStoreSection');
+        const createSection = document.getElementById('createVectorStoreSection');
+
+        if (selectedOption === 'none') {
+            selectSection.classList.add('d-none');
+            createSection.classList.add('d-none');
+        } else if (selectedOption === 'select') {
+            selectSection.classList.remove('d-none');
+            createSection.classList.add('d-none');
+            // Load existing vector stores if not already loaded
+            loadExistingVectorStores();
+        } else if (selectedOption === 'create') {
+            selectSection.classList.add('d-none');
+            createSection.classList.remove('d-none');
+        }
+    }
+
+    // Function to load existing vector stores
+    function loadExistingVectorStores() {
+        const existingVectorStoreSelect = document.getElementById('existingVectorStoreSelect');
+        // Clear previous options except the first one
+        for (let i = existingVectorStoreSelect.options.length - 1; i >= 1; i--) {
+            existingVectorStoreSelect.remove(i);
+        }
+        // Check if vectorStores is empty
+        const vectorStoreEntries = Object.entries(vectorStores);
+        if (vectorStoreEntries.length === 0) {
+            // Hide only the "Select Existing" option and its label
+            document.getElementById('selectVectorStoreOption').classList.add('d-none');
+            document.querySelector('label[for="selectVectorStoreOption"]').classList.add('d-none');
+            document.getElementById('selectVectorStoreSection').classList.add('d-none');
+            // If "Select Existing" was selected, default to "No Vector Store"
+            if (document.getElementById('selectVectorStoreOption').checked) {
+                document.getElementById('noVectorStoreOption').checked = true;
+                toggleVectorStoreOptions();
+            }
+            return;
+        } else {
+            // Show the "Select Existing" option if it's hidden
+            document.getElementById('selectVectorStoreOption').classList.remove('d-none');
+            document.querySelector('label[for="selectVectorStoreOption"]').classList.remove('d-none');
+        }
+        // Populate the select element with actual vector stores
+        vectorStoreEntries.forEach(([vsId, vectorStore]) => {
+            const option = document.createElement('option');
+            option.value = vsId;
+            option.textContent = vectorStore.name ?? 'Untitled Store';
+            existingVectorStoreSelect.appendChild(option);
+        });
+    }
+
+    // Event listener for existing vector store selection
+    const existingVectorStoreSelect = document.getElementById('existingVectorStoreSelect');
+    existingVectorStoreSelect.addEventListener('change', function() {
+        // No action needed here for validation, as we check during Next button click
+    });
+
+    // Event listener for uploadFileCheckbox
+    const uploadFileCheckbox = document.getElementById('uploadFileCheckbox');
+    uploadFileCheckbox.addEventListener('change', toggleFileUploadForm);
+
+    function toggleFileUploadForm() {
+        const fileUploadForm = document.getElementById('fileUploadForm');
+        if (uploadFileCheckbox.checked) {
+            fileUploadForm.classList.remove('d-none');
+        } else {
+            fileUploadForm.classList.add('d-none');
+            fileData = {}; // Clear file data
+        }
+    }
+
+    // Initialize the modal when it's shown
+    const getStartedModalElement = document.getElementById('getStartedModal');
+    getStartedModalElement.addEventListener('shown.bs.modal', function () {
+    });
+});
+
+</script>
