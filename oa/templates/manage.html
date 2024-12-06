@@ -919,7 +919,25 @@
         loadAndDisplayFiles();
     }
 
-    initializePage();
+    document.addEventListener('DOMContentLoaded', async function() {
+        // Wait for initializePage() to finish
+        await initializePage();
+
+        setTimeout(() => {
+            const isVectorStoresEmpty = Object.keys(vectorStores).length === 0;
+            const isAssistantsEmpty = Object.keys(assistants).length === 0;
+            const isFilesEmpty = Object.keys(files).length === 0;
+
+            if (isVectorStoresEmpty && isAssistantsEmpty && isFilesEmpty) {
+                const getStartedModalElement = document.getElementById('getStartedModal');
+                const getStartedModal = new bootstrap.Modal(getStartedModalElement, {
+                    backdrop: 'static',
+                    keyboard: false
+                });
+                getStartedModal.show();
+            }
+        }, 1000);
+    });
 
 
     /* List utility functions */
