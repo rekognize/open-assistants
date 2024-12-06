@@ -87,6 +87,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 backButton.disabled = true;
                 resetButton.disabled = true;
 
+                let creationSuccess = false; // Track success
+
                 try {
                     const vectorStoreOption = document.querySelector('input[name="vectorStoreOption"]:checked').value;
 
@@ -107,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
 
-                    // Determine which vector store ID to associate with the assistant tools
                     let associatedVectorStoreId = null;
                     if (vectorStoreOption === 'select') {
                         associatedVectorStoreId = existingVectorStoreSelect.value || null;
@@ -121,7 +122,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         throw new Error('Failed to create assistant.');
                     }
 
-                    // On success, redirect to manage page
+                    creationSuccess = true;
+
+                    // On success
                     showToast('Setup Completed', 'Your assistant has been set up.', 'success');
                     setTimeout(() => {
                         window.location.href = '{% url "manage_assistants" %}';
@@ -133,9 +136,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 } finally {
                     spinner.classList.add('d-none');
                     buttonText.textContent = 'Finish';
-                    nextButton.disabled = false;
-                    backButton.disabled = false;
-                    resetButton.disabled = false;
+                    if (!creationSuccess) {
+                        // Re-enable buttons only if there was an error
+                        nextButton.disabled = false;
+                        backButton.disabled = false;
+                        resetButton.disabled = false;
+                    }
                 }
             }
         }
@@ -237,31 +243,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function populateSummary() {
         const summaryContent = document.getElementById('summaryContent');
-        let html = '<h6>Assistant Details</h6>';
+        let html = '<div class="border p-3 mb-3 rounded">';
+        html += '<h6 class="fw-bold mb-2">Assistant Details</h6>';
         html += `<p><strong>Name:</strong> ${assistantData.name}</p>`;
         html += `<p><strong>Description:</strong> ${assistantData.description || 'N/A'}</p>`;
         html += `<p><strong>Instructions:</strong> ${assistantData.instructions}</p>`;
         html += `<p><strong>Model:</strong> ${assistantData.model}</p>`;
+        html += `<p><strong>Tools:</strong> code_interpreter`;
+        if (vectorStoreData.id || vectorStoreData.name) {
+            html += ', file_search';
+        }
+        html += '</p>';
+        html += '</div>';
 
+        // Vector Store section
         if (vectorStoreData.id) {
-            html += '<h6>Selected Vector Store</h6>';
+            html += '<div class="border p-3 mb-3 rounded">';
+            html += '<h6 class="fw-bold mb-2">Selected Vector Store</h6>';
             const vsName = vectorStores[vectorStoreData.id]?.name ?? 'Untitled Store';
             html += `<p><strong>Name:</strong> ${vsName}</p>`;
+            html += '</div>';
         } else if (vectorStoreData.name) {
-            html += '<h6>Vector Store to be Created</h6>';
+            html += '<div class="border p-3 mb-3 rounded">';
+            html += '<h6 class="fw-bold mb-2">Vector Store to be Created</h6>';
             html += `<p><strong>Name:</strong> ${vectorStoreData.name}</p>`;
-
+            // Files section if files are selected
             if (fileData.files && fileData.files.length > 0) {
-                html += '<h6>Files to Upload</h6><ul>';
+                html += '<div class="border p-3 mt-3 rounded">';
+                html += '<h6 class="fw-bold mb-2">Files to Upload</h6><ul>';
                 for (let i = 0; i < fileData.files.length; i++) {
                     html += `<li>${fileData.files[i].name}</li>`;
                 }
                 html += '</ul>';
+                html += '</div>';
             } else {
                 html += '<p>No files will be uploaded.</p>';
             }
+            html += '</div>';
         } else {
+            // No Vector Store associated
+            html += '<div class="border p-3 mb-3 rounded">';
+            html += '<h6 class="fw-bold mb-2">No Vector Store</h6>';
             html += '<p>No vector store will be associated.</p>';
+            html += '</div>';
         }
 
         summaryContent.innerHTML = html;
@@ -394,11 +418,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function createAssistantApi(assistantData, vectorStoreId) {
         try {
-            // If a vector store is associated, add file_search tool and tool_resources
             let tools = [];
             let tool_resources = {};
 
+            // Always add code_interpreter
+            tools.push({ "type": "code_interpreter" });
+
             if (vectorStoreId) {
+                // Add file_search if a vector store is associated
                 tools.push({ "type": "file_search" });
                 tool_resources["file_search"] = {
                     "vector_store_ids": [vectorStoreId]
