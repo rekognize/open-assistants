@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const assistantDescriptionInput = document.getElementById('assistantDescription');
     const assistantInstructionsInput = document.getElementById('assistantInstructions');
     const assistantModelSelect = document.getElementById('assistantModel');
-
     const nameHelp = document.getElementById('nameHelp');
     const descriptionHelp = document.getElementById('descriptionHelp');
 
@@ -42,7 +41,6 @@ document.addEventListener('DOMContentLoaded', function() {
         descriptionHelp.classList.toggle('d-none', currentLength < maxDescriptionLength);
     });
 
-    // Show step function
     function showStep(step) {
         for (let i = 1; i <= totalSteps; i++) {
             const stepDiv = document.getElementById('getStartedStep' + i);
@@ -75,25 +73,70 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    nextButton.addEventListener('click', function() {
+    nextButton.addEventListener('click', async function() {
         const isValid = validateStep(currentStep);
         if (isValid) {
             if (currentStep < totalSteps) {
                 currentStep++;
                 showStep(currentStep);
             } else {
-                // On finish, show loading spinner and simulate create action
+                // On finish, show loading spinner and start creation process
                 spinner.classList.remove('d-none');
                 buttonText.textContent = 'Creating...';
+                nextButton.disabled = true;
+                backButton.disabled = true;
+                resetButton.disabled = true;
 
-                // Simulate async completion
-                setTimeout(() => {
-                    const modalElement = document.getElementById('getStartedModal');
-                    const modalInstance = bootstrap.Modal.getInstance(modalElement);
-                    modalInstance.hide();
-                    resetModal();
+                try {
+                    const vectorStoreOption = document.querySelector('input[name="vectorStoreOption"]:checked').value;
+
+                    let createdVectorStoreId = null;
+
+                    // 1. Create Vector Store if needed
+                    if (vectorStoreOption === 'create') {
+                        createdVectorStoreId = await createVectorStoreApi(vectorStoreData.name);
+                        if (!createdVectorStoreId) {
+                            throw new Error('Failed to create vector store.');
+                        }
+                        // 2. If files selected, upload them
+                        if (fileData.files && fileData.files.length > 0) {
+                            const fileUploadSuccess = await uploadFilesApi(createdVectorStoreId, fileData.files);
+                            if (!fileUploadSuccess) {
+                                throw new Error('File upload failed.');
+                            }
+                        }
+                    }
+
+                    // Determine which vector store ID to associate with the assistant tools
+                    let associatedVectorStoreId = null;
+                    if (vectorStoreOption === 'select') {
+                        associatedVectorStoreId = existingVectorStoreSelect.value || null;
+                    } else if (vectorStoreOption === 'create') {
+                        associatedVectorStoreId = createdVectorStoreId;
+                    }
+
+                    // 3. Create the Assistant
+                    const assistantCreated = await createAssistantApi(assistantData, associatedVectorStoreId);
+                    if (!assistantCreated) {
+                        throw new Error('Failed to create assistant.');
+                    }
+
+                    // On success, redirect to manage page
                     showToast('Setup Completed', 'Your assistant has been set up.', 'success');
-                }, 2000);
+                    setTimeout(() => {
+                        window.location.href = '{% url "manage_assistants" %}';
+                    }, 1000);
+
+                } catch (error) {
+                    showToast('Creation Error', error.message, 'warning');
+                    console.error(error);
+                } finally {
+                    spinner.classList.add('d-none');
+                    buttonText.textContent = 'Finish';
+                    nextButton.disabled = false;
+                    backButton.disabled = false;
+                    resetButton.disabled = false;
+                }
             }
         }
     });
@@ -110,18 +153,17 @@ document.addEventListener('DOMContentLoaded', function() {
         vectorStoreData = {};
         fileData = {};
 
-        // Reset forms
+        // Reset form fields
         document.getElementById('assistantForm').reset();
         nameHelp.classList.add('d-none');
         descriptionHelp.classList.add('d-none');
 
-        // Reset vector store options to "No Vector Store"
+        // Reset vector store options
         document.getElementById('noVectorStoreOption').checked = true;
         toggleVectorStoreOptions();
 
-        // Clear vector store fields
-        document.getElementById('existingVectorStoreSelect').selectedIndex = 0;
-        document.getElementById('vectorStoreName').value = '';
+        // Clear vector store selection
+        existingVectorStoreSelect.selectedIndex = 0;
 
         // Uncheck file upload checkbox and clear files
         uploadFileCheckbox.checked = false;
@@ -238,7 +280,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedOption === 'none') {
             selectSection.classList.add('d-none');
             createSection.classList.add('d-none');
-            // Clear create fields when leaving 'create' mode
             document.getElementById('vectorStoreName').value = '';
             uploadFileCheckbox.checked = false;
             fileUploadForm.classList.add('d-none');
@@ -246,7 +287,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (selectedOption === 'select') {
             selectSection.classList.remove('d-none');
             createSection.classList.add('d-none');
-            // Clear create fields when leaving 'create' mode
             document.getElementById('vectorStoreName').value = '';
             uploadFileCheckbox.checked = false;
             fileUploadForm.classList.add('d-none');
@@ -295,6 +335,105 @@ document.addEventListener('DOMContentLoaded', function() {
             option.textContent = vs.name ?? 'Untitled Store';
             existingSelect.appendChild(option);
         });
+    }
+
+    // ========== API Helper Functions ==========
+
+    async function createVectorStoreApi(name) {
+        try {
+            const payload = {
+                name: name
+            };
+            const response = await fetch("{% url 'api-1.0.0:create_vector_store' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            });
+            if (response.ok) {
+                const data = await response.json();
+                return data.id;
+            } else {
+                const errorData = await response.json();
+                console.error('Create vector store error:', errorData);
+            }
+        } catch (error) {
+            console.error('Create vector store error:', error);
+        }
+        return null;
+    }
+
+    async function uploadFilesApi(vectorStoreId, files) {
+        try {
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+            formData.append('vector_store_ids', JSON.stringify([vectorStoreId]));
+
+            const response = await fetch("{% url 'api-1.0.0:upload_files' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            });
+            if (response.ok) {
+                return true;
+            } else {
+                const errorData = await response.json();
+                console.error('File upload error:', errorData);
+            }
+        } catch (error) {
+            console.error('File upload error:', error);
+        }
+        return false;
+    }
+
+    async function createAssistantApi(assistantData, vectorStoreId) {
+        try {
+            // If a vector store is associated, add file_search tool and tool_resources
+            let tools = [];
+            let tool_resources = {};
+
+            if (vectorStoreId) {
+                tools.push({ "type": "file_search" });
+                tool_resources["file_search"] = {
+                    "vector_store_ids": [vectorStoreId]
+                };
+            }
+
+            const payload = {
+                name: assistantData.name,
+                description: assistantData.description || '',
+                instructions: assistantData.instructions,
+                model: assistantData.model,
+                tools: tools,
+                tool_resources: tool_resources,
+                metadata: {}
+            };
+
+            const response = await fetch("{% url 'api-1.0.0:create_assistant' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                return true;
+            } else {
+                const errorData = await response.json();
+                console.error('Create assistant error:', errorData);
+            }
+        } catch (error) {
+            console.error('Create assistant error:', error);
+        }
+        return false;
     }
 
     // Initialize
