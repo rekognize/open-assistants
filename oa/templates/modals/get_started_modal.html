@@ -17,18 +17,17 @@
                 <div id="getStartedSteps">
                     <!-- Step 1: Assistant Creation -->
                     <div class="get-started-step" id="getStartedStep1">
-                        <!-- Assistant Creation Form -->
                         <h5>Step 1: Create an Assistant</h5>
                         <form id="assistantForm">
                             <div class="form-floating mb-3">
                                 <input type="text" class="form-control" id="assistantName" placeholder="Assistant Name" maxlength="256" required>
                                 <label for="assistantName">Name</label>
-                                <small id="nameHelp" class="form-text text-danger d-none">Maximum 256 characters allowed.</small>
+                                <small id="nameHelp" class="form-text text-danger d-none">The maximum character length is reached.</small>
                             </div>
                             <div class="form-floating mb-3">
                                 <textarea class="form-control" id="assistantDescription" placeholder="Description" maxlength="512" rows="3"></textarea>
                                 <label for="assistantDescription">Description</label>
-                                <small id="descriptionHelp" class="form-text text-danger d-none">Maximum 512 characters allowed.</small>
+                                <small id="descriptionHelp" class="form-text text-danger d-none">The maximum character length is reached.</small>
                             </div>
                             <div class="form-floating mb-3">
                                 <textarea class="form-control" id="assistantInstructions" placeholder="Instructions" style="height: 100px" required></textarea>
@@ -43,24 +42,20 @@
                             </div>
                         </form>
                     </div>
-                    <!-- Step 2: Vector Store Creation (Optional) and File Upload -->
+                    <!-- Step 2: Vector Store -->
                     <div class="get-started-step d-none" id="getStartedStep2">
-                        <!-- Vector Store Creation Form -->
-                        <h5>Step 2: Vector Store</h5>
-
-                        <!-- Toggle Options -->
+                        <h5>Step 2: Vector Store (optional)</h5>
                         <div class="btn-group mb-3" role="group" aria-label="Toggle between selecting and creating">
                             <input type="radio" class="btn-check" name="vectorStoreOption" id="noVectorStoreOption" value="none" autocomplete="off" checked>
-                            <label class="btn btn-outline-primary" for="noVectorStoreOption">No Vector Store</label>
+                            <label class="btn btn-outline-primary btn-sm" for="noVectorStoreOption">No Vector Store</label>
 
                             <input type="radio" class="btn-check" name="vectorStoreOption" id="selectVectorStoreOption" value="select" autocomplete="off">
-                            <label class="btn btn-outline-primary" for="selectVectorStoreOption">Select Existing</label>
+                            <label class="btn btn-outline-primary btn-sm" for="selectVectorStoreOption">Select Existing</label>
 
                             <input type="radio" class="btn-check" name="vectorStoreOption" id="createVectorStoreOption" value="create" autocomplete="off">
-                            <label class="btn btn-outline-primary" for="createVectorStoreOption">Create New</label>
+                            <label class="btn btn-outline-primary btn-sm" for="createVectorStoreOption">Create New</label>
                         </div>
 
-                        <!-- Select Existing Vector Store -->
                         <div id="selectVectorStoreSection" class="d-none">
                             <div class="form-floating mb-3">
                                 <select class="form-select" id="existingVectorStoreSelect">
@@ -71,21 +66,16 @@
                             </div>
                         </div>
 
-                        <!-- Create New Vector Store -->
                         <div id="createVectorStoreSection" class="d-none">
                             <div class="form-floating mb-3">
                                 <input type="text" class="form-control" id="vectorStoreName" placeholder="Vector Store Name">
                                 <label for="vectorStoreName">Name</label>
                             </div>
-                            <div class="form-floating mb-3">
-                                <input type="number" class="form-control" id="vectorStoreExpirationDays" placeholder="Expiration Days">
-                                <label for="vectorStoreExpirationDays">Expiration Days</label>
-                            </div>
                             <!-- File Upload (Optional) -->
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" id="uploadFileCheckbox">
                                 <label class="form-check-label" for="uploadFileCheckbox">
-                                    I want to upload files to the vector store
+                                    Upload files to the vector store
                                 </label>
                             </div>
                             <div id="fileUploadForm" class="d-none">
@@ -95,14 +85,11 @@
                                 </div>
                             </div>
                         </div>
-
                     </div>
                     <!-- Step 3: Summary -->
                     <div class="get-started-step d-none" id="getStartedStep3">
                         <h5>Step 3: Summary</h5>
-                        <div id="summaryContent">
-                            <!-- Summary details will be populated here -->
-                        </div>
+                        <div id="summaryContent"></div>
                     </div>
                 </div>
             </div>
@@ -110,7 +97,10 @@
             <div class="modal-footer py-2">
                 <button type="button" class="btn btn-secondary btn-sm me-auto" id="getStartedResetButton">Reset</button>
                 <button type="button" class="btn btn-secondary btn-sm" id="getStartedBackButton" disabled>Back</button>
-                <button type="button" class="btn btn-primary btn-sm" id="getStartedNextButton">Next</button>
+                <button type="button" class="btn btn-primary btn-sm" id="getStartedNextButton">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    <span class="button-text">Next</span>
+                </button>
             </div>
         </div>
     </div>
