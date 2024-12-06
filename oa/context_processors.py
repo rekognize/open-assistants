@@ -9,7 +9,6 @@ def user_projects(request):
 
     # Retrieve the selected project ID from the session
     selected_project_id = request.session.get('selected_project_id')
-    selected_project = None
 
     if selected_project_id:
         try:
