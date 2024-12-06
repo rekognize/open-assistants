@@ -1,10 +1,5 @@
 from datetime import datetime
-
 import requests
-from django.contrib.auth import get_user
-from openai import OpenAI
-from oa.api.utils import APIError
-from oa.main.models import Project
 
 
 def format_time(timestamp):
