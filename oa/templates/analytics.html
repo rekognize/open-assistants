@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+
+{% block title %}Analytics - Open Assistants{% endblock %}
+
+{% block content %}
+
+    <div class="container mt-4 mb-4">
+        <div id="assistants-container" class="my-4 d-none">
+            <h5>Assistants</h5>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="assistants-table-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Vector Stores Table -->
+        <div id="vector-stores-container" class="my-4 d-none">
+            <h5>Vector Stores</h5>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody id="vector-stores-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    async function fetchAssistantsTable() {
+        try {
+            const response = await fetch("{% url 'api-1.0.0:list_assistants' %}");
+            const data = await response.json();
+
+            if (data.assistants && data.assistants.length > 0) {
+                const tableBody = document.getElementById('assistants-table-body');
+                tableBody.innerHTML = '';
+
+                data.assistants.forEach(assistant => {
+                    const row = `<tr>
+                        <td>${assistant.id}</td>
+                        <td>${assistant.name}</td>
+                        <td>${assistant.status}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+
+                // Show the Assistants table
+                document.getElementById('assistants-container').classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching assistants:', error);
+        }
+    }
+
+    async function fetchVectorStoresTable() {
+        try {
+            const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}");
+            const data = await response.json();
+
+            if (data.vector_stores && data.vector_stores.length > 0) {
+                const tableBody = document.getElementById('vector-stores-table-body');
+                tableBody.innerHTML = '';
+
+                data.vector_stores.forEach(store => {
+                    const row = `<tr>
+                        <td>${store.id}</td>
+                        <td>${store.name}</td>
+                        <td>${store.description}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+
+                // Show the Vector Stores table
+                document.getElementById('vector-stores-container').classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching vector stores:', error);
+        }
+    }
+
+    // Initialize fetching
+    fetchAssistantsTable();
+    fetchVectorStoresTable();
+</script>
+{% endblock %}

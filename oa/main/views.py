@@ -36,6 +36,17 @@ def manage_assistants(request):
     function_definitions_json = json.dumps(FUNCTION_DEFINITIONS)
     return render(request, "manage.html", {
         'function_definitions_json': function_definitions_json,
+        'active_nav': 'manage'
+    })
+
+
+@login_required
+def analytics(request):
+    if not Project.objects.filter(user=request.user).exists():
+        return redirect('home')
+
+    return render(request, "analytics.html", {
+        'active_nav': 'analytics'
     })
 
 
