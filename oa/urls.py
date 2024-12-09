@@ -15,6 +15,7 @@ urlpatterns = [
     path('', main_views.HomeView.as_view(), name='home'),
 
     path('manage/', main_views.manage_assistants, name='manage_assistants'),
+    path('analytics/', main_views.analytics, name='analytics'),
 
     path('chat/', main_views.thread_detail, name='thread_detail'),
     path('chat/<str:assistant_id>/stream/<str:thread_id>/', main_views.create_stream_url, name='create_stream_url'),
