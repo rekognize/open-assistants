@@ -11,9 +11,9 @@
             <table class="table">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Name</th>
-                        <th>Status</th>
+                        <th>Tools</th>
+                        <th>Vector Store</th>
                     </tr>
                 </thead>
                 <tbody id="assistants-table-body"></tbody>
@@ -26,9 +26,8 @@
             <table class="table">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Name</th>
-                        <th>Description</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody id="vector-stores-table-body"></tbody>
@@ -51,15 +50,20 @@
 
                 data.assistants.forEach(assistant => {
                     const row = `<tr>
-                        <td>${assistant.id}</td>
-                        <td>${assistant.name}</td>
-                        <td>${assistant.status}</td>
+                        <td>${assistant.name || 'Untitled assistant'}</td>
+                        <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
+                        <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
                     </tr>`;
                     tableBody.innerHTML += row;
                 });
 
                 // Show the Assistants table
                 document.getElementById('assistants-container').classList.remove('d-none');
+            } else {
+                const parsedError = parseErrorText(data.error);
+                showToast("Failed to fetch assistants!", parsedError.errorMessage);
+                console.error('Failed to fetch assistants!', parsedError);
+                return {};
             }
         } catch (error) {
             console.error('Error fetching assistants:', error);
@@ -77,9 +81,8 @@
 
                 data.vector_stores.forEach(store => {
                     const row = `<tr>
-                        <td>${store.id}</td>
-                        <td>${store.name}</td>
-                        <td>${store.description}</td>
+                        <td>${store.name || 'Untitled store'}</td>
+                        <td>${store.status}</td>
                     </tr>`;
                     tableBody.innerHTML += row;
                 });
