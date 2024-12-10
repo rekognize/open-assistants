@@ -24,9 +24,9 @@ class Project(models.Model):
 
 class Thread(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='threads')
-    created_at = models.DateTimeField(blank=True, null=True, db_index=True)
     openai_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
+    created_at = models.DateTimeField(blank=True, null=True, db_index=True)
+    metadata = models.JSONField(blank=True, null=True)
 
     def __str__(self):
         return self.openai_id or str(self.uuid)

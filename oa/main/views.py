@@ -4,7 +4,7 @@ import json
 import logging
 import os
 
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
     HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
@@ -16,7 +16,7 @@ from django.views.generic import TemplateView
 from openai import AsyncAssistantEventHandler, OpenAIError
 from openai.types.beta.threads import Text, TextDelta, ImageFile
 
-from .models import Project, SharedLink
+from .models import Project, SharedLink, Thread
 from .utils import format_time, verify_openai_key
 from ..api.utils import APIError, aget_openai_client
 from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
@@ -48,6 +48,38 @@ def analytics(request):
     return render(request, "analytics.html", {
         'active_nav': 'analytics'
     })
+
+
+# Threads
+
+async def create_db_thread(request):
+    try:
+        data = await sync_to_async(request.body.decode)('utf-8')
+        data = json.loads(data)
+    except Exception as e:
+        return JsonResponse({"error": f"Invalid JSON: {str(e)}"}, status=400)
+
+    openai_id = data.get("openai_id")
+    created_at = data.get("created_at")
+    metadata = data.get("metadata", {})
+
+    if not openai_id:
+        return JsonResponse({"error": "openai_id is required"}, status=400)
+
+    # Create the thread in DB
+    thread = Thread(
+        openai_id=openai_id,
+        created_at=format_time(created_at),
+        metadata=metadata
+    )
+    await sync_to_async(thread.save)()
+
+    return JsonResponse({
+        "uuid": str(thread.uuid),
+        "openai_id": thread.openai_id,
+        "created_at": thread.created_at,
+        "metadata": thread.metadata,
+    }, status=201)
 
 
 # Chat
