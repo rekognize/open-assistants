@@ -12,6 +12,7 @@ urlpatterns = [
 
     path('manage/', main_views.manage_assistants, name='manage_assistants'),
     path('analytics/', main_views.analytics, name='analytics'),
+    path('analytics/thread_data/', main_views.get_assistant_threads, name='get_assistant_threads'),
 
     path('db_threads/', main_views.create_db_thread, name='create_db_thread'),
 

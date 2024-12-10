@@ -14,6 +14,7 @@
                         <th>Name</th>
                         <th>Tools</th>
                         <th>Vector Store</th>
+                        <th>Threads</th>
                     </tr>
                 </thead>
                 <tbody id="assistants-table-body"></tbody>
@@ -39,20 +40,39 @@
 
 {% block extra_scripts %}
 <script>
+    async function fetchThreadsData() {
+        try {
+            const response = await fetch("{% url 'get_assistant_threads' %}");
+            const data = await response.json();
+            console.log(data);
+
+            return data;
+        } catch (error) {
+            console.error("Error fetching thread counts:", error);
+            return {};
+        }
+    }
+
     async function fetchAssistantsTable() {
         try {
             const response = await fetch("{% url 'api-1.0.0:list_assistants' %}");
-            const data = await response.json();
+            const assistantsData = await response.json();
 
-            if (data.assistants && data.assistants.length > 0) {
+            // Fetch thread counts
+            const threadCounts = await fetchThreadsData();
+
+            if (assistantsData.assistants && assistantsData.assistants.length > 0) {
                 const tableBody = document.getElementById('assistants-table-body');
                 tableBody.innerHTML = '';
 
-                data.assistants.forEach(assistant => {
+                assistantsData.assistants.forEach(assistant => {
+                    const threadCount = threadCounts[assistant.id] || 0;
+
                     const row = `<tr>
                         <td>${assistant.name || 'Untitled assistant'}</td>
                         <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
                         <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
+                        <td>${threadCount}</td>
                     </tr>`;
                     tableBody.innerHTML += row;
                 });
@@ -60,7 +80,7 @@
                 // Show the Assistants table
                 document.getElementById('assistants-container').classList.remove('d-none');
             } else {
-                const parsedError = parseErrorText(data.error);
+                const parsedError = parseErrorText(assistantsData.error);
                 showToast("Failed to fetch assistants!", parsedError.errorMessage);
                 console.error('Failed to fetch assistants!', parsedError);
                 return {};

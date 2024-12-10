@@ -5,6 +5,7 @@ import logging
 import os
 
 from asgiref.sync import async_to_sync, sync_to_async
+from django.db.models import Count
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
     HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
@@ -48,6 +49,29 @@ def analytics(request):
     return render(request, "analytics.html", {
         'active_nav': 'analytics'
     })
+
+
+@login_required
+def get_assistant_threads(request):
+    try:
+        # Fetch thread counts grouped by assistant
+        thread_counts = (
+            Thread.objects.values("metadata")
+            .filter(metadata__has_key="_asst")
+            .annotate(thread_count=Count("uuid"))
+        )
+
+        # Process counts into a more usable format
+        thread_data = {}
+        for item in thread_counts:
+            assistant_id = item["metadata"]["_asst"]
+            thread_data[assistant_id] = item["thread_count"]
+
+        print(thread_data)
+
+        return JsonResponse(thread_data, status=200)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 # Threads
