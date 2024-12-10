@@ -29,6 +29,7 @@
                     <tr>
                         <th>Name</th>
                         <th>Status</th>
+                        <th>Files</th>
                     </tr>
                 </thead>
                 <tbody id="vector-stores-table-body"></tbody>
@@ -40,15 +41,14 @@
 
 {% block extra_scripts %}
 <script>
+    /* Assistants Table */
+
     async function fetchThreadsData() {
         try {
             const response = await fetch("{% url 'get_assistant_threads' %}");
-            const data = await response.json();
-            console.log(data);
-
-            return data;
+            return await response.json();
         } catch (error) {
-            console.error("Error fetching thread counts:", error);
+            console.error('Error fetching thread counts:', error);
             return {};
         }
     }
@@ -57,36 +57,45 @@
         try {
             const response = await fetch("{% url 'api-1.0.0:list_assistants' %}");
             const assistantsData = await response.json();
-
-            // Fetch thread counts
             const threadCounts = await fetchThreadsData();
 
-            if (assistantsData.assistants && assistantsData.assistants.length > 0) {
+            console.log(threadCounts);
+
+            if (assistantsData.assistants?.length > 0) {
                 const tableBody = document.getElementById('assistants-table-body');
                 tableBody.innerHTML = '';
-
                 assistantsData.assistants.forEach(assistant => {
                     const threadCount = threadCounts[assistant.id] || 0;
-
-                    const row = `<tr>
-                        <td>${assistant.name || 'Untitled assistant'}</td>
-                        <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
-                        <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
-                        <td>${threadCount}</td>
-                    </tr>`;
-                    tableBody.innerHTML += row;
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${assistant.name || 'Untitled assistant'}</td>
+                            <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
+                            <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
+                            <td>${threadCount}</td>
+                        </tr>`;
                 });
 
                 // Show the Assistants table
                 document.getElementById('assistants-container').classList.remove('d-none');
-            } else {
-                const parsedError = parseErrorText(assistantsData.error);
-                showToast("Failed to fetch assistants!", parsedError.errorMessage);
-                console.error('Failed to fetch assistants!', parsedError);
-                return {};
             }
         } catch (error) {
             console.error('Error fetching assistants:', error);
+        }
+    }
+
+
+    /* Vector Stores Table */
+
+    async function fetchVectorStoreFilesCount(vectorStoreId) {
+        try {
+            const listVSFilesUrlTemplate = "{% url 'api-1.0.0:list_vector_store_files' vector_store_id='VS_ID_PLACEHOLDER' %}";
+            const url = listVSFilesUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.files?.length || 0;
+        } catch (error) {
+            console.error(`Error fetching files for vector store ${vectorStoreId}:`, error);
+            return 0;
         }
     }
 
@@ -95,16 +104,25 @@
             const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}");
             const data = await response.json();
 
-            if (data.vector_stores && data.vector_stores.length > 0) {
+            if (data.vector_stores?.length > 0) {
                 const tableBody = document.getElementById('vector-stores-table-body');
                 tableBody.innerHTML = '';
 
-                data.vector_stores.forEach(store => {
-                    const row = `<tr>
-                        <td>${store.name || 'Untitled store'}</td>
-                        <td>${store.status}</td>
-                    </tr>`;
-                    tableBody.innerHTML += row;
+                const fileCountPromises = data.vector_stores.map(async store => {
+                    const fileCount = await fetchVectorStoreFilesCount(store.id);
+                    return { ...store, fileCount };
+                });
+
+                console.log(fileCountPromises);
+
+                const storesWithCounts = await Promise.all(fileCountPromises);
+                storesWithCounts.forEach(store => {
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${store.name || 'Untitled store'}</td>
+                            <td>${store.status}</td>
+                            <td>${store.fileCount}</td>
+                        </tr>`;
                 });
 
                 // Show the Vector Stores table
