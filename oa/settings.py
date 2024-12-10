@@ -124,22 +124,32 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 # Override static settings to use S3
 IS_LOCAL = os.getenv("IS_LOCAL", "false").lower() == "true"
 
-if not IS_LOCAL:
+
+# Static file serving configuration
+
+if IS_LOCAL:
+    # Use WhiteNoise for serving static files in local development
+    MIDDLEWARE = [
+        'django.middleware.security.SecurityMiddleware',
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
+        'django.contrib.messages.middleware.MessageMiddleware',
+        'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    ]
+    STORAGES = {
+        "default": {  # user uploaded media files
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+
+else:
     BRANCH_NAME = os.getenv("BRANCH_NAME")
-
-    # Force HTTPS (to fix the HTTP stream_url returned from OpenAI API)
-    SECURE_SSL_REDIRECT = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-    # AWS S3 Configuration
-    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-    AWS_S3_REGION_NAME = os.getenv("AWS_REGION_NAME")
-
-    AWS_STORAGE_BUCKET_NAME = f"openassistants-{BRANCH_NAME}".lower()
-
-    STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/static/'
-    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
 
     STORAGES = {
         "default": {  # user uploaded media files
@@ -158,6 +168,20 @@ if not IS_LOCAL:
             },
         },
     }
+
+    # AWS S3 Configuration
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+    AWS_S3_REGION_NAME = os.getenv("AWS_REGION_NAME")
+
+    AWS_STORAGE_BUCKET_NAME = f"openassistants-{BRANCH_NAME}".lower()
+
+    STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/static/'
+    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
+
+    # Force HTTPS (to fix the HTTP stream_url returned from OpenAI API)
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 ALLOWED_HOSTS = [

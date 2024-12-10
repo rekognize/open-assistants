@@ -18,3 +18,4 @@ django-recaptcha
 django-ses[events]
 python-dotenv
 stripe
+whitenoise
