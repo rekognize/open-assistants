@@ -15,10 +15,8 @@ class ProjectAdmin(admin.ModelAdmin):
 
 @admin.register(Thread)
 class ThreadAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'openai_id', 'created_at', 'project')
-    search_fields = ('uuid', 'openai_id', 'created_at', 'project__name', 'project__key')
-    readonly_fields = ('openai_id', 'uuid')
-    list_filter = ['project']
+    list_display = ('uuid', 'openai_id', 'created_at')
+    search_fields = ('uuid', 'openai_id', 'created_at')
 
 
 @admin.register(SharedLink)
