@@ -54,10 +54,19 @@ def analytics(request):
 @login_required
 def get_assistant_threads(request):
     try:
-        # Fetch thread data grouped by assistant
+        # Parse the JSON body to get assistant IDs
+        body = json.loads(request.body)
+        assistant_ids = body.get("assistant_ids", [])
+        print("Assistant IDs:", assistant_ids)
+
+        if not assistant_ids:
+            return JsonResponse({}, status=200)
+
+        # Fetch thread data for the given assistant IDs
         assistant_threads = (
-            Thread.objects.values("metadata")
-            .filter(metadata__has_key="_asst")
+            Thread.objects.filter(metadata__has_key="_asst")
+            .filter(metadata___asst__in=assistant_ids)
+            .values("metadata")
             .annotate(
                 thread_count=Count("uuid"),
                 first_thread=Min("created_at"),
@@ -71,10 +80,10 @@ def get_assistant_threads(request):
             thread_data[assistant_id] = {
                 "thread_count": item["thread_count"],
                 "first_thread": item["first_thread"],
-                "last_thread": item["last_thread"]
+                "last_thread": item["last_thread"],
             }
 
-        print(thread_data)
+        print("Thread Data:", thread_data)
 
         return JsonResponse(thread_data, status=200)
     except Exception as e:
