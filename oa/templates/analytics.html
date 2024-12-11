@@ -14,11 +14,13 @@
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Created</th>
                         <th>Tools</th>
+                        <th>Model</th>
                         <th>Vector Store</th>
                         <th>Threads</th>
-                        <th>First used</th>
-                        <th>Last used</th>
+                        <th>First thread</th>
+                        <th>Last thread</th>
                     </tr>
                 </thead>
                 <tbody id="assistants-table-body"></tbody>
@@ -32,11 +34,32 @@
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Created</th>
                         <th>Status</th>
+                        <th>Usage</th>
                         <th>Files</th>
+                        <th>Expires in</th>
+                        <th>Expires</th>
+                        <th>Last Active</th>
                     </tr>
                 </thead>
                 <tbody id="vector-stores-table-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Files Table -->
+        <div id="files-container" class="my-4 d-none">
+            <h5>Files</h5>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Created</th>
+                        <th>Size</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody id="files-table-body"></tbody>
             </table>
         </div>
 
@@ -46,6 +69,77 @@
 
 {% block extra_scripts %}
 <script>
+
+    /* Utility functions */
+
+    function formatDbDate(dateString) {
+        if (!dateString) return '<span class="text-secondary">No threads</span>';
+        const date = new Date(dateString);
+        // Extract day, month, year, hours, and minutes
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${day}/${month}/${year}, ${hours}:${minutes}`;
+    }
+
+    function formatUnixTimestamp(unixTimestamp) {
+        const date = new Date(unixTimestamp * 1000); // Convert seconds to milliseconds
+        const day = String(date.getDate()).padStart(2, '0'); // Ensure 2 digits for the day
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0'); // 24-hour format
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${day}/${month}/${year}, ${hours}:${minutes}`;
+    }
+
+    function timeUntil(date) {
+        const seconds = Math.floor((date - new Date()) / 1000);
+
+        if (seconds <= 0) {
+            return 'Expired';
+        }
+
+        let interval = Math.floor(seconds / 31536000);
+        if (interval > 1) {
+            return `${interval} yrs`;
+        }
+        interval = Math.floor(seconds / 2592000);
+        if (interval > 1) {
+            return `${interval} mos`;
+        }
+        interval = Math.floor(seconds / 86400);
+        if (interval > 1) {
+            return `${interval} days`;
+        }
+        interval = Math.floor(seconds / 3600);
+        if (interval > 1) {
+            return `${interval} hrs`;
+        }
+        interval = Math.floor(seconds / 60);
+        if (interval > 1) {
+            return `${interval} mins`;
+        }
+        return `${Math.floor(seconds)} secs`;
+    }
+
+    function listFileCounts(fileCounts) {
+        const breakdown = [];
+
+        for (const [key, value] of Object.entries(fileCounts)) {
+            if (value > 0) {
+                // Push the key-value pair as a formatted string
+                breakdown.push(`${key}: ${value}`);
+            }
+        }
+
+        return breakdown.join(', ');
+    }
+
+
     /* Assistants Table */
 
     async function fetchThreadsData() {
@@ -67,8 +161,8 @@
             ]);
 
             const assistantsData = assistantsResponse;
-            console.log(assistantsData);
-            console.log(threadsData);
+            console.log('assistantsData:', assistantsData);
+            console.log('threadsData:', threadsData);
 
             if (assistantsData.assistants?.length > 0) {
                 const tableBody = document.getElementById('assistants-table-body');
@@ -78,13 +172,15 @@
                     const threadInfo = threadsData[assistant.id] || {thread_count:0, first_thread:null, last_thread:null};
                     const { thread_count, first_thread, last_thread } = threadInfo;
 
-                    const firstUsed = first_thread ? new Date(first_thread).toLocaleString() : '<span class="text-secondary">No threads</span>';
-                    const lastUsed = last_thread ? new Date(last_thread).toLocaleString() : '<span class="text-secondary">No threads</span>';
+                    const firstUsed = thread_count > 0 ? formatDbDate(first_thread) : '<span class="text-secondary">No threads</span>';
+                    const lastUsed = thread_count > 0 ? formatDbDate(last_thread) : '<span class="text-secondary">No threads</span>';
 
                     tableBody.innerHTML += `
                         <tr>
                             <td>${assistant.name || 'Untitled assistant'}</td>
+                            <td>${formatUnixTimestamp(assistant.created_at)}</td>
                             <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
+                            <td>${assistant.model}</td>
                             <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
                             <td>${thread_count || 0}</td>
                             <td>${firstUsed}</td>
@@ -103,42 +199,29 @@
 
     /* Vector Stores Table */
 
-    async function fetchVectorStoreFilesCount(vectorStoreId) {
-        try {
-            const listVSFilesUrlTemplate = "{% url 'api-1.0.0:list_vector_store_files' vector_store_id='VS_ID_PLACEHOLDER' %}";
-            const url = listVSFilesUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
-            const response = await fetch(url);
-            const data = await response.json();
-            return data.files?.length || 0;
-        } catch (error) {
-            console.error(`Error fetching files for vector store ${vectorStoreId}:`, error);
-            return 0;
-        }
-    }
-
     async function fetchVectorStoresTable() {
         try {
             const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}");
             const data = await response.json();
 
+            console.log('fetchVectorStoresTable:', data);
+
             if (data.vector_stores?.length > 0) {
                 const tableBody = document.getElementById('vector-stores-table-body');
                 tableBody.innerHTML = '';
 
-                const fileCountPromises = data.vector_stores.map(async store => {
-                    const fileCount = await fetchVectorStoreFilesCount(store.id);
-                    return { ...store, fileCount };
-                });
-
-                console.log(fileCountPromises);
-
-                const storesWithCounts = await Promise.all(fileCountPromises);
-                storesWithCounts.forEach(store => {
+                const storesData = data.vector_stores;
+                storesData.forEach(store => {
                     tableBody.innerHTML += `
                         <tr>
                             <td>${store.name || 'Untitled store'}</td>
+                            <td>${formatUnixTimestamp(store.created_at)}</td>
                             <td>${store.status}</td>
-                            <td>${store.fileCount}</td>
+                            <td>${bytesToSize(store.usage_bytes)}</td>
+                            <td>${listFileCounts(store.file_counts) || '<span class="text-secondary">No files</span>'}</td>
+                            <td>${store.expires_at && timeUntil(store.expires_at * 1000) || '<span class="text-secondary">Does not expire</span>'}</td>
+                            <td>${store.expires_at ? formatUnixTimestamp(store.expires_at) : '<span class="text-secondary">Does not expire</span>'}</td>
+                            <td>${formatUnixTimestamp(store.last_active_at)}</td>
                         </tr>`;
                 });
 
@@ -150,8 +233,43 @@
         }
     }
 
+
+    /* Files Table */
+
+    async function fetchFilesTable() {
+        try {
+            const response = await fetch("{% url 'api-1.0.0:list_files' %}");
+            const data = await response.json();
+
+            console.log('fetchFilesTable:', data);
+
+            if (data.files?.length > 0) {
+                const tableBody = document.getElementById('files-table-body');
+                tableBody.innerHTML = '';
+
+                data.files.forEach(file => {
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${file.filename || 'Untitled file'}</td>
+                            <td>${formatUnixTimestamp(file.created_at)}</td>
+                            <td>${bytesToSize(file.bytes) || 0}</td>
+                            <td>${file.purpose}</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('files-container').classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching files:', error);
+        }
+    }
+
+
     // Initialize fetching
     fetchAssistantsTable();
     fetchVectorStoresTable();
+    fetchFilesTable();
+
 </script>
 {% endblock %}
