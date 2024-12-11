@@ -6,6 +6,8 @@
 {% block content %}
 
     <div class="container mt-4 mb-4">
+
+        <!-- Assistants Table -->
         <div id="assistants-container" class="my-4 d-none">
             <h5>Assistants</h5>
             <table class="table">
@@ -15,6 +17,8 @@
                         <th>Tools</th>
                         <th>Vector Store</th>
                         <th>Threads</th>
+                        <th>First used</th>
+                        <th>Last used</th>
                     </tr>
                 </thead>
                 <tbody id="assistants-table-body"></tbody>
@@ -35,6 +39,7 @@
                 <tbody id="vector-stores-table-body"></tbody>
             </table>
         </div>
+
     </div>
 
 {% endblock %}
@@ -55,23 +60,35 @@
 
     async function fetchAssistantsTable() {
         try {
-            const response = await fetch("{% url 'api-1.0.0:list_assistants' %}");
-            const assistantsData = await response.json();
-            const threadCounts = await fetchThreadsData();
+            // Fetch assistants and threads data in parallel
+            const [assistantsResponse, threadsData] = await Promise.all([
+                fetch("{% url 'api-1.0.0:list_assistants' %}").then(res => res.json()),
+                fetchThreadsData()
+            ]);
 
-            console.log(threadCounts);
+            const assistantsData = assistantsResponse;
+            console.log(assistantsData);
+            console.log(threadsData);
 
             if (assistantsData.assistants?.length > 0) {
                 const tableBody = document.getElementById('assistants-table-body');
                 tableBody.innerHTML = '';
+
                 assistantsData.assistants.forEach(assistant => {
-                    const threadCount = threadCounts[assistant.id] || 0;
+                    const threadInfo = threadsData[assistant.id] || {thread_count:0, first_thread:null, last_thread:null};
+                    const { thread_count, first_thread, last_thread } = threadInfo;
+
+                    const firstUsed = first_thread ? new Date(first_thread).toLocaleString() : '<span class="text-secondary">No threads</span>';
+                    const lastUsed = last_thread ? new Date(last_thread).toLocaleString() : '<span class="text-secondary">No threads</span>';
+
                     tableBody.innerHTML += `
                         <tr>
                             <td>${assistant.name || 'Untitled assistant'}</td>
                             <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
                             <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
-                            <td>${threadCount}</td>
+                            <td>${thread_count || 0}</td>
+                            <td>${firstUsed}</td>
+                            <td>${lastUsed}</td>
                         </tr>`;
                 });
 

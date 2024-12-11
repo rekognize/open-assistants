@@ -5,7 +5,7 @@ import logging
 import os
 
 from asgiref.sync import async_to_sync, sync_to_async
-from django.db.models import Count
+from django.db.models import Count, Min, Max
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
     HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
@@ -54,18 +54,25 @@ def analytics(request):
 @login_required
 def get_assistant_threads(request):
     try:
-        # Fetch thread counts grouped by assistant
-        thread_counts = (
+        # Fetch thread data grouped by assistant
+        assistant_threads = (
             Thread.objects.values("metadata")
             .filter(metadata__has_key="_asst")
-            .annotate(thread_count=Count("uuid"))
+            .annotate(
+                thread_count=Count("uuid"),
+                first_thread=Min("created_at"),
+                last_thread=Max("created_at"),
+            )
         )
 
-        # Process counts into a more usable format
         thread_data = {}
-        for item in thread_counts:
+        for item in assistant_threads:
             assistant_id = item["metadata"]["_asst"]
-            thread_data[assistant_id] = item["thread_count"]
+            thread_data[assistant_id] = {
+                "thread_count": item["thread_count"],
+                "first_thread": item["first_thread"],
+                "last_thread": item["last_thread"]
+            }
 
         print(thread_data)
 
