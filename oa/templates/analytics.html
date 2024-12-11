@@ -142,9 +142,21 @@
 
     /* Assistants Table */
 
-    async function fetchThreadsData() {
+    async function fetchThreadsData(assistantIds) {
         try {
-            const response = await fetch("{% url 'get_assistant_threads' %}");
+            const response = await fetch("{% url 'get_assistant_threads' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ assistant_ids: assistantIds }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch threads: ${response.statusText}`);
+            }
+
             return await response.json();
         } catch (error) {
             console.error('Error fetching thread counts:', error);
@@ -154,23 +166,31 @@
 
     async function fetchAssistantsTable() {
         try {
-            // Fetch assistants and threads data in parallel
-            const [assistantsResponse, threadsData] = await Promise.all([
-                fetch("{% url 'api-1.0.0:list_assistants' %}").then(res => res.json()),
-                fetchThreadsData()
-            ]);
+            // Fetch assistants
+            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}");
+            const assistantsData = await assistantsResponse.json();
 
-            const assistantsData = assistantsResponse;
             console.log('assistantsData:', assistantsData);
-            console.log('threadsData:', threadsData);
 
             if (assistantsData.assistants?.length > 0) {
-                const tableBody = document.getElementById('assistants-table-body');
-                tableBody.innerHTML = '';
+                const assistantIds = assistantsData.assistants.map(assistant => assistant.id);
+
+                console.log(assistantIds);
+
+                const threadsData = await fetchThreadsData(assistantIds);
+
+                console.log('threadsData:', threadsData);
+
+                const tableBody = document.getElementById("assistants-table-body");
+                tableBody.innerHTML = "";
 
                 const rows = await Promise.all(
                     assistantsData.assistants.map(async assistant => {
-                        const threadInfo = threadsData[assistant.id] || { thread_count: 0, first_thread: null, last_thread: null };
+                        const threadInfo = threadsData[assistant.id] || {
+                            thread_count: 0,
+                            first_thread: null,
+                            last_thread: null,
+                        };
                         const { thread_count, first_thread, last_thread } = threadInfo;
 
                         const firstUsed = thread_count > 0 ? formatDbDate(first_thread) : '<span class="text-secondary">No threads</span>';
