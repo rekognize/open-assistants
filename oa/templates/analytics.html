@@ -168,27 +168,29 @@
                 const tableBody = document.getElementById('assistants-table-body');
                 tableBody.innerHTML = '';
 
-                assistantsData.assistants.forEach(assistant => {
-                    const threadInfo = threadsData[assistant.id] || {thread_count:0, first_thread:null, last_thread:null};
-                    const { thread_count, first_thread, last_thread } = threadInfo;
+                const rows = await Promise.all(
+                    assistantsData.assistants.map(async assistant => {
+                        const threadInfo = threadsData[assistant.id] || { thread_count: 0, first_thread: null, last_thread: null };
+                        const { thread_count, first_thread, last_thread } = threadInfo;
 
-                    const firstUsed = thread_count > 0 ? formatDbDate(first_thread) : '<span class="text-secondary">No threads</span>';
-                    const lastUsed = thread_count > 0 ? formatDbDate(last_thread) : '<span class="text-secondary">No threads</span>';
+                        const firstUsed = thread_count > 0 ? formatDbDate(first_thread) : '<span class="text-secondary">No threads</span>';
+                        const lastUsed = thread_count > 0 ? formatDbDate(last_thread) : '<span class="text-secondary">No threads</span>';
 
-                    tableBody.innerHTML += `
-                        <tr>
-                            <td>${assistant.name || 'Untitled assistant'}</td>
-                            <td>${formatUnixTimestamp(assistant.created_at)}</td>
-                            <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
-                            <td>${assistant.model}</td>
-                            <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
-                            <td>${thread_count || 0}</td>
-                            <td>${firstUsed}</td>
-                            <td>${lastUsed}</td>
-                        </tr>`;
-                });
+                        return `
+                            <tr>
+                                <td>${assistant.name || 'Untitled assistant'}</td>
+                                <td>${formatUnixTimestamp(assistant.created_at)}</td>
+                                <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
+                                <td>${assistant.model}</td>
+                                <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
+                                <td>${thread_count || 0}</td>
+                                <td>${firstUsed}</td>
+                                <td>${lastUsed}</td>
+                            </tr>`;
+                    })
+                );
 
-                // Show the Assistants table
+                tableBody.innerHTML = rows.join('');
                 document.getElementById('assistants-container').classList.remove('d-none');
             }
         } catch (error) {
@@ -210,22 +212,23 @@
                 const tableBody = document.getElementById('vector-stores-table-body');
                 tableBody.innerHTML = '';
 
-                const storesData = data.vector_stores;
-                storesData.forEach(store => {
-                    tableBody.innerHTML += `
-                        <tr>
-                            <td>${store.name || 'Untitled store'}</td>
-                            <td>${formatUnixTimestamp(store.created_at)}</td>
-                            <td>${store.status}</td>
-                            <td>${bytesToSize(store.usage_bytes)}</td>
-                            <td>${listFileCounts(store.file_counts) || '<span class="text-secondary">No files</span>'}</td>
-                            <td>${store.expires_at && timeUntil(store.expires_at * 1000) || '<span class="text-secondary">Does not expire</span>'}</td>
-                            <td>${store.expires_at ? formatUnixTimestamp(store.expires_at) : '<span class="text-secondary">Does not expire</span>'}</td>
-                            <td>${formatUnixTimestamp(store.last_active_at)}</td>
-                        </tr>`;
-                });
+                const rows = await Promise.all(
+                    data.vector_stores.map(async store => {
+                        return `
+                            <tr>
+                                <td>${store.name || 'Untitled store'}</td>
+                                <td>${formatUnixTimestamp(store.created_at)}</td>
+                                <td>${store.status}</td>
+                                <td>${bytesToSize(store.usage_bytes)}</td>
+                                <td>${listFileCounts(store.file_counts) || '<span class="text-secondary">No files</span>'}</td>
+                                <td>${store.expires_at && timeUntil(store.expires_at * 1000) || '<span class="text-secondary">Does not expire</span>'}</td>
+                                <td>${store.expires_at ? formatUnixTimestamp(store.expires_at) : '<span class="text-secondary">Does not expire</span>'}</td>
+                                <td>${formatUnixTimestamp(store.last_active_at)}</td>
+                            </tr>`;
+                    })
+                );
 
-                // Show the Vector Stores table
+                tableBody.innerHTML = rows.join('');
                 document.getElementById('vector-stores-container').classList.remove('d-none');
             }
         } catch (error) {
@@ -247,17 +250,19 @@
                 const tableBody = document.getElementById('files-table-body');
                 tableBody.innerHTML = '';
 
-                data.files.forEach(file => {
-                    tableBody.innerHTML += `
-                        <tr>
-                            <td>${file.filename || 'Untitled file'}</td>
-                            <td>${formatUnixTimestamp(file.created_at)}</td>
-                            <td>${bytesToSize(file.bytes) || 0}</td>
-                            <td>${file.purpose}</td>
-                        </tr>
-                    `;
-                });
+                const rows = await Promise.all(
+                    data.files.map(async file => {
+                        return `
+                            <tr>
+                                <td>${file.filename || 'Untitled file'}</td>
+                                <td>${formatUnixTimestamp(file.created_at)}</td>
+                                <td>${bytesToSize(file.bytes) || 0}</td>
+                                <td>${file.purpose}</td>
+                            </tr>`;
+                    })
+                );
 
+                tableBody.innerHTML = rows.join('');
                 document.getElementById('files-container').classList.remove('d-none');
             }
         } catch (error) {
