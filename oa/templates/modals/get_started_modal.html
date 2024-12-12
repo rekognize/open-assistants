@@ -49,8 +49,8 @@
                             <input type="radio" class="btn-check" name="vectorStoreOption" id="noVectorStoreOption" value="none" autocomplete="off" checked>
                             <label class="btn btn-outline-primary btn-sm" for="noVectorStoreOption">No Vector Store</label>
 
-                            <input type="radio" class="btn-check" name="vectorStoreOption" id="selectVectorStoreOption" value="select" autocomplete="off">
-                            <label class="btn btn-outline-primary btn-sm" for="selectVectorStoreOption">Select Existing</label>
+                            <input type="radio" class="btn-check d-none" name="vectorStoreOption" id="selectVectorStoreOption" value="select" autocomplete="off">
+                            <label class="btn btn-outline-primary btn-sm d-none" for="selectVectorStoreOption">Select Existing</label>
 
                             <input type="radio" class="btn-check" name="vectorStoreOption" id="createVectorStoreOption" value="create" autocomplete="off">
                             <label class="btn btn-outline-primary btn-sm" for="createVectorStoreOption">Create New</label>
@@ -60,7 +60,6 @@
                             <div class="form-floating mb-3">
                                 <select class="form-select" id="existingVectorStoreSelect">
                                     <option value="" selected disabled>Select a vector store</option>
-                                    <!-- Options will be populated dynamically -->
                                 </select>
                                 <label for="existingVectorStoreSelect">Existing Vector Stores</label>
                             </div>
@@ -70,19 +69,6 @@
                             <div class="form-floating mb-3">
                                 <input type="text" class="form-control" id="vectorStoreName" placeholder="Vector Store Name">
                                 <label for="vectorStoreName">Name</label>
-                            </div>
-                            <!-- File Upload (Optional) -->
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="uploadFileCheckbox">
-                                <label class="form-check-label" for="uploadFileCheckbox">
-                                    Upload files to the vector store
-                                </label>
-                            </div>
-                            <div id="fileUploadForm" class="d-none">
-                                <div class="mb-3">
-                                    <label for="fileUploadInput" class="form-label">Choose Files</label>
-                                    <input class="form-control" type="file" id="fileUploadInput" multiple>
-                                </div>
                             </div>
                         </div>
                     </div>
