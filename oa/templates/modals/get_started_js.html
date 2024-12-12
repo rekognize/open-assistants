@@ -390,6 +390,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return false;
     }
 
+    // Re-init modal each time it's shown
+    const getStartedModal = document.getElementById('getStartedModal');
+    getStartedModal.addEventListener('show.bs.modal', function () {
+        resetModal();
+    });
+
     // Initialize
     showStep(currentStep);
 });
