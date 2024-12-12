@@ -8,9 +8,10 @@
     <div class="container mt-4 mb-4">
 
         <!-- Assistants Table -->
-        <div id="assistants-container" class="my-4 d-none">
+        <div id="assistants-container" class="my-4">
             <h5>Assistants</h5>
-            <table class="table">
+            {% include 'partials/loading_indicator.html' with content_id='assistants' content_name='assistants' %}
+            <table class="table table-hover d-none" id="assistants-table">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -25,12 +26,19 @@
                 </thead>
                 <tbody id="assistants-table-body"></tbody>
             </table>
+            <div id="no-assistants" class="text-center text-secondary d-none">
+                <p>No assistants available.</p>
+                <span class="text-secondary">
+                    You can create assistants on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                </span>
+            </div>
         </div>
 
         <!-- Vector Stores Table -->
-        <div id="vector-stores-container" class="my-4 d-none">
+        <div id="vector-stores-container" class="my-4">
             <h5>Vector Stores</h5>
-            <table class="table">
+            {% include 'partials/loading_indicator.html' with content_id='vector-stores' content_name='vector stores' %}
+            <table class="table table-hover d-none" id="vector-stores-table">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -45,12 +53,19 @@
                 </thead>
                 <tbody id="vector-stores-table-body"></tbody>
             </table>
+            <div id="no-vector-stores" class="text-center text-secondary d-none">
+                <p>No vector stores available.</p>
+                <span class="text-secondary">
+                    You can create vector stores on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                </span>
+            </div>
         </div>
 
         <!-- Files Table -->
-        <div id="files-container" class="my-4 d-none">
+        <div id="files-container" class="my-4">
             <h5>Files</h5>
-            <table class="table">
+            {% include 'partials/loading_indicator.html' with content_id='files' content_name='files' %}
+            <table class="table table-hover d-none" id="files-table">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -61,6 +76,12 @@
                 </thead>
                 <tbody id="files-table-body"></tbody>
             </table>
+            <div id="no-files" class="text-center text-secondary d-none">
+                <p>No files available.</p>
+                <span class="text-secondary">
+                    You can upload files on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                </span>
+            </div>
         </div>
 
     </div>
@@ -166,6 +187,8 @@
 
     async function fetchAssistantsTable() {
         try {
+            toggleLoading('assistants', true);
+
             // Fetch assistants
             const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}");
             const assistantsData = await assistantsResponse.json();
@@ -211,10 +234,14 @@
                 );
 
                 tableBody.innerHTML = rows.join('');
-                document.getElementById('assistants-container').classList.remove('d-none');
+                document.getElementById('assistants-table').classList.remove('d-none');
+            } else {
+                document.getElementById('no-assistants').classList.remove('d-none');
             }
         } catch (error) {
             console.error('Error fetching assistants:', error);
+        } finally {
+            toggleLoading('assistants', false);
         }
     }
 
@@ -222,6 +249,8 @@
     /* Vector Stores Table */
 
     async function fetchVectorStoresTable() {
+        toggleLoading('vector-stores', true);
+
         try {
             const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}");
             const data = await response.json();
@@ -249,10 +278,14 @@
                 );
 
                 tableBody.innerHTML = rows.join('');
-                document.getElementById('vector-stores-container').classList.remove('d-none');
+                document.getElementById('vector-stores-table').classList.remove('d-none');
+            } else {
+                document.getElementById('no-vector-stores').classList.remove('d-none');
             }
         } catch (error) {
             console.error('Error fetching vector stores:', error);
+        } finally {
+            toggleLoading('vector-stores', false);
         }
     }
 
@@ -260,6 +293,8 @@
     /* Files Table */
 
     async function fetchFilesTable() {
+        toggleLoading('files', true);
+
         try {
             const response = await fetch("{% url 'api-1.0.0:list_files' %}");
             const data = await response.json();
@@ -283,10 +318,14 @@
                 );
 
                 tableBody.innerHTML = rows.join('');
-                document.getElementById('files-container').classList.remove('d-none');
+                document.getElementById('files-table').classList.remove('d-none');
+            } else {
+                document.getElementById('no-files').classList.remove('d-none');
             }
         } catch (error) {
             console.error('Error fetching files:', error);
+        } finally {
+            toggleLoading('files', false);
         }
     }
 
