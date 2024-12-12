@@ -117,49 +117,6 @@
         return `${day}/${month}/${year}, ${hours}:${minutes}`;
     }
 
-    function timeUntil(date) {
-        const seconds = Math.floor((date - new Date()) / 1000);
-
-        if (seconds <= 0) {
-            return 'Expired';
-        }
-
-        let interval = Math.floor(seconds / 31536000);
-        if (interval > 1) {
-            return `${interval} yrs`;
-        }
-        interval = Math.floor(seconds / 2592000);
-        if (interval > 1) {
-            return `${interval} mos`;
-        }
-        interval = Math.floor(seconds / 86400);
-        if (interval > 1) {
-            return `${interval} days`;
-        }
-        interval = Math.floor(seconds / 3600);
-        if (interval > 1) {
-            return `${interval} hrs`;
-        }
-        interval = Math.floor(seconds / 60);
-        if (interval > 1) {
-            return `${interval} mins`;
-        }
-        return `${Math.floor(seconds)} secs`;
-    }
-
-    function listFileCounts(fileCounts) {
-        const breakdown = [];
-
-        for (const [key, value] of Object.entries(fileCounts)) {
-            if (value > 0) {
-                // Push the key-value pair as a formatted string
-                breakdown.push(`${key}: ${value}`);
-            }
-        }
-
-        return breakdown.join(', ');
-    }
-
 
     /* Assistants Table */
 
@@ -336,4 +293,7 @@
     fetchFilesTable();
 
 </script>
+
+{% include "partials/utils_js.html" %}
+
 {% endblock %}
