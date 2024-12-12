@@ -175,7 +175,7 @@
             if (assistantsData.assistants?.length > 0) {
                 const assistantIds = assistantsData.assistants.map(assistant => assistant.id);
 
-                console.log(assistantIds);
+                console.log('assistantIds:', assistantIds);
 
                 const threadsData = await fetchThreadsData(assistantIds);
 
