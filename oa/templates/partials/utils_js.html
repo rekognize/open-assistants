@@ -67,4 +67,17 @@
 
         return breakdown.join(', ');
     }
+
+    function getVectorStoreStatusIcon(status) {
+        switch(status) {
+            case 'expired':
+                return '<i class="bi bi-x-circle-fill text-danger"></i>'; // Danger icon for expired status
+            case 'in_progress':
+                return '<i class="bi bi-exclamation-triangle-fill text-warning"></i>'; // Warning icon for in_progress status
+            case 'completed':
+                return '<i class="bi bi-check-circle-fill text-success"></i>'; // Success icon for completed status
+            default:
+                return '<i class="bi bi-question-circle-fill text-secondary"></i>'; // Default icon for unknown status
+        }
+    }
 </script>

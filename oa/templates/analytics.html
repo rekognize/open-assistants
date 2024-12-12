@@ -117,6 +117,26 @@
         return `${day}/${month}/${year}, ${hours}:${minutes}`;
     }
 
+    function formatExpireTime(expireString) {
+        let icon = '';
+
+        if (expireString === 'Expired') {
+            icon = '<i class="bi bi-exclamation-circle text-danger"></i> ';
+        } else {
+            const parts = expireString.split(' ');
+            if (parts.length === 2) {
+                const unit = parts[1]; // yrs, mos, days, hrs, mins, secs
+
+                const soonUnits = ['hrs', 'mins', 'secs'];
+                if (soonUnits.includes(unit)) {
+                    icon = ' <i class="bi bi-exclamation-triangle text-warning"></i> ';
+                }
+            }
+        }
+
+        return icon + expireString;
+    }
+
 
     /* Assistants Table */
 
@@ -224,10 +244,10 @@
                             <tr>
                                 <td>${store.name || 'Untitled store'}</td>
                                 <td>${formatUnixTimestamp(store.created_at)}</td>
-                                <td>${store.status}</td>
+                                <td><span class="small">${getVectorStoreStatusIcon(store.status)}</span> ${store.status}</td>
                                 <td>${bytesToSize(store.usage_bytes)}</td>
                                 <td>${listFileCounts(store.file_counts) || '<span class="text-secondary">No files</span>'}</td>
-                                <td>${store.expires_at && timeUntil(store.expires_at * 1000) || '<span class="text-secondary">Does not expire</span>'}</td>
+                                <td>${store.expires_at ? formatExpireTime(timeUntil(store.expires_at * 1000)) : '<span class="text-secondary">Does not expire</span>'}</td>
                                 <td>${store.expires_at ? formatUnixTimestamp(store.expires_at) : '<span class="text-secondary">Does not expire</span>'}</td>
                                 <td>${formatUnixTimestamp(store.last_active_at)}</td>
                             </tr>`;
