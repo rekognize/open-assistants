@@ -1,3 +1,9 @@
+<style>
+.get-started-step {
+    min-height: 450px;
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let currentStep = 1;
@@ -12,7 +18,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let assistantData = {};
     let vectorStoreData = {};
-    let fileData = {};
 
     const maxNameLength = 256;
     const maxDescriptionLength = 512;
@@ -24,9 +29,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const nameHelp = document.getElementById('nameHelp');
     const descriptionHelp = document.getElementById('descriptionHelp');
 
-    const uploadFileCheckbox = document.getElementById('uploadFileCheckbox');
-    const fileUploadForm = document.getElementById('fileUploadForm');
-    const fileUploadInput = document.getElementById('fileUploadInput');
     const existingVectorStoreSelect = document.getElementById('existingVectorStoreSelect');
 
     // Show/hide name help text
@@ -87,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 backButton.disabled = true;
                 resetButton.disabled = true;
 
-                let creationSuccess = false; // Track success
+                let creationSuccess = false;
 
                 try {
                     const vectorStoreOption = document.querySelector('input[name="vectorStoreOption"]:checked').value;
@@ -100,13 +102,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (!createdVectorStoreId) {
                             throw new Error('Failed to create vector store.');
                         }
-                        // 2. If files selected, upload them
-                        if (fileData.files && fileData.files.length > 0) {
-                            const fileUploadSuccess = await uploadFilesApi(createdVectorStoreId, fileData.files);
-                            if (!fileUploadSuccess) {
-                                throw new Error('File upload failed.');
-                            }
-                        }
                     }
 
                     let associatedVectorStoreId = null;
@@ -116,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         associatedVectorStoreId = createdVectorStoreId;
                     }
 
-                    // 3. Create the Assistant
+                    // 2. Create the Assistant
                     const assistantCreated = await createAssistantApi(assistantData, associatedVectorStoreId);
                     if (!assistantCreated) {
                         throw new Error('Failed to create assistant.');
@@ -157,7 +152,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         assistantData = {};
         vectorStoreData = {};
-        fileData = {};
 
         // Reset form fields
         document.getElementById('assistantForm').reset();
@@ -171,16 +165,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear vector store selection
         existingVectorStoreSelect.selectedIndex = 0;
 
-        // Uncheck file upload checkbox and clear files
-        uploadFileCheckbox.checked = false;
-        fileUploadForm.classList.add('d-none');
-        fileUploadInput.value = '';
+        // Reload vector stores
+        loadExistingVectorStores();
 
         // Hide spinner if visible
         spinner.classList.add('d-none');
         buttonText.textContent = 'Next';
-
-        loadExistingVectorStores();
     }
 
     function validateStep(step) {
@@ -207,7 +197,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (step === 2) {
             const vectorStoreOption = document.querySelector('input[name="vectorStoreOption"]:checked').value;
             vectorStoreData = {};
-            fileData = {};
 
             if (vectorStoreOption === 'select') {
                 const selectedId = existingVectorStoreSelect.value;
@@ -223,16 +212,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     isValid = false;
                     showToast('Validation Error', 'Please enter a name for the vector store.', 'warning');
                 }
-
-                if (uploadFileCheckbox.checked) {
-                    if (fileUploadInput.files.length === 0) {
-                        isValid = false;
-                        showToast('Validation Error', 'Please select at least one file to upload.', 'warning');
-                    } else {
-                        fileData.files = fileUploadInput.files;
-                    }
-                }
-
                 if (isValid) {
                     vectorStoreData.name = vectorStoreName;
                 }
@@ -244,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function populateSummary() {
         const summaryContent = document.getElementById('summaryContent');
         let html = '<div class="border p-3 mb-3 rounded">';
-        html += '<h6 class="fw-bold mb-2">Assistant Details</h6>';
+        html += '<h5 class="fw-bold mb-2">Assistant Details</h5>';
         html += `<p><strong>Name:</strong> ${assistantData.name}</p>`;
         html += `<p><strong>Description:</strong> ${assistantData.description || 'N/A'}</p>`;
         html += `<p><strong>Instructions:</strong> ${assistantData.instructions}</p>`;
@@ -267,18 +246,6 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '<div class="border p-3 mb-3 rounded">';
             html += '<h6 class="fw-bold mb-2">Vector Store to be Created</h6>';
             html += `<p><strong>Name:</strong> ${vectorStoreData.name}</p>`;
-            // Files section if files are selected
-            if (fileData.files && fileData.files.length > 0) {
-                html += '<div class="border p-3 mt-3 rounded">';
-                html += '<h6 class="fw-bold mb-2">Files to Upload</h6><ul>';
-                for (let i = 0; i < fileData.files.length; i++) {
-                    html += `<li>${fileData.files[i].name}</li>`;
-                }
-                html += '</ul>';
-                html += '</div>';
-            } else {
-                html += '<p>No files will be uploaded.</p>';
-            }
             html += '</div>';
         } else {
             // No Vector Store associated
@@ -305,16 +272,10 @@ document.addEventListener('DOMContentLoaded', function() {
             selectSection.classList.add('d-none');
             createSection.classList.add('d-none');
             document.getElementById('vectorStoreName').value = '';
-            uploadFileCheckbox.checked = false;
-            fileUploadForm.classList.add('d-none');
-            fileUploadInput.value = '';
         } else if (selectedOption === 'select') {
             selectSection.classList.remove('d-none');
             createSection.classList.add('d-none');
             document.getElementById('vectorStoreName').value = '';
-            uploadFileCheckbox.checked = false;
-            fileUploadForm.classList.add('d-none');
-            fileUploadInput.value = '';
             loadExistingVectorStores();
         } else if (selectedOption === 'create') {
             selectSection.classList.add('d-none');
@@ -322,52 +283,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    uploadFileCheckbox.addEventListener('change', function() {
-        if (uploadFileCheckbox.checked) {
-            fileUploadForm.classList.remove('d-none');
-        } else {
-            fileUploadForm.classList.add('d-none');
-            fileUploadInput.value = '';
-        }
-    });
-
     function loadExistingVectorStores() {
         const existingSelect = document.getElementById('existingVectorStoreSelect');
+        const selectOptionRadio = document.getElementById('selectVectorStoreOption');
+        const selectOptionLabel = document.querySelector('label[for="selectVectorStoreOption"]');
+        const selectSection = document.getElementById('selectVectorStoreSection');
+
+        // Hide "Select Existing" option by default
+        selectOptionRadio.classList.add('d-none');
+        selectOptionLabel.classList.add('d-none');
+
         // Clear old options
         for (let i = existingSelect.options.length - 1; i >= 1; i--) {
             existingSelect.remove(i);
         }
 
-        const vectorStoreEntries = Object.entries(vectorStores);
+        const vectorStoreEntries = Object.entries(vectorStores || {});
         if (vectorStoreEntries.length === 0) {
-            document.getElementById('selectVectorStoreOption').classList.add('d-none');
-            document.querySelector('label[for="selectVectorStoreOption"]').classList.add('d-none');
-            document.getElementById('selectVectorStoreSection').classList.add('d-none');
-            if (document.getElementById('selectVectorStoreOption').checked) {
+            // If no vector stores, ensure we don't show the select option
+            if (selectOptionRadio.checked) {
                 document.getElementById('noVectorStoreOption').checked = true;
-                toggleVectorStoreOptions();
             }
-            return;
+            selectSection.classList.add('d-none');
         } else {
-            document.getElementById('selectVectorStoreOption').classList.remove('d-none');
-            document.querySelector('label[for="selectVectorStoreOption"]').classList.remove('d-none');
+            // Show "Select Existing" option if vector stores exist
+            selectOptionRadio.classList.remove('d-none');
+            selectOptionLabel.classList.remove('d-none');
+
+            vectorStoreEntries.forEach(([vsId, vs]) => {
+                const option = document.createElement('option');
+                option.value = vsId;
+                option.textContent = vs.name ?? 'Untitled Store';
+                existingSelect.appendChild(option);
+            });
         }
-
-        vectorStoreEntries.forEach(([vsId, vs]) => {
-            const option = document.createElement('option');
-            option.value = vsId;
-            option.textContent = vs.name ?? 'Untitled Store';
-            existingSelect.appendChild(option);
-        });
     }
-
-    // ========== API Helper Functions ==========
 
     async function createVectorStoreApi(name) {
         try {
-            const payload = {
-                name: name
-            };
+            const payload = { name: name };
             const response = await fetch("{% url 'api-1.0.0:create_vector_store' %}", {
                 method: 'POST',
                 headers: {
@@ -387,33 +341,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Create vector store error:', error);
         }
         return null;
-    }
-
-    async function uploadFilesApi(vectorStoreId, files) {
-        try {
-            const formData = new FormData();
-            for (let i = 0; i < files.length; i++) {
-                formData.append('files', files[i]);
-            }
-            formData.append('vector_store_ids', JSON.stringify([vectorStoreId]));
-
-            const response = await fetch("{% url 'api-1.0.0:upload_files' %}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: formData
-            });
-            if (response.ok) {
-                return true;
-            } else {
-                const errorData = await response.json();
-                console.error('File upload error:', errorData);
-            }
-        } catch (error) {
-            console.error('File upload error:', error);
-        }
-        return false;
     }
 
     async function createAssistantApi(assistantData, vectorStoreId) {
@@ -462,6 +389,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return false;
     }
+
+    // Re-init modal each time it's shown
+    const getStartedModal = document.getElementById('getStartedModal');
+    getStartedModal.addEventListener('show.bs.modal', function () {
+        resetModal();
+    });
 
     // Initialize
     showStep(currentStep);

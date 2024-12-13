@@ -4,7 +4,8 @@ import json
 import logging
 import os
 
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
+from django.db.models import Count, Min, Max
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
     HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
@@ -16,7 +17,7 @@ from django.views.generic import TemplateView
 from openai import AsyncAssistantEventHandler, OpenAIError
 from openai.types.beta.threads import Text, TextDelta, ImageFile
 
-from .models import Project, SharedLink
+from .models import Project, SharedLink, Thread
 from .utils import format_time, verify_openai_key
 from ..api.utils import APIError, aget_openai_client
 from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
@@ -36,7 +37,89 @@ def manage_assistants(request):
     function_definitions_json = json.dumps(FUNCTION_DEFINITIONS)
     return render(request, "manage.html", {
         'function_definitions_json': function_definitions_json,
+        'active_nav': 'manage'
     })
+
+
+@login_required
+def analytics(request):
+    if not Project.objects.filter(user=request.user).exists():
+        return redirect('home')
+
+    return render(request, "analytics.html", {
+        'active_nav': 'analytics'
+    })
+
+
+@login_required
+def get_assistant_threads(request):
+    try:
+        # Parse the JSON body to get assistant IDs
+        body = json.loads(request.body)
+        assistant_ids = body.get("assistant_ids", [])
+        print("Assistant IDs:", assistant_ids)
+
+        if not assistant_ids:
+            return JsonResponse({}, status=200)
+
+        # Fetch thread data for the given assistant IDs
+        assistant_threads = (
+            Thread.objects.filter(metadata__has_key="_asst")
+            .filter(metadata___asst__in=assistant_ids)
+            .values("metadata")
+            .annotate(
+                thread_count=Count("uuid"),
+                first_thread=Min("created_at"),
+                last_thread=Max("created_at"),
+            )
+        )
+
+        thread_data = {}
+        for item in assistant_threads:
+            assistant_id = item["metadata"]["_asst"]
+            thread_data[assistant_id] = {
+                "thread_count": item["thread_count"],
+                "first_thread": item["first_thread"],
+                "last_thread": item["last_thread"],
+            }
+
+        print("Thread Data:", thread_data)
+
+        return JsonResponse(thread_data, status=200)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Threads
+
+async def create_db_thread(request):
+    try:
+        data = await sync_to_async(request.body.decode)('utf-8')
+        data = json.loads(data)
+    except Exception as e:
+        return JsonResponse({"error": f"Invalid JSON: {str(e)}"}, status=400)
+
+    openai_id = data.get("openai_id")
+    created_at = data.get("created_at")
+    metadata = data.get("metadata", {})
+
+    if not openai_id:
+        return JsonResponse({"error": "openai_id is required"}, status=400)
+
+    # Create the thread in DB
+    thread = Thread(
+        openai_id=openai_id,
+        created_at=format_time(created_at),
+        metadata=metadata
+    )
+    await sync_to_async(thread.save)()
+
+    return JsonResponse({
+        "uuid": str(thread.uuid),
+        "openai_id": thread.openai_id,
+        "created_at": thread.created_at,
+        "metadata": thread.metadata,
+    }, status=201)
 
 
 # Chat

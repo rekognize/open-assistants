@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+
+{% block title %}Analytics - Open Assistants{% endblock %}
+
+{% block content %}
+
+    <div class="container mt-4 mb-4">
+
+        <!-- Assistants Table -->
+        <div id="assistants-container" class="my-4">
+            <h5>Assistants</h5>
+            {% include 'partials/loading_indicator.html' with content_id='assistants' content_name='assistants' %}
+            <table class="table table-hover d-none" id="assistants-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Created</th>
+                        <th>Tools</th>
+                        <th>Model</th>
+                        <th>Vector Store</th>
+                        <th>Threads</th>
+                        <th>First thread</th>
+                        <th>Last thread</th>
+                    </tr>
+                </thead>
+                <tbody id="assistants-table-body"></tbody>
+            </table>
+            <div id="no-assistants" class="text-center text-secondary d-none">
+                <p>No assistants available.</p>
+                <span class="text-secondary">
+                    You can create assistants on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                </span>
+            </div>
+        </div>
+
+        <!-- Vector Stores Table -->
+        <div id="vector-stores-container" class="my-4">
+            <h5>Vector Stores</h5>
+            {% include 'partials/loading_indicator.html' with content_id='vector-stores' content_name='vector stores' %}
+            <table class="table table-hover d-none" id="vector-stores-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                        <th>Usage</th>
+                        <th>Files</th>
+                        <th>Expires in</th>
+                        <th>Expires</th>
+                        <th>Last Active</th>
+                    </tr>
+                </thead>
+                <tbody id="vector-stores-table-body"></tbody>
+            </table>
+            <div id="no-vector-stores" class="text-center text-secondary d-none">
+                <p>No vector stores available.</p>
+                <span class="text-secondary">
+                    You can create vector stores on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                </span>
+            </div>
+        </div>
+
+        <!-- Files Table -->
+        <div id="files-container" class="my-4">
+            <h5>Files</h5>
+            {% include 'partials/loading_indicator.html' with content_id='files' content_name='files' %}
+            <table class="table table-hover d-none" id="files-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Created</th>
+                        <th>Size</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody id="files-table-body"></tbody>
+            </table>
+            <div id="no-files" class="text-center text-secondary d-none">
+                <p>No files available.</p>
+                <span class="text-secondary">
+                    You can upload files on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                </span>
+            </div>
+        </div>
+
+    </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+
+    /* Utility functions */
+
+    function formatDbDate(dateString) {
+        if (!dateString) return '<span class="text-secondary">No threads</span>';
+        const date = new Date(dateString);
+        // Extract day, month, year, hours, and minutes
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${day}/${month}/${year}, ${hours}:${minutes}`;
+    }
+
+    function formatUnixTimestamp(unixTimestamp) {
+        const date = new Date(unixTimestamp * 1000); // Convert seconds to milliseconds
+        const day = String(date.getDate()).padStart(2, '0'); // Ensure 2 digits for the day
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0'); // 24-hour format
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${day}/${month}/${year}, ${hours}:${minutes}`;
+    }
+
+    function formatExpireTime(expireString) {
+        let icon = '';
+
+        if (expireString === 'Expired') {
+            icon = '<i class="bi bi-exclamation-circle text-danger"></i> ';
+        } else {
+            const parts = expireString.split(' ');
+            if (parts.length === 2) {
+                const unit = parts[1]; // yrs, mos, days, hrs, mins, secs
+
+                const soonUnits = ['hrs', 'mins', 'secs'];
+                if (soonUnits.includes(unit)) {
+                    icon = ' <i class="bi bi-exclamation-triangle text-warning"></i> ';
+                }
+            }
+        }
+
+        return icon + expireString;
+    }
+
+
+    /* Assistants Table */
+
+    async function fetchThreadsData(assistantIds) {
+        try {
+            const response = await fetch("{% url 'get_assistant_threads' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ assistant_ids: assistantIds }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch threads: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching thread counts:', error);
+            return {};
+        }
+    }
+
+    async function fetchAssistantsTable() {
+        try {
+            toggleLoading('assistants', true);
+
+            // Fetch assistants
+            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}");
+            const assistantsData = await assistantsResponse.json();
+
+            console.log('assistantsData:', assistantsData);
+
+            if (assistantsData.assistants?.length > 0) {
+                const assistantIds = assistantsData.assistants.map(assistant => assistant.id);
+
+                console.log('assistantIds:', assistantIds);
+
+                const threadsData = await fetchThreadsData(assistantIds);
+
+                console.log('threadsData:', threadsData);
+
+                const tableBody = document.getElementById("assistants-table-body");
+                tableBody.innerHTML = "";
+
+                const rows = await Promise.all(
+                    assistantsData.assistants.map(async assistant => {
+                        const threadInfo = threadsData[assistant.id] || {
+                            thread_count: 0,
+                            first_thread: null,
+                            last_thread: null,
+                        };
+                        const { thread_count, first_thread, last_thread } = threadInfo;
+
+                        const firstUsed = thread_count > 0 ? formatDbDate(first_thread) : '<span class="text-secondary">No threads</span>';
+                        const lastUsed = thread_count > 0 ? formatDbDate(last_thread) : '<span class="text-secondary">No threads</span>';
+
+                        return `
+                            <tr>
+                                <td>${assistant.name || 'Untitled assistant'}</td>
+                                <td>${formatUnixTimestamp(assistant.created_at)}</td>
+                                <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
+                                <td>${assistant.model}</td>
+                                <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
+                                <td>${thread_count || 0}</td>
+                                <td>${firstUsed}</td>
+                                <td>${lastUsed}</td>
+                            </tr>`;
+                    })
+                );
+
+                tableBody.innerHTML = rows.join('');
+                document.getElementById('assistants-table').classList.remove('d-none');
+            } else {
+                document.getElementById('no-assistants').classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching assistants:', error);
+        } finally {
+            toggleLoading('assistants', false);
+        }
+    }
+
+
+    /* Vector Stores Table */
+
+    async function fetchVectorStoresTable() {
+        toggleLoading('vector-stores', true);
+
+        try {
+            const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}");
+            const data = await response.json();
+
+            console.log('fetchVectorStoresTable:', data);
+
+            if (data.vector_stores?.length > 0) {
+                const tableBody = document.getElementById('vector-stores-table-body');
+                tableBody.innerHTML = '';
+
+                const rows = await Promise.all(
+                    data.vector_stores.map(async store => {
+                        return `
+                            <tr>
+                                <td>${store.name || 'Untitled store'}</td>
+                                <td>${formatUnixTimestamp(store.created_at)}</td>
+                                <td><span class="small">${getVectorStoreStatusIcon(store.status)}</span> ${store.status}</td>
+                                <td>${bytesToSize(store.usage_bytes)}</td>
+                                <td>${listFileCounts(store.file_counts) || '<span class="text-secondary">No files</span>'}</td>
+                                <td>${store.expires_at ? formatExpireTime(timeUntil(store.expires_at * 1000)) : '<span class="text-secondary">Does not expire</span>'}</td>
+                                <td>${store.expires_at ? formatUnixTimestamp(store.expires_at) : '<span class="text-secondary">Does not expire</span>'}</td>
+                                <td>${formatUnixTimestamp(store.last_active_at)}</td>
+                            </tr>`;
+                    })
+                );
+
+                tableBody.innerHTML = rows.join('');
+                document.getElementById('vector-stores-table').classList.remove('d-none');
+            } else {
+                document.getElementById('no-vector-stores').classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching vector stores:', error);
+        } finally {
+            toggleLoading('vector-stores', false);
+        }
+    }
+
+
+    /* Files Table */
+
+    async function fetchFilesTable() {
+        toggleLoading('files', true);
+
+        try {
+            const response = await fetch("{% url 'api-1.0.0:list_files' %}");
+            const data = await response.json();
+
+            console.log('fetchFilesTable:', data);
+
+            if (data.files?.length > 0) {
+                const tableBody = document.getElementById('files-table-body');
+                tableBody.innerHTML = '';
+
+                const rows = await Promise.all(
+                    data.files.map(async file => {
+                        return `
+                            <tr>
+                                <td>${file.filename || 'Untitled file'}</td>
+                                <td>${formatUnixTimestamp(file.created_at)}</td>
+                                <td>${bytesToSize(file.bytes) || 0}</td>
+                                <td>${file.purpose}</td>
+                            </tr>`;
+                    })
+                );
+
+                tableBody.innerHTML = rows.join('');
+                document.getElementById('files-table').classList.remove('d-none');
+            } else {
+                document.getElementById('no-files').classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching files:', error);
+        } finally {
+            toggleLoading('files', false);
+        }
+    }
+
+
+    // Initialize fetching
+    fetchAssistantsTable();
+    fetchVectorStoresTable();
+    fetchFilesTable();
+
+</script>
+
+{% include "partials/utils_js.html" %}
+
+{% endblock %}

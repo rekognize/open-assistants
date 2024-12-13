@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
 
+{% block title %}Manage - Open Assistants{% endblock %}
+
 {% block extra_head %}
 <style>
     .content-section {
@@ -459,88 +461,6 @@
     const functionDefinitions = {{ function_definitions_json|safe }};
 
     /* Utility functions */
-
-    function timeSince(date) {
-        const seconds = Math.floor((new Date() - date) / 1000);
-
-        let interval = Math.floor(seconds / 31536000);
-        if (interval > 1) {
-            return `${interval} yrs`;
-        }
-        interval = Math.floor(seconds / 2592000);
-        if (interval > 1) {
-            return `${interval} mos`;
-        }
-        interval = Math.floor(seconds / 86400);
-        if (interval > 1) {
-            return `${interval} days`;
-        }
-        interval = Math.floor(seconds / 3600);
-        if (interval > 1) {
-            return `${interval} hrs`;
-        }
-        interval = Math.floor(seconds / 60);
-        if (interval > 1) {
-            return `${interval} mins`;
-        }
-        return `${Math.floor(seconds)} secs`;
-    }
-
-    function timeUntil(date) {
-        const seconds = Math.floor((date - new Date()) / 1000);
-
-        if (seconds <= 0) {
-            return 'Expired';
-        }
-
-        let interval = Math.floor(seconds / 31536000);
-        if (interval > 1) {
-            return `${interval} yrs`;
-        }
-        interval = Math.floor(seconds / 2592000);
-        if (interval > 1) {
-            return `${interval} mos`;
-        }
-        interval = Math.floor(seconds / 86400);
-        if (interval > 1) {
-            return `${interval} days`;
-        }
-        interval = Math.floor(seconds / 3600);
-        if (interval > 1) {
-            return `${interval} hrs`;
-        }
-        interval = Math.floor(seconds / 60);
-        if (interval > 1) {
-            return `${interval} mins`;
-        }
-        return `${Math.floor(seconds)} secs`;
-    }
-
-    function getVectorStoreStatusIcon(status) {
-        switch(status) {
-            case 'expired':
-                return '<i class="bi bi-x-circle-fill text-danger"></i>'; // Danger icon for expired status
-            case 'in_progress':
-                return '<i class="bi bi-exclamation-triangle-fill text-warning"></i>'; // Warning icon for in_progress status
-            case 'completed':
-                return '<i class="bi bi-check-circle-fill text-success"></i>'; // Success icon for completed status
-            default:
-                return '<i class="bi bi-question-circle-fill text-secondary"></i>'; // Default icon for unknown status
-        }
-    }
-
-    function listFileCounts(fileCounts) {
-        const breakdown = [];
-
-        for (const [key, value] of Object.entries(fileCounts)) {
-            if (value > 0) {
-                // Push the key-value pair as a formatted string
-                breakdown.push(`${key}: ${value}`);
-            }
-        }
-
-        return breakdown.join(', ');
-    }
 
     function getStatusIcon(status) {
         switch(status) {
@@ -3374,5 +3294,6 @@
 
 {% include "modals/share_assistant_js.html" %}
 {% include "modals/get_started_js.html" %}
+{% include "partials/utils_js.html" %}
 
 {% endblock %}
