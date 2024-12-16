@@ -15,6 +15,7 @@ urlpatterns = [
     path('analytics/thread_data/', main_views.get_assistant_threads, name='get_assistant_threads'),
 
     path('db_threads/', main_views.create_db_thread, name='create_db_thread'),
+    path('db_threads/list/', main_views.list_threads, name='list_threads'),
 
     path('chat/', main_views.thread_detail, name='thread_detail'),
     path('chat/<str:assistant_id>/stream/<str:thread_id>/', main_views.create_stream_url, name='create_stream_url'),

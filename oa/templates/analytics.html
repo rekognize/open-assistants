@@ -82,6 +82,29 @@
             </div>
         </div>
 
+        <!-- Threads Table -->
+        <div id="threads-container" class="my-4">
+            <h5>Threads</h5>
+            {% include 'partials/loading_indicator.html' with content_id='threads' content_name='threads' %}
+            <table class="table table-hover d-none" id="threads-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Created</th>
+                        <th>Assistant</th>
+                        <th>Shared</th>
+                    </tr>
+                </thead>
+                <tbody id="threads-table-body"></tbody>
+            </table>
+            <div id="no-threads" class="text-center text-secondary d-none">
+                <p>No threads available.</p>
+                <span class="text-secondary">
+                    You can create conversations on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                </span>
+            </div>
+        </div>
+
     </div>
 
 {% endblock %}
@@ -138,8 +161,8 @@
 
     /* Globals */
 
-    let vectorStoresDict = {}; // Global dictionary to store vectorStoreId -> vectorStoreName
-
+    let vectorStoresDict = {}; // vectorStoreId -> vectorStoreName
+    let assistantsDict = {}; // assistantId -> assistantName
 
     /* Vector Stores Table */
 
@@ -213,16 +236,21 @@
             const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}");
             const assistantsData = await assistantsResponse.json();
 
-            console.log('assistantsData:', assistantsData);
+            console.log('fetchAssistantsTable:', assistantsData);
 
             if (assistantsData.assistants?.length > 0) {
                 const assistantIds = assistantsData.assistants.map(assistant => assistant.id);
 
-                console.log('assistantIds:', assistantIds);
+                // Build a dictionary for assistant names
+                assistantsData.assistants.forEach(a => {
+                    assistantsDict[a.id] = a.name || 'Untitled assistant';
+                });
 
                 const threadsData = await fetchThreadsData(assistantIds);
 
-                console.log('threadsData:', threadsData);
+                console.log('fetchThreadsData:', threadsData);
+
+                await fetchThreadsTable(assistantIds);
 
                 const tableBody = document.getElementById("assistants-table-body");
                 tableBody.innerHTML = "";
@@ -304,11 +332,61 @@
         }
     }
 
+
+    /* Threads Table */
+
+    async function fetchThreadsTable(assistantIds) {
+        try {
+            const response = await fetch("{% url 'list_threads' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ assistant_ids: assistantIds }),
+            });
+            const data = await response.json();
+
+            console.log('fetchThreadsTable:', data);
+
+            if (data.threads?.length > 0) {
+                const tableBody = document.getElementById('threads-table-body');
+                tableBody.innerHTML = '';
+
+                const rows = data.threads.map(thread => {
+                    const created = formatUnixTimestamp(thread.created_at);
+                    const shared = thread.shared ? '<span class="text-success">Yes</span>' : '<span class="text-secondary">No</span>';
+                    const asstName = assistantsDict[thread.assistant_id] || '<span class="text-secondary">Unknown</span>';
+                    return `
+                        <tr>
+                            <td>${thread.id}</td>
+                            <td>${created}</td>
+                            <td>${asstName}</td>
+                            <td>${shared}</td>
+                        </tr>`;
+                });
+
+                tableBody.innerHTML = rows.join('');
+                document.getElementById('threads-table').classList.remove('d-none');
+            } else {
+                document.getElementById('no-threads').classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching threads:', error);
+        } finally {
+            toggleLoading('threads', false);
+        }
+    }
+
+
+/* Initialize Page */
+
     async function initializePage() {
         // Show loading indicator initially for all
         toggleLoading('vector-stores', true);
         toggleLoading('assistants', true);
         toggleLoading('files', true);
+        toggleLoading('threads', true);
 
         await fetchVectorStoresTable();
         fetchAssistantsTable();

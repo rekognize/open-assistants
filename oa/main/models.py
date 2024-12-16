@@ -27,6 +27,13 @@ class Thread(models.Model):
     openai_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     created_at = models.DateTimeField(blank=True, null=True, db_index=True)
     metadata = models.JSONField(blank=True, null=True)
+    shared_link = models.ForeignKey(
+        'SharedLink',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='threads'
+    )
 
     def __str__(self):
         return self.openai_id or str(self.uuid)
