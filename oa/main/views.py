@@ -90,6 +90,46 @@ def get_assistant_threads(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@login_required
+def list_threads(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST request required."}, status=400)
+
+    try:
+        body = json.loads(request.body)
+        assistant_ids = body.get("assistant_ids", [])
+        if not assistant_ids:
+            return JsonResponse({"threads": []}, status=200)
+
+        # Fetch only threads that belong to these assistants
+        threads_qs = (
+            Thread.objects
+            .filter(metadata___asst__in=assistant_ids)
+            .select_related('shared_link')
+            .order_by('-created_at')
+        )
+
+        threads_data = []
+        for t in threads_qs:
+            created_ts = int(t.created_at.timestamp()) if t.created_at else None
+            shared = t.shared_link is not None
+            assistant_id = t.metadata.get("_asst") if t.metadata else None
+
+            thread_info = {
+                "id": str(t.openai_id),
+                "created_at": created_ts,
+                "assistant_id": assistant_id,
+                "shared": shared,
+            }
+            threads_data.append(thread_info)
+
+        print("Threads Data:", threads_data)
+
+        return JsonResponse({"threads": threads_data}, status=200)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 # Threads
 
 async def create_db_thread(request):
@@ -103,14 +143,23 @@ async def create_db_thread(request):
     created_at = data.get("created_at")
     metadata = data.get("metadata", {})
 
+    shared_link_token = request.headers.get('X-Token')
+
     if not openai_id:
         return JsonResponse({"error": "openai_id is required"}, status=400)
+
+    shared_link = None
+    if shared_link_token:
+        shared_link = await sync_to_async(SharedLink.objects.filter(token=shared_link_token).first)()
+        if not shared_link:
+            return JsonResponse({"error": "Invalid token"}, status=400)
 
     # Create the thread in DB
     thread = Thread(
         openai_id=openai_id,
         created_at=format_time(created_at),
-        metadata=metadata
+        metadata=metadata,
+        shared_link=shared_link
     )
     await sync_to_async(thread.save)()
 
@@ -119,6 +168,7 @@ async def create_db_thread(request):
         "openai_id": thread.openai_id,
         "created_at": thread.created_at,
         "metadata": thread.metadata,
+        "shared_link_token": str(thread.shared_link.token) if thread.shared_link else None
     }, status=201)
 
 
