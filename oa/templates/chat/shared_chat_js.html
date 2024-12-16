@@ -52,8 +52,10 @@ document.addEventListener("DOMContentLoaded", async function () {
                 // updateURLWithThreadId();
             }
         } else {
-            await createThread(assistantId);
+            const threadData = await createThread(assistantId);
             updateURLWithThreadId();
+
+            await createDbThread(threadData.id, threadData.created_at, threadData.metadata);
         }
 
         // Show loading indicators initially
@@ -145,6 +147,32 @@ document.addEventListener("DOMContentLoaded", async function () {
         } catch (error) {
             console.error('Error creating thread:', error);
             throw error;
+        }
+    }
+
+    async function createDbThread(openai_id, created_at, metadata) {
+        const dbThreadUrl = "/db_threads/";
+        const response = await fetch(dbThreadUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Token': token
+            },
+            body: JSON.stringify({
+                openai_id: openai_id,
+                created_at: created_at,
+                metadata: metadata || {}
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            showToast("Failed to store thread in DB!", errorData.error || 'Unknown error');
+            console.error('Failed to store thread in DB!', errorData);
+        } else {
+            const dbThreadData = await response.json();
+            console.log("Thread stored in DB:", dbThreadData);
         }
     }
 
