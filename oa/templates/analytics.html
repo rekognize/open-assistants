@@ -355,14 +355,20 @@
 
                 const rows = data.threads.map(thread => {
                     const created = formatUnixTimestamp(thread.created_at);
-                    const shared = thread.shared ? '<span class="text-success">Yes</span>' : '<span class="text-secondary">No</span>';
                     const asstName = assistantsDict[thread.assistant_id] || '<span class="text-secondary">Unknown</span>';
+                    let sharedDisplay;
+                    if (thread.shared_link_name) {
+                        sharedDisplay = `<span class="text-success">${thread.shared_link_name}</span>`;
+                    } else {
+                        sharedDisplay = '<span class="text-secondary">No</span>';
+                    }
+
                     return `
                         <tr>
                             <td>${thread.id}</td>
                             <td>${created}</td>
                             <td>${asstName}</td>
-                            <td>${shared}</td>
+                            <td>${sharedDisplay}</td>
                         </tr>`;
                 });
 

@@ -101,7 +101,6 @@ def list_threads(request):
         if not assistant_ids:
             return JsonResponse({"threads": []}, status=200)
 
-        # Fetch only threads that belong to these assistants
         threads_qs = (
             Thread.objects
             .filter(metadata___asst__in=assistant_ids)
@@ -112,14 +111,20 @@ def list_threads(request):
         threads_data = []
         for t in threads_qs:
             created_ts = int(t.created_at.timestamp()) if t.created_at else None
-            shared = t.shared_link is not None
+
+            if t.shared_link:
+                name = t.shared_link.name if t.shared_link.name else "Untitled link"
+                shared_name = name
+            else:
+                shared_name = None
+
             assistant_id = t.metadata.get("_asst") if t.metadata else None
 
             thread_info = {
                 "id": str(t.openai_id),
                 "created_at": created_ts,
                 "assistant_id": assistant_id,
-                "shared": shared,
+                "shared_link_name": shared_name,
             }
             threads_data.append(thread_info)
 
