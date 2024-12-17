@@ -101,7 +101,6 @@ def list_threads(request):
         if not assistant_ids:
             return JsonResponse({"threads": []}, status=200)
 
-        # Fetch only threads that belong to these assistants
         threads_qs = (
             Thread.objects
             .filter(metadata___asst__in=assistant_ids)
@@ -112,14 +111,20 @@ def list_threads(request):
         threads_data = []
         for t in threads_qs:
             created_ts = int(t.created_at.timestamp()) if t.created_at else None
-            shared = t.shared_link is not None
+
+            if t.shared_link:
+                name = t.shared_link.name if t.shared_link.name else "Untitled link"
+                shared_name = name
+            else:
+                shared_name = None
+
             assistant_id = t.metadata.get("_asst") if t.metadata else None
 
             thread_info = {
                 "id": str(t.openai_id),
                 "created_at": created_ts,
                 "assistant_id": assistant_id,
-                "shared": shared,
+                "shared_link_name": shared_name,
             }
             threads_data.append(thread_info)
 
@@ -705,19 +710,28 @@ def share_assistant(request, assistant_id):
             return JsonResponse({
                 'status': 'success',
                 'message': _('New shareable link created.'),
-                'link': {'token': str(new_link.token), 'url': link_url}
+                'link': {
+                    'token': str(new_link.token),
+                    'url': link_url,
+                    'created': new_link.created
+                }
             })
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     elif request.method == 'GET':
-        links = SharedLink.objects.filter(assistant_id=assistant_id, project=selected_project)
+        links = SharedLink.objects.filter(
+            assistant_id=assistant_id,
+            project=selected_project,
+            project__user=request.user
+        ).order_by('-created')
 
         try:
             if links:
                 data = {'links': [{'token': link.token,
                                    'url': request.build_absolute_uri(f'/shared/{link.token}/'),
-                                   'name': link.name
+                                   'name': link.name,
+                                   'created': link.created
                                    } for link in links]}
             else:
                 data = {'message': _('No links available.')}
@@ -735,13 +749,36 @@ def delete_shared_link(request, link_token):
 
     if request.method == 'POST':
         try:
-            link = get_object_or_404(SharedLink, token=link_token)
+            link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
             link.delete()
             return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
+
+@login_required
+def update_shared_link(request, link_token):
+    if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return HttpResponseBadRequest('Invalid request')
+
+    link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
+
+    name = request.POST.get('name', '').strip()
+    link.name = name
+    link.save()
+
+    # Build the link URL to return
+    link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[link.token]))
+
+    return JsonResponse({
+        'status': 'success',
+        'message': _('Link name updated successfully.'),
+        'link': {
+            'url': link_url
+        }
+    })
 
 
 def shared_thread_detail(request, token):
