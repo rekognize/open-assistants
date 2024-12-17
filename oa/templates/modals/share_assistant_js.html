@@ -30,7 +30,6 @@ document.getElementById('shareAssistantModal').addEventListener('show.bs.modal',
     const assistantNameInfo = document.getElementById('assistantNameInfo');
 
     currentAssistantId = assistantId;
-    assistantNameInfo.textContent = '';
     assistantNameInfo.textContent = assistantName && assistantName !== '' ? assistantName : 'Untitled assistant';
 
     // Clear any existing shared links
@@ -53,7 +52,6 @@ function fetchSharedLinks(assistantId) {
     .then(data => {
         const linksList = document.getElementById('shared-links-list');
         if (data.links && data.links.length > 0) {
-            // Remove any existing message
             linksList.innerHTML = '';
 
             data.links.forEach(link => {
@@ -76,14 +74,39 @@ function createLinkItem(link) {
     linkItem.classList.add('shared-link-item', 'mb-3');
     linkItem.setAttribute('data-token', link.token);
 
+    const displayedName = link.name && link.name.trim() !== '' ? link.name : 'Untitled link';
+
+    // Format date as DD/MM/YYYY, HH:MM
+    let dateObj = new Date(link.created);
+    let day = String(dateObj.getDate()).padStart(2, '0');
+    let month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    let year = dateObj.getFullYear();
+    let hours = String(dateObj.getHours()).padStart(2, '0');
+    let minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    let formattedDate = `${day}/${month}/${year}, ${hours}:${minutes}`;
+
     linkItem.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <a href="${link.url}" target="_blank">${link.url}</a>
+        <div class="row align-items-center gx-2 w-100">
+            <div class="col d-flex align-items-center" style="max-width: 250px; overflow:hidden;">
+                <span class="link-name-text text-truncate" data-bs-toggle="tooltip" data-bs-title="${displayedName}" style="flex-shrink:1; min-width:0;">
+                    ${displayedName}
+                </span>
+                <input type="text" class="form-control form-control-sm link-name-field d-none ms-2" style="min-width:100px; flex:1;" value="${link.name || ''}" maxlength="100">
             </div>
-            <div>
-                <button type="button" class="btn btn-sm btn-outline-secondary copy-link-btn" data-url="${link.url}">
+            <div class="col-auto">
+                <small class="text-secondary">${formattedDate}</small>
+            </div>
+            <div class="col-auto" style="width:400px;">
+                <div class="input-group">
+                    <input class="form-control" type="text" value="${link.url}" readonly>
+                </div>
+            </div>
+            <div class="col-auto link-actions d-flex align-items-center">
+                <button type="button" class="btn btn-sm btn-outline-secondary copy-link-btn me-1" data-url="${link.url}">
                     <i class="bi bi-clipboard"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary edit-link-name-button me-1" data-original-name="${link.name || ''}">
+                    <i class="bi bi-pencil"></i>
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-danger delete-shared-link-button">
                     <i class="bi bi-trash"></i>
@@ -95,7 +118,7 @@ function createLinkItem(link) {
     return linkItem;
 }
 
-// Handle click on 'Create New Link' button
+// Handle 'Create New Link' button
 document.getElementById('create-shared-link').addEventListener('click', function () {
     if (!currentAssistantId) {
         showToast('Error', 'Assistant ID is missing.', 'danger');
@@ -127,7 +150,6 @@ document.getElementById('create-shared-link').addEventListener('click', function
 
             const linkItem = createLinkItem(link);
             linksList.prepend(linkItem);
-
             showToast('Success', data.message, 'success');
         } else if (data.status === 'info') {
             showToast('Info', data.message, 'info');
@@ -146,15 +168,17 @@ document.getElementById('create-shared-link').addEventListener('click', function
     });
 });
 
-// Handle copy link button click using event delegation
+// Event delegation for copy and delete
 document.getElementById('shared-links-list').addEventListener('click', function (event) {
+    // Copy link
     if (event.target.closest('.copy-link-btn')) {
         const url = event.target.closest('.copy-link-btn').getAttribute('data-url');
         navigator.clipboard.writeText(url).then(() => {
             showToast('Success', 'Link copied to clipboard.', 'success');
-        }).catch(err => console.error('Error copying link: ', err));
+        }).catch(err => console.error('Error copying link:', err));
     }
 
+    // Delete link
     if (event.target.closest('.delete-shared-link-button')) {
         const linkItem = event.target.closest('.shared-link-item');
         const token = linkItem.getAttribute('data-token');
@@ -169,7 +193,7 @@ document.getElementById('shared-links-list').addEventListener('click', function 
     }
 });
 
-// Handle confirmation of delete shared link
+// Handle delete confirmation
 document.getElementById('confirm-delete-shared-link').addEventListener('click', function () {
     const deleteModal = document.getElementById('deleteSharedLinkConfirmationModal');
     const token = deleteModal.getAttribute('data-token');
@@ -213,4 +237,162 @@ document.getElementById('confirm-delete-shared-link').addEventListener('click', 
         showToast('Error', 'An unexpected error occurred while deleting the link.', 'danger');
     });
 });
+
+// Name editing event delegation
+document.getElementById('shared-links-list').addEventListener('click', function (event) {
+    const linkItem = event.target.closest('.shared-link-item');
+    if (!linkItem) return;
+
+    if (event.target.closest('.edit-link-name-button')) {
+        enterEditMode(linkItem);
+    }
+
+    if (event.target.closest('.save-link-name-button')) {
+        saveLinkName(linkItem);
+    }
+
+    if (event.target.closest('.cancel-edit-link-name-button')) {
+        cancelEditLinkName(linkItem);
+    }
+});
+
+function enterEditMode(linkItem) {
+    const nameText = linkItem.querySelector('.link-name-text');
+    const nameField = linkItem.querySelector('.link-name-field');
+    const originalName = linkItem.querySelector('.edit-link-name-button').getAttribute('data-original-name') || '';
+
+    // Show input field, hide span
+    nameText.classList.add('d-none');
+    nameField.classList.remove('d-none');
+    nameField.removeAttribute('readonly');
+    nameField.focus();
+
+    linkItem.setAttribute('data-edit-mode', 'true');
+    linkItem.setAttribute('data-original-name', originalName);
+
+    // Change action buttons: remove edit/delete, keep copy, add save/cancel
+    const actionsContainer = linkItem.querySelector('.link-actions');
+    const copyBtn = actionsContainer.querySelector('.copy-link-btn');
+    const editBtn = actionsContainer.querySelector('.edit-link-name-button');
+    const deleteBtn = actionsContainer.querySelector('.delete-shared-link-button');
+    if (editBtn) editBtn.remove();
+    if (deleteBtn) deleteBtn.remove();
+
+    copyBtn.insertAdjacentHTML('afterend', `
+        <button type="button" class="btn btn-sm btn-outline-success save-link-name-button me-1" disabled>
+            <i class="bi bi-check-lg"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary cancel-edit-link-name-button">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    `);
+
+    // Listen for input changes
+    nameField.addEventListener('input', () => toggleSaveButton(linkItem));
+}
+
+
+function toggleSaveButton(linkItem) {
+    const nameField = linkItem.querySelector('.link-name-field');
+    const saveButton = linkItem.querySelector('.save-link-name-button');
+    const originalName = linkItem.getAttribute('data-original-name') || '';
+    const currentName = nameField.value.trim();
+
+    saveButton.disabled = (currentName === originalName);
+}
+
+function saveLinkName(linkItem) {
+    const nameField = linkItem.querySelector('.link-name-field');
+    const token = linkItem.getAttribute('data-token');
+    const newName = nameField.value.trim();
+
+    const formData = new FormData();
+    formData.append('name', newName);
+    formData.append('csrfmiddlewaretoken', csrftoken);
+
+    fetch(`/a/share/update/${token}/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const displayedName = newName === '' ? 'Untitled link' : newName;
+            const nameText = linkItem.querySelector('.link-name-text');
+
+            // Update UI
+            nameText.textContent = displayedName;
+            nameText.classList.remove('d-none');
+            nameField.classList.add('d-none');
+            nameField.value = newName; // store newName internally
+
+            linkItem.removeAttribute('data-edit-mode');
+            linkItem.removeAttribute('data-original-name');
+
+            // Restore action buttons: copy, edit, delete
+            const actionsContainer = linkItem.querySelector('.link-actions');
+            const linkUrl = data.link.url;
+            actionsContainer.innerHTML = `
+                <button type="button" class="btn btn-sm btn-outline-secondary copy-link-btn me-1" data-url="${linkUrl}">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary edit-link-name-button me-1" data-original-name="${newName}">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger delete-shared-link-button">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+
+            showToast('Success', 'Link name updated successfully.', 'success');
+        } else {
+            showToast('Error', data.message || 'Failed to update link name.', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating link name:', error);
+        showToast('Error', 'An unexpected error occurred while updating link name.', 'danger');
+    });
+}
+
+function cancelEditLinkName(linkItem) {
+    const originalName = linkItem.getAttribute('data-original-name') || '';
+    const displayedName = originalName === '' ? 'Untitled link' : originalName;
+
+    const nameText = linkItem.querySelector('.link-name-text');
+    const nameField = linkItem.querySelector('.link-name-field');
+
+    // Revert to original
+    nameText.textContent = displayedName;
+    nameText.classList.remove('d-none');
+    nameField.classList.add('d-none');
+    nameField.value = originalName;
+
+    linkItem.removeAttribute('data-edit-mode');
+    linkItem.removeAttribute('data-original-name');
+
+    // Restore action buttons: copy, edit, delete
+    const actionsContainer = linkItem.querySelector('.link-actions');
+    const linkUrl = actionsContainer.querySelector('.copy-link-btn')
+        ? actionsContainer.querySelector('.copy-link-btn').getAttribute('data-url')
+        : linkItem.querySelector('input[readonly]').value;
+
+    actionsContainer.innerHTML = `
+        <button type="button" class="btn btn-sm btn-outline-secondary copy-link-btn me-1" data-url="${linkUrl}">
+            <i class="bi bi-clipboard"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary edit-link-name-button me-1" data-original-name="${originalName}">
+            <i class="bi bi-pencil"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-danger delete-shared-link-button">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+}
+
+initializeTooltips();
+
 </script>
