@@ -16,8 +16,6 @@
                     <tr>
                         <th>Name</th>
                         <th>Created</th>
-                        <th>Tools</th>
-                        <th>Model</th>
                         <th>Vector Store</th>
                         <th>Threads</th>
                         <th>First thread</th>
@@ -84,6 +82,29 @@
             </div>
         </div>
 
+        <!-- Threads Table -->
+        <div id="threads-container" class="my-4">
+            <h5>Threads</h5>
+            {% include 'partials/loading_indicator.html' with content_id='threads' content_name='threads' %}
+            <table class="table table-hover d-none" id="threads-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Created</th>
+                        <th>Assistant</th>
+                        <th>Shared</th>
+                    </tr>
+                </thead>
+                <tbody id="threads-table-body"></tbody>
+            </table>
+            <div id="no-threads" class="text-center text-secondary d-none">
+                <p>No threads available.</p>
+                <span class="text-secondary">
+                    You can create conversations on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                </span>
+            </div>
+        </div>
+
     </div>
 
 {% endblock %}
@@ -138,96 +159,14 @@
     }
 
 
-    /* Assistants Table */
+    /* Globals */
 
-    async function fetchThreadsData(assistantIds) {
-        try {
-            const response = await fetch("{% url 'get_assistant_threads' %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": '{{ csrf_token }}'
-                },
-                body: JSON.stringify({ assistant_ids: assistantIds }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch threads: ${response.statusText}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Error fetching thread counts:', error);
-            return {};
-        }
-    }
-
-    async function fetchAssistantsTable() {
-        try {
-            toggleLoading('assistants', true);
-
-            // Fetch assistants
-            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}");
-            const assistantsData = await assistantsResponse.json();
-
-            console.log('assistantsData:', assistantsData);
-
-            if (assistantsData.assistants?.length > 0) {
-                const assistantIds = assistantsData.assistants.map(assistant => assistant.id);
-
-                console.log('assistantIds:', assistantIds);
-
-                const threadsData = await fetchThreadsData(assistantIds);
-
-                console.log('threadsData:', threadsData);
-
-                const tableBody = document.getElementById("assistants-table-body");
-                tableBody.innerHTML = "";
-
-                const rows = await Promise.all(
-                    assistantsData.assistants.map(async assistant => {
-                        const threadInfo = threadsData[assistant.id] || {
-                            thread_count: 0,
-                            first_thread: null,
-                            last_thread: null,
-                        };
-                        const { thread_count, first_thread, last_thread } = threadInfo;
-
-                        const firstUsed = thread_count > 0 ? formatDbDate(first_thread) : '<span class="text-secondary">No threads</span>';
-                        const lastUsed = thread_count > 0 ? formatDbDate(last_thread) : '<span class="text-secondary">No threads</span>';
-
-                        return `
-                            <tr>
-                                <td>${assistant.name || 'Untitled assistant'}</td>
-                                <td>${formatUnixTimestamp(assistant.created_at)}</td>
-                                <td>${assistant.tools.map(tool => tool.type).join(', ') || '<span class="text-secondary">No tools</span>'}</td>
-                                <td>${assistant.model}</td>
-                                <td>${assistant.tool_resources?.file_search?.vector_store_ids?.[0] || '<span class="text-secondary">No vector store</span>'}</td>
-                                <td>${thread_count || 0}</td>
-                                <td>${firstUsed}</td>
-                                <td>${lastUsed}</td>
-                            </tr>`;
-                    })
-                );
-
-                tableBody.innerHTML = rows.join('');
-                document.getElementById('assistants-table').classList.remove('d-none');
-            } else {
-                document.getElementById('no-assistants').classList.remove('d-none');
-            }
-        } catch (error) {
-            console.error('Error fetching assistants:', error);
-        } finally {
-            toggleLoading('assistants', false);
-        }
-    }
-
+    let vectorStoresDict = {}; // vectorStoreId -> vectorStoreName
+    let assistantsDict = {}; // assistantId -> assistantName
 
     /* Vector Stores Table */
 
     async function fetchVectorStoresTable() {
-        toggleLoading('vector-stores', true);
-
         try {
             const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}");
             const data = await response.json();
@@ -240,6 +179,7 @@
 
                 const rows = await Promise.all(
                     data.vector_stores.map(async store => {
+                        vectorStoresDict[store.id] = store.name || 'Untitled store';
                         return `
                             <tr>
                                 <td>${store.name || 'Untitled store'}</td>
@@ -267,11 +207,97 @@
     }
 
 
+    /* Assistants Table */
+
+    async function fetchThreadsData(assistantIds) {
+        try {
+            const response = await fetch("{% url 'get_assistant_threads' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ assistant_ids: assistantIds }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch threads: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching thread counts:', error);
+            return {};
+        }
+    }
+
+    async function fetchAssistantsTable() {
+        try {
+            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}");
+            const assistantsData = await assistantsResponse.json();
+
+            console.log('fetchAssistantsTable:', assistantsData);
+
+            if (assistantsData.assistants?.length > 0) {
+                const assistantIds = assistantsData.assistants.map(assistant => assistant.id);
+
+                // Build a dictionary for assistant names
+                assistantsData.assistants.forEach(a => {
+                    assistantsDict[a.id] = a.name || 'Untitled assistant';
+                });
+
+                const threadsData = await fetchThreadsData(assistantIds);
+
+                console.log('fetchThreadsData:', threadsData);
+
+                await fetchThreadsTable(assistantIds);
+
+                const tableBody = document.getElementById("assistants-table-body");
+                tableBody.innerHTML = "";
+
+                const rows = await Promise.all(
+                    assistantsData.assistants.map(async assistant => {
+                        const threadInfo = threadsData[assistant.id] || {
+                            thread_count: 0,
+                            first_thread: null,
+                            last_thread: null,
+                        };
+                        const { thread_count, first_thread, last_thread } = threadInfo;
+
+                        const firstUsed = thread_count > 0 ? formatDbDate(first_thread) : '<span class="text-secondary">No threads</span>';
+                        const lastUsed = thread_count > 0 ? formatDbDate(last_thread) : '<span class="text-secondary">No threads</span>';
+
+                        const vectorStoreId = assistant.tool_resources?.file_search?.vector_store_ids?.[0];
+                        const vectorStoreName = vectorStoreId ? (vectorStoresDict[vectorStoreId] || vectorStoreId) : '<span class="text-secondary">No vector store</span>';
+
+                        return `
+                            <tr>
+                                <td>${assistant.name || 'Untitled assistant'}</td>
+                                <td>${formatUnixTimestamp(assistant.created_at)}</td>
+                                <td>${vectorStoreName}</td>
+                                <td>${thread_count || 0}</td>
+                                <td>${firstUsed}</td>
+                                <td>${lastUsed}</td>
+                            </tr>`;
+                    })
+                );
+
+                tableBody.innerHTML = rows.join('');
+                document.getElementById('assistants-table').classList.remove('d-none');
+            } else {
+                document.getElementById('no-assistants').classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching assistants:', error);
+        } finally {
+            toggleLoading('assistants', false);
+        }
+    }
+
+
     /* Files Table */
 
     async function fetchFilesTable() {
-        toggleLoading('files', true);
-
         try {
             const response = await fetch("{% url 'api-1.0.0:list_files' %}");
             const data = await response.json();
@@ -307,10 +333,67 @@
     }
 
 
-    // Initialize fetching
-    fetchAssistantsTable();
-    fetchVectorStoresTable();
-    fetchFilesTable();
+    /* Threads Table */
+
+    async function fetchThreadsTable(assistantIds) {
+        try {
+            const response = await fetch("{% url 'list_threads' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ assistant_ids: assistantIds }),
+            });
+            const data = await response.json();
+
+            console.log('fetchThreadsTable:', data);
+
+            if (data.threads?.length > 0) {
+                const tableBody = document.getElementById('threads-table-body');
+                tableBody.innerHTML = '';
+
+                const rows = data.threads.map(thread => {
+                    const created = formatUnixTimestamp(thread.created_at);
+                    const shared = thread.shared ? '<span class="text-success">Yes</span>' : '<span class="text-secondary">No</span>';
+                    const asstName = assistantsDict[thread.assistant_id] || '<span class="text-secondary">Unknown</span>';
+                    return `
+                        <tr>
+                            <td>${thread.id}</td>
+                            <td>${created}</td>
+                            <td>${asstName}</td>
+                            <td>${shared}</td>
+                        </tr>`;
+                });
+
+                tableBody.innerHTML = rows.join('');
+                document.getElementById('threads-table').classList.remove('d-none');
+            } else {
+                document.getElementById('no-threads').classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching threads:', error);
+        } finally {
+            toggleLoading('threads', false);
+        }
+    }
+
+
+/* Initialize Page */
+
+    async function initializePage() {
+        // Show loading indicator initially for all
+        toggleLoading('vector-stores', true);
+        toggleLoading('assistants', true);
+        toggleLoading('files', true);
+        toggleLoading('threads', true);
+
+        await fetchVectorStoresTable();
+        fetchAssistantsTable();
+        fetchFilesTable();
+    }
+
+    initializePage()
 
 </script>
 
