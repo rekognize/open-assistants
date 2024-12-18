@@ -4,6 +4,7 @@ requests
 openai
 pydantic
 uvicorn
+whitenoise
 
 docstring-parser
 feedparser
