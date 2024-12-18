@@ -2419,10 +2419,17 @@
 
         // Build tool_resources
         const tool_resources = {};
-        if (fileSearchEnabled && vectorStoreId) {
-            tool_resources["file_search"] = {
-                "vector_store_ids": [vectorStoreId]
-            };
+        if (fileSearchEnabled) {
+            if (vectorStoreId) {
+                tool_resources["file_search"] = {
+                    "vector_store_ids": [vectorStoreId]
+                };
+            } else {
+                // Clear the vector_store_ids when "No vector store assigned" is selected
+                tool_resources["file_search"] = {
+                    "vector_store_ids": []
+                };
+            }
         }
 
         const metadata = collectMetadata(assistantId);
