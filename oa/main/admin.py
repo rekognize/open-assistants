@@ -25,3 +25,4 @@ class ThreadAdmin(admin.ModelAdmin):
 class SharedLinkAdmin(admin.ModelAdmin):
     list_display = ('thread_id', 'token', 'created')
     search_fields = ('thread_id', 'token')
+    readonly_fields = ('token', 'created')
