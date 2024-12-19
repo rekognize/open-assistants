@@ -57,7 +57,6 @@ def get_assistant_threads(request):
         # Parse the JSON body to get assistant IDs
         body = json.loads(request.body)
         assistant_ids = body.get("assistant_ids", [])
-        print("Assistant IDs:", assistant_ids)
 
         if not assistant_ids:
             return JsonResponse({}, status=200)
@@ -82,8 +81,6 @@ def get_assistant_threads(request):
                 "first_thread": item["first_thread"],
                 "last_thread": item["last_thread"],
             }
-
-        print("Thread Data:", thread_data)
 
         return JsonResponse(thread_data, status=200)
     except Exception as e:
@@ -127,8 +124,6 @@ def list_threads(request):
                 "shared_link_name": shared_name,
             }
             threads_data.append(thread_info)
-
-        print("Threads Data:", threads_data)
 
         return JsonResponse({"threads": threads_data}, status=200)
     except Exception as e:
@@ -189,21 +184,17 @@ class EventHandler(AsyncAssistantEventHandler):
         self.token = token
 
     async def on_message_created(self, message):
-        print("on_message_created called")
         self.current_message = ""
         self.current_annotations = []
         self.shared_data.append({"type": "message_created"})
 
     async def on_text_delta(self, delta: TextDelta, snapshot: Text):
-        # print(f"on_text_delta called with delta: {delta.value}")
-
         if delta.value:
             self.current_message += delta.value
 
         # Collect annotations from the snapshot
         self.current_annotations = []
         if snapshot.annotations:
-            print(f"Annotations found: {snapshot.annotations}")
             for annotation in snapshot.annotations:
                 annotation_dict = annotation.to_dict()
 
@@ -224,7 +215,6 @@ class EventHandler(AsyncAssistantEventHandler):
         })
 
     async def on_message_done(self, message):
-        print("on_message_done called")
         # Send the final message content and annotations to the client
         self.shared_data.append({
             "type": "message_done",
@@ -233,7 +223,6 @@ class EventHandler(AsyncAssistantEventHandler):
         })
 
     async def on_image_file_done(self, image_file: ImageFile) -> None:
-        print(f"on_image_file_done called with file_id: {image_file.file_id}")
         image_url = reverse('serve_image_file', args=[image_file.file_id])
         if self.token:
             image_url += f'?token={self.token}'
@@ -247,7 +236,6 @@ class EventHandler(AsyncAssistantEventHandler):
         })
 
     async def on_end(self):
-        print("on_end called")
         self.stream_done = True
         self.shared_data.append({"type": "end_of_stream"})
 
@@ -311,8 +299,6 @@ async def stream_responses(request, thread_id, assistant_id):
             ) as stream:
                 # Process events as they arrive
                 async for event in stream:
-                    print(f"Received event: {event.event}")
-
                     # Handle 'requires_action' events here
                     if event.event == "thread.run.requires_action":
                         run_id = event.data.id
@@ -327,9 +313,6 @@ async def stream_responses(request, thread_id, assistant_id):
                                 function_args_json = tool_call.function.arguments
                                 function_args = json.loads(function_args_json)
 
-                                print("tool_call_id:", tool_call_id)
-                                print(f"Function call received: {function_name} with arguments {function_args}")
-
                                 # Execute the function and get the output
                                 if function_name in FUNCTION_IMPLEMENTATIONS:
                                     function_class = FUNCTION_IMPLEMENTATIONS[function_name]
@@ -338,7 +321,6 @@ async def stream_responses(request, thread_id, assistant_id):
                                         function_instance = function_class(**function_args)
                                         # If 'main' is synchronous, run it in a thread
                                         output = await asyncio.to_thread(function_instance.main)
-                                        print(f"Output successful for: {function_name}")
                                         # Ensure the output is JSON-serializable
                                         output_json = json.dumps(output)
                                     except Exception as e:
@@ -362,8 +344,6 @@ async def stream_responses(request, thread_id, assistant_id):
                             ) as tool_output_stream:
                                 # Process events from the tool output stream
                                 async for tool_event in tool_output_stream:
-                                    print(f"tool_event: {tool_event.event}")
-
                                     while shared_data:
                                         data = shared_data.pop(0)
                                         yield f"data: {json.dumps(data)}\n\n"
@@ -381,7 +361,6 @@ async def stream_responses(request, thread_id, assistant_id):
                 # After the stream ends, process any remaining shared_data
                 while shared_data:
                     data = shared_data.pop(0)
-                    print(f"Streaming data after stream ends: {data}")
                     yield f"data: {json.dumps(data)}\n\n"
                     await asyncio.sleep(0)  # Yield control to the event loop
                     if data.get("type") == "end_of_stream":
