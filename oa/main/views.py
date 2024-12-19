@@ -5,7 +5,7 @@ import logging
 import os
 
 from asgiref.sync import async_to_sync, sync_to_async
-from django.db.models import Count, Min, Max
+from django.db.models import Count, Min, Max, Q
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
     HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
@@ -67,7 +67,9 @@ def get_assistant_threads(request):
             .filter(metadata___asst__in=assistant_ids)
             .values("metadata")
             .annotate(
-                thread_count=Count("uuid"),
+                total_thread_count=Count("uuid"),
+                shared_thread_count=Count("uuid", filter=Q(shared_link__isnull=False)),
+                not_shared_thread_count=Count("uuid", filter=Q(shared_link__isnull=True)),
                 first_thread=Min("created_at"),
                 last_thread=Max("created_at"),
             )
@@ -77,7 +79,11 @@ def get_assistant_threads(request):
         for item in assistant_threads:
             assistant_id = item["metadata"]["_asst"]
             thread_data[assistant_id] = {
-                "thread_count": item["thread_count"],
+                "thread_count": {
+                    "shared": item["shared_thread_count"],
+                    "not_shared": item["not_shared_thread_count"],
+                    "total": item["total_thread_count"],
+                },
                 "first_thread": item["first_thread"],
                 "last_thread": item["last_thread"],
             }

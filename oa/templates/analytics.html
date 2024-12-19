@@ -258,14 +258,17 @@
                 const rows = await Promise.all(
                     assistantsData.assistants.map(async assistant => {
                         const threadInfo = threadsData[assistant.id] || {
-                            thread_count: 0,
+                            thread_count: { shared: 0, not_shared: 0, total: 0 },
                             first_thread: null,
                             last_thread: null,
                         };
-                        const { thread_count, first_thread, last_thread } = threadInfo;
+                        const { shared, not_shared, total } = threadInfo.thread_count;
 
-                        const firstUsed = thread_count > 0 ? formatDbDate(first_thread) : '<span class="text-secondary">No threads</span>';
-                        const lastUsed = thread_count > 0 ? formatDbDate(last_thread) : '<span class="text-secondary">No threads</span>';
+                        const sharedDisplay = shared > 0 ? 'shared: ' + shared + ',' : '';
+                        const notSharedDisplay = not_shared > 0 ? 'not_shared: ' + not_shared + ',' : '';
+
+                        const firstUsed = total > 0 ? formatDbDate(threadInfo.first_thread) : '<span class="text-secondary">No threads</span>';
+                        const lastUsed = total > 0 ? formatDbDate(threadInfo.last_thread) : '<span class="text-secondary">No threads</span>';
 
                         const vectorStoreId = assistant.tool_resources?.file_search?.vector_store_ids?.[0];
                         const vectorStoreName = vectorStoreId ? (vectorStoresDict[vectorStoreId] || vectorStoreId) : '<span class="text-secondary">No vector store</span>';
@@ -275,7 +278,7 @@
                                 <td>${assistant.name || 'Untitled assistant'}</td>
                                 <td>${formatUnixTimestamp(assistant.created_at)}</td>
                                 <td>${vectorStoreName}</td>
-                                <td>${thread_count || 0}</td>
+                                <td>${sharedDisplay} ${notSharedDisplay} total: ${total}</td>
                                 <td>${firstUsed}</td>
                                 <td>${lastUsed}</td>
                             </tr>`;
