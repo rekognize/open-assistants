@@ -1,5 +1,5 @@
 <div class="col">
-    <div class="card">
+    <div class="card border-success">
         <div class="card-body" id="vs-${tempId}">
 
             <!-- Edit Form (Initially Visible) -->
@@ -15,13 +15,15 @@
                         <label for="expiration-days-${tempId}" class="form-label">Expiration after days of inactivity</label>
                     </div>
 
-                <!-- Metadata Fields -->
-                <div class="metadata-fields" id="metadata-fields-${tempId}">
-                    <!-- Parameter entries will be added here dynamically -->
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addMetadataField('${tempId}')">
-                    Add parameter
-                </button>
+                    <h6 class="card-title text-secondary">Metadata</h6>
+
+                    <!-- Metadata Fields -->
+                    <div class="metadata-fields" id="metadata-fields-${tempId}">
+                        <!-- Parameter entries will be added here dynamically -->
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMetadataField('${tempId}')">
+                        Add parameter
+                    </button>
                 </form>
             </div>
 

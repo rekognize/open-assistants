@@ -1,6 +1,7 @@
 <script>
 // Define globals
-let assistantId = getURLParameter('a');
+let assistantId = '{{ assistant_id }}';
+let token = '{{ token }}';
 let threadId, assistantName;
 
 // Set the DOM elements
@@ -67,7 +68,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Helper function to update the URL with thread_id
     function updateURLWithThreadId() {
-        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?a=' + assistantId + '&t=' + threadId;
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?t=' + threadId;
         window.history.replaceState({path: newUrl}, '', newUrl);
     }
 
@@ -81,7 +82,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
                 }
             });
 
@@ -122,7 +124,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
                 }
             });
 
@@ -153,7 +156,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Token': token
             },
             body: JSON.stringify({
                 openai_id: openai_id,
@@ -181,7 +185,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
                 }
             });
 
@@ -221,7 +226,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             const response = await fetch(`{% url 'api-1.0.0:upload_files' %}`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
                 },
                 body: formData
             });
@@ -345,7 +351,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
                 },
                 body: JSON.stringify(payload)
             });
@@ -381,7 +388,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             const response = await fetch(createStreamUrl, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Token': token
                 },
                 body: formData
             });
@@ -431,7 +439,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 method: 'GET',
                 headers: {
                     'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Token': token
                 }
             });
 
@@ -469,7 +478,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 method: 'GET',
                 headers: {
                     'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Token': token
                 }
             });
 
@@ -603,7 +613,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Handle Server-Sent Events (SSE)
     function handleSSE(url, assistantName) {
-        const eventSource = new EventSource(url);
+        // Include the token in the URL
+        const sseUrlWithToken = url + '?token=' + encodeURIComponent(token);
+        const eventSource = new EventSource(sseUrlWithToken);
         let currentText = "";
         let assistantMessageElement = null;
         let assistantResponseContent = null;
@@ -696,6 +708,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 headers: {
                     'X-CSRFToken': '{{ csrf_token }}',
                     'Content-Type': 'application/json',
+                    'X-Token': token
                 }
             });
 
@@ -736,7 +749,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 content = content.replace(annotation.text, replacementText);
             } else if (annotation.file_path) {
                 const fileId = annotation.file_path.file_id;
-                const downloadUrl = `/t/${threadId}/download/${fileId}/`;
+                const downloadUrl = `/t/${threadId}/download/${fileId}/?token=${token}`;
 
                 content = content.replace(annotation.text, downloadUrl);
             }

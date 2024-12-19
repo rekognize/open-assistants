@@ -10,7 +10,7 @@
                 <div class="d-flex justify-content-between align-items-center">
 
                     <h6 class="card-title my-0">
-                        ${assistant.name}
+                        ${assistantName}
                     </h6>
 
                     <div>
@@ -57,11 +57,6 @@
                     </div>
 
                     <div class="form-floating mb-3">
-                        ${selectVectorStore}
-                        <label for="vs-${assistant.id}">Vector store</label>
-                    </div>
-
-                    <div class="form-floating mb-3">
                         <textarea class="form-control" id="instructions-${assistant.id}" placeholder="Instructions"
                                   style="height: 100px">${assistant.instructions || ''}</textarea>
                         <label for="instructions-${assistant.id}">Instructions</label>
@@ -75,11 +70,41 @@
                         <label for="model-${assistant.id}">Model</label>
                     </div>
 
+                    <h6 class="card-title text-secondary">Tools</h6>
+
+                    <!-- File Search Tool -->
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="fileSearchSwitch-${assistant.id}" onchange="toggleAssistantFileSearch('${assistant.id}')">
+                            <label class="form-check-label" for="fileSearchSwitch-${assistant.id}">File search</label>
+                        </div>
+
+                        <!-- Vector Store Select -->
+                        <div class="form-floating" id="vector-store-div-${assistant.id}" style="display: none;">
+                            ${selectVectorStore}
+                            <label for="vs-${assistant.id}">Vector store</label>
+                        </div>
+                    </div>
+
+                    <!-- Code Interpreter Tool -->
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="codeInterpreterSwitch-${assistant.id}">
+                        <label class="form-check-label" for="codeInterpreterSwitch-${assistant.id}">Code interpreter</label>
+                    </div>
+
+                    <small class="text-secondary">Functions</small>
+                    <!-- Functions Section -->
+                    <div class="mb-3" id="functions-list-${assistant.id}">
+                        <!-- Function checkboxes will be inserted here -->
+                    </div>
+
+                    <h6 class="card-title text-secondary">Metadata</h6>
+
                     <!-- Metadata Fields -->
                     <div class="metadata-fields" id="metadata-fields-${assistant.id}">
                         <!-- Parameter entries will be added here dynamically -->
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addMetadataField('${assistant.id}')">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMetadataField('${assistant.id}')">
                         Add parameter
                     </button>
 
@@ -94,6 +119,7 @@
 
             <div>
 
+                <!-- Edit Mode Toggle Buttons -->
                 <div class="brief-info">
                     <button type="button" onclick="toggleEditMode('${assistant.id}', 'assistant')"
                             class="btn btn-sm btn-outline-secondary"
@@ -102,6 +128,7 @@
                     </button>
                 </div>
 
+                <!-- Save/Cancel Buttons in Edit Mode -->
                 <div class="edit-mode d-none">
                     <button type="button" class="btn btn-sm btn-outline-success btnModifyAssistant"
                             onclick="modifyAssistant('${assistant.id}');"
@@ -119,12 +146,18 @@
 
             </div>
 
-            <div>
+            <!-- Action Buttons to Hide in Edit Mode -->
+            <div class="brief-info">
                 <a class="btn btn-sm btn-outline-secondary"
                    href="{% url 'thread_detail' %}?a=${assistant.id}" target="_blank"
                    data-bs-toggle="tooltip" data-bs-title="Start a conversation">
                     <i class="bi bi-chat"></i>
                 </a>
+                <button type="button" class="btn btn-sm btn-outline-secondary share-assistant-button"
+                        data-assistant-id="${assistant.id}" data-bs-toggle="modal" data-bs-target="#shareAssistantModal"
+                        data-assistant-name="${assistantName}">
+                    <i class="bi bi-share"></i>
+                </button>
                 <button type="button" class="btn btn-sm btn-outline-secondary"
                         data-bs-toggle="tooltip" data-bs-title="Duplicate this assistant">
                     <i class="bi bi-copy"></i>

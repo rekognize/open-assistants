@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Project, Thread
+from .models import Project, Thread, SharedLink
 
 
 @admin.register(Project)
@@ -15,7 +15,13 @@ class ProjectAdmin(admin.ModelAdmin):
 
 @admin.register(Thread)
 class ThreadAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'openai_id', 'created_at', 'project')
-    search_fields = ('uuid', 'openai_id', 'created_at', 'project__name', 'project__key')
-    readonly_fields = ('openai_id', 'uuid')
+    list_display = ('uuid', 'openai_id', 'created_at')
+    search_fields = ('uuid', 'openai_id', 'created_at')
+
+
+@admin.register(SharedLink)
+class SharedLinkAdmin(admin.ModelAdmin):
+    list_display = ('assistant_id', 'name', 'token', 'created', 'project')
+    search_fields = ('assistant_id', 'name', 'token', 'created', 'project__name', 'project__key')
+    readonly_fields = ('token', 'created')
     list_filter = ['project']

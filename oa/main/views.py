@@ -4,20 +4,23 @@ import json
 import logging
 import os
 
-from django.db import IntegrityError
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
+from asgiref.sync import async_to_sync, sync_to_async
+from django.db.models import Count, Min, Max
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
+    HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views import View
 from django.views.generic import TemplateView
-from openai import AssistantEventHandler, OpenAIError
+from openai import AsyncAssistantEventHandler, OpenAIError
 from openai.types.beta.threads import Text, TextDelta, ImageFile
 
-from .models import Project
-from .utils import get_openai_client_sync, format_time, verify_openai_key
-from ..api.utils import APIError, get_openai_client
-
+from .models import Project, SharedLink, Thread
+from .utils import format_time, verify_openai_key
+from ..api.utils import APIError, aget_openai_client
+from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -30,27 +33,169 @@ class HomeView(TemplateView):
 def manage_assistants(request):
     if not Project.objects.filter(user=request.user).exists():
         return redirect('home')
-    return render(request, "manage.html")
+
+    function_definitions_json = json.dumps(FUNCTION_DEFINITIONS)
+    return render(request, "manage.html", {
+        'function_definitions_json': function_definitions_json,
+        'active_nav': 'manage'
+    })
+
+
+@login_required
+def analytics(request):
+    if not Project.objects.filter(user=request.user).exists():
+        return redirect('home')
+
+    return render(request, "analytics.html", {
+        'active_nav': 'analytics'
+    })
+
+
+@login_required
+def get_assistant_threads(request):
+    try:
+        # Parse the JSON body to get assistant IDs
+        body = json.loads(request.body)
+        assistant_ids = body.get("assistant_ids", [])
+        print("Assistant IDs:", assistant_ids)
+
+        if not assistant_ids:
+            return JsonResponse({}, status=200)
+
+        # Fetch thread data for the given assistant IDs
+        assistant_threads = (
+            Thread.objects.filter(metadata__has_key="_asst")
+            .filter(metadata___asst__in=assistant_ids)
+            .values("metadata")
+            .annotate(
+                thread_count=Count("uuid"),
+                first_thread=Min("created_at"),
+                last_thread=Max("created_at"),
+            )
+        )
+
+        thread_data = {}
+        for item in assistant_threads:
+            assistant_id = item["metadata"]["_asst"]
+            thread_data[assistant_id] = {
+                "thread_count": item["thread_count"],
+                "first_thread": item["first_thread"],
+                "last_thread": item["last_thread"],
+            }
+
+        print("Thread Data:", thread_data)
+
+        return JsonResponse(thread_data, status=200)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def list_threads(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST request required."}, status=400)
+
+    try:
+        body = json.loads(request.body)
+        assistant_ids = body.get("assistant_ids", [])
+        if not assistant_ids:
+            return JsonResponse({"threads": []}, status=200)
+
+        threads_qs = (
+            Thread.objects
+            .filter(metadata___asst__in=assistant_ids)
+            .select_related('shared_link')
+            .order_by('-created_at')
+        )
+
+        threads_data = []
+        for t in threads_qs:
+            created_ts = int(t.created_at.timestamp()) if t.created_at else None
+
+            if t.shared_link:
+                name = t.shared_link.name if t.shared_link.name else "Untitled link"
+                shared_name = name
+            else:
+                shared_name = None
+
+            assistant_id = t.metadata.get("_asst") if t.metadata else None
+
+            thread_info = {
+                "id": str(t.openai_id),
+                "created_at": created_ts,
+                "assistant_id": assistant_id,
+                "shared_link_name": shared_name,
+            }
+            threads_data.append(thread_info)
+
+        print("Threads Data:", threads_data)
+
+        return JsonResponse({"threads": threads_data}, status=200)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Threads
+
+async def create_db_thread(request):
+    try:
+        data = await sync_to_async(request.body.decode)('utf-8')
+        data = json.loads(data)
+    except Exception as e:
+        return JsonResponse({"error": f"Invalid JSON: {str(e)}"}, status=400)
+
+    openai_id = data.get("openai_id")
+    created_at = data.get("created_at")
+    metadata = data.get("metadata", {})
+
+    shared_link_token = request.headers.get('X-Token')
+
+    if not openai_id:
+        return JsonResponse({"error": "openai_id is required"}, status=400)
+
+    shared_link = None
+    if shared_link_token:
+        shared_link = await sync_to_async(SharedLink.objects.filter(token=shared_link_token).first)()
+        if not shared_link:
+            return JsonResponse({"error": "Invalid token"}, status=400)
+
+    # Create the thread in DB
+    thread = Thread(
+        openai_id=openai_id,
+        created_at=format_time(created_at),
+        metadata=metadata,
+        shared_link=shared_link
+    )
+    await sync_to_async(thread.save)()
+
+    return JsonResponse({
+        "uuid": str(thread.uuid),
+        "openai_id": thread.openai_id,
+        "created_at": thread.created_at,
+        "metadata": thread.metadata,
+        "shared_link_token": str(thread.shared_link.token) if thread.shared_link else None
+    }, status=201)
 
 
 # Chat
 
-class EventHandler(AssistantEventHandler):
-    def __init__(self):
+class EventHandler(AsyncAssistantEventHandler):
+    def __init__(self, shared_data, token=None):
         super().__init__()
         self.current_message = ""
-        self.response_data = []
+        self.shared_data = shared_data  # Use shared_data instead of response_data
         self.stream_done = False
         self.current_annotations = []
+        self.token = token
 
-    def on_message_created(self, message):
+    async def on_message_created(self, message):
         print("on_message_created called")
         self.current_message = ""
         self.current_annotations = []
-        self.response_data.append({"type": "message_created"})
+        self.shared_data.append({"type": "message_created"})
 
-    def on_text_delta(self, delta: TextDelta, snapshot: Text):
-        print(f"on_text_delta called with delta: {delta.value}")
+    async def on_text_delta(self, delta: TextDelta, snapshot: Text):
+        # print(f"on_text_delta called with delta: {delta.value}")
 
         if delta.value:
             self.current_message += delta.value
@@ -63,58 +208,65 @@ class EventHandler(AssistantEventHandler):
                 annotation_dict = annotation.to_dict()
 
                 if hasattr(annotation, 'file_citation') and annotation.file_citation:
-                    # Don't have access to the client, use a placeholder
-                    annotation_dict['file_citation']['filename'] = 'Unknown File'  # Placeholder
+                    # Manually construct the file_citation dictionary
+                    annotation_dict['file_citation'] = {
+                        'file_id': annotation.file_citation.file_id,
+                        'filename': 'Unknown File'  # Placeholder
+                    }
 
                 self.current_annotations.append(annotation_dict)
 
         # Send the updated message and annotations to the client
-        self.response_data.append({
+        self.shared_data.append({
             "type": "text_delta",
             "text": self.current_message,
             "annotations": self.current_annotations
         })
 
-    def on_message_done(self, message):
+    async def on_message_done(self, message):
         print("on_message_done called")
         # Send the final message content and annotations to the client
-        self.response_data.append({
+        self.shared_data.append({
             "type": "message_done",
             "text": self.current_message,
             "annotations": self.current_annotations
         })
 
-    def on_image_file_done(self, image_file: ImageFile) -> None:
+    async def on_image_file_done(self, image_file: ImageFile) -> None:
         print(f"on_image_file_done called with file_id: {image_file.file_id}")
         image_url = reverse('serve_image_file', args=[image_file.file_id])
+        if self.token:
+            image_url += f'?token={self.token}'
         self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
 
         # No annotations for images
-        self.response_data.append({
+        self.shared_data.append({
             "type": "image_file",
             "text": self.current_message,
             "annotations": []
         })
 
-    def on_end(self):
+    async def on_end(self):
         print("on_end called")
         self.stream_done = True
-        self.response_data.append({"type": "end_of_stream"})
+        self.shared_data.append({"type": "end_of_stream"})
 
 
 def serve_image_file(request, file_id):
     try:
-        client = get_openai_client_sync(request)
+        image_binary = async_to_sync(fetch_image_binary)(request, file_id)
+        return HttpResponse(image_binary, content_type='image/png')
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        content_response = client.files.content(file_id)
-        image_binary = content_response.read()
-        return HttpResponse(image_binary, content_type='image/png')
     except OpenAIError as e:
         logger.error(f"Error fetching image file: {e}")
         return HttpResponseNotFound('Image not found')
+
+async def fetch_image_binary(request, file_id):
+    client = await aget_openai_client(request)
+    content_response = await client.files.content(file_id)
+    image_binary = content_response.read()
+    return image_binary
 
 
 def thread_detail(request):
@@ -138,39 +290,102 @@ def create_stream_url(request, thread_id, assistant_id):
     return JsonResponse({'success': True, 'stream_url': stream_url})
 
 
-def stream_responses(request, thread_id, assistant_id):
+async def stream_responses(request, thread_id, assistant_id):
+    token = request.GET.get('token')
+    if token:
+        request.GET = request.GET.copy()
+        request.GET['token'] = token
     try:
-        client = get_openai_client_sync(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
-    def event_stream():
-        event_handler = EventHandler()
+    async def event_stream():
+        shared_data = []
+        event_handler = EventHandler(shared_data=shared_data, token=token)
         try:
-            with client.beta.threads.runs.stream(
+            async with client.beta.threads.runs.stream(
                 thread_id=thread_id,
                 assistant_id=assistant_id,
                 event_handler=event_handler,
             ) as stream:
                 # Process events as they arrive
-                for event in stream:
-                    # The event handler methods are called automatically
-                    # Retrieve and yield data as it becomes available
-                    while event_handler.response_data:
-                        data = event_handler.response_data.pop(0)
-                        print(f"Streaming data: {data}")
-                        yield f"data: {json.dumps(data)}\n\n"
-                        # Check for end of stream
-                        if data.get("type") == "end_of_stream":
-                            return  # Exit the generator to end streaming
+                async for event in stream:
+                    print(f"Received event: {event.event}")
 
-                # After the stream ends, process any remaining response_data
-                while event_handler.response_data:
-                    data = event_handler.response_data.pop(0)
+                    # Handle 'requires_action' events here
+                    if event.event == "thread.run.requires_action":
+                        run_id = event.data.id
+                        required_action = event.data.required_action
+                        if required_action.type == "submit_tool_outputs":
+                            tool_calls = required_action.submit_tool_outputs.tool_calls
+                            tool_outputs = []
+
+                            for tool_call in tool_calls:
+                                tool_call_id = tool_call.id
+                                function_name = tool_call.function.name
+                                function_args_json = tool_call.function.arguments
+                                function_args = json.loads(function_args_json)
+
+                                print("tool_call_id:", tool_call_id)
+                                print(f"Function call received: {function_name} with arguments {function_args}")
+
+                                # Execute the function and get the output
+                                if function_name in FUNCTION_IMPLEMENTATIONS:
+                                    function_class = FUNCTION_IMPLEMENTATIONS[function_name]
+                                    try:
+                                        # Instantiate the class with the arguments
+                                        function_instance = function_class(**function_args)
+                                        # If 'main' is synchronous, run it in a thread
+                                        output = await asyncio.to_thread(function_instance.main)
+                                        print(f"Output successful for: {function_name}")
+                                        # Ensure the output is JSON-serializable
+                                        output_json = json.dumps(output)
+                                    except Exception as e:
+                                        output = f"Error executing function {function_name}: {str(e)}"
+                                        output_json = json.dumps({"error": output})
+                                else:
+                                    output = f"Function {function_name} not found"
+                                    output_json = json.dumps({"error": output})
+
+                                tool_outputs.append({"tool_call_id": tool_call_id, "output": output_json})
+
+                            # Create a new EventHandler instance for the submit_tool_outputs_stream
+                            tool_output_event_handler = EventHandler(shared_data=shared_data)
+
+                            # Submit tool outputs
+                            async with client.beta.threads.runs.submit_tool_outputs_stream(
+                                thread_id=thread_id,
+                                run_id=run_id,
+                                tool_outputs=tool_outputs,
+                                event_handler=tool_output_event_handler,
+                            ) as tool_output_stream:
+                                # Process events from the tool output stream
+                                async for tool_event in tool_output_stream:
+                                    print(f"tool_event: {tool_event.event}")
+
+                                    while shared_data:
+                                        data = shared_data.pop(0)
+                                        yield f"data: {json.dumps(data)}\n\n"
+
+                                        await asyncio.sleep(0)
+
+                    # Yield data to the client immediately
+                    while shared_data:
+                        data = shared_data.pop(0)
+                        yield f"data: {json.dumps(data)}\n\n"
+
+                        # Flush the response to the client
+                        await asyncio.sleep(0)  # Yield control to the event loop
+
+                # After the stream ends, process any remaining shared_data
+                while shared_data:
+                    data = shared_data.pop(0)
                     print(f"Streaming data after stream ends: {data}")
                     yield f"data: {json.dumps(data)}\n\n"
+                    await asyncio.sleep(0)  # Yield control to the event loop
                     if data.get("type") == "end_of_stream":
-                        return  # Exit the generator to end streaming
+                        return
 
         except Exception as e:
             # Yield an error message to the client
@@ -184,16 +399,17 @@ def stream_responses(request, thread_id, assistant_id):
 
 
 async def get_messages(request, thread_id):
+    token = request.headers.get('X-Token') or request.GET.get('token')
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
-    messages = await fetch_messages(client, thread_id)
+    messages = await fetch_messages(client, thread_id, token)
     return JsonResponse({'success': True, 'messages': messages})
 
 
-async def fetch_messages(client, thread_id):
+async def fetch_messages(client, thread_id, token=None):
     try:
         response = await client.beta.threads.messages.list(
             thread_id=thread_id,
@@ -228,6 +444,10 @@ async def fetch_messages(client, thread_id):
                             if file_path := getattr(annotation, 'file_path', None):
                                 file_path_file_id = getattr(file_path, 'file_id', None)
                                 download_link = reverse('download_file', args=[thread_id, file_path_file_id])
+
+                                # Include the token in the download link
+                                if token:
+                                    download_link += f'?token={token}'
 
                                 # Replace the annotation text with the download link
                                 text_content = text_content.replace(annotation.text, download_link)
@@ -289,7 +509,7 @@ async def fetch_image_file(client, file_id):
 
 async def get_thread_files(request, thread_id):
     try:
-        client = await get_openai_client(request)
+        client = await aget_openai_client(request)
     except APIError as e:
         return JsonResponse({"error": e.message}, status=e.status)
 
@@ -327,7 +547,7 @@ async def get_thread_files(request, thread_id):
 class DownloadFileView(View):
     async def get(self, request, thread_id, file_id):
         try:
-            client = await get_openai_client(request)
+            client = await aget_openai_client(request)
         except APIError as e:
             return JsonResponse({"error": e.message}, status=e.status)
 
@@ -384,6 +604,10 @@ def create_project(request):
         if not is_valid:
             return JsonResponse({'success': False, 'error': error_message})
 
+        # Check if the user already has a project with this key
+        if Project.objects.filter(user=request.user, key=key).exists():
+            return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
+
         try:
             project = Project.objects.create(user=request.user, name=name, key=key)
             return JsonResponse({
@@ -394,8 +618,6 @@ def create_project(request):
                     'partial_key': project.get_partial_key()
                 }
             })
-        except IntegrityError:
-            return JsonResponse({'success': False, 'error': 'The key provided is already in use. Please enter a different key.'})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
@@ -419,6 +641,9 @@ def edit_project(request, project_id):
 
             # Update the key only if it is provided
             if key:
+                # Check if another project with the same key exists for the user
+                if Project.objects.filter(user=request.user, key=key).exclude(id=project_id).exists():
+                    return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
                 project.key = key
 
             project.save()
@@ -431,8 +656,6 @@ def edit_project(request, project_id):
                     'partial_key': project.get_partial_key()
                 }
             })
-        except IntegrityError:
-            return JsonResponse({'success': False, 'error': 'The key provided is already in use. Please enter a different key.'})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
@@ -450,3 +673,123 @@ def delete_project(request, project_id):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+
+# Sharing
+
+@login_required
+def share_assistant(request, assistant_id):
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return HttpResponseBadRequest('Invalid request')
+
+    # Retrieve the selected project
+    selected_project_id = request.session.get('selected_project_id') or request.GET.get('selected_project_id')
+    selected_project = None
+
+    if selected_project_id:
+        try:
+            selected_project = Project.objects.get(id=int(selected_project_id), user=request.user)
+        except (ValueError, Project.DoesNotExist):
+            return JsonResponse({'status': 'error', 'message': _('Invalid project selected.')}, status=400)
+    else:
+        return JsonResponse({'status': 'error', 'message': _('No project selected.')}, status=400)
+
+    if request.method == 'POST':
+        # Check the number of existing shared links for the assistant
+        links_count = SharedLink.objects.filter(assistant_id=assistant_id, project=selected_project).count()
+        if links_count >= 5:
+            return JsonResponse({
+                'status': 'info',
+                'message': _('You can only create up to 5 links per assistant.')
+            })
+
+        try:
+            # Create a new shareable link
+            new_link = SharedLink.objects.create(assistant_id=assistant_id, project=selected_project)
+            link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[new_link.token]))
+            return JsonResponse({
+                'status': 'success',
+                'message': _('New shareable link created.'),
+                'link': {
+                    'token': str(new_link.token),
+                    'url': link_url,
+                    'created': new_link.created
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    elif request.method == 'GET':
+        links = SharedLink.objects.filter(
+            assistant_id=assistant_id,
+            project=selected_project,
+            project__user=request.user
+        ).order_by('-created')
+
+        try:
+            if links:
+                data = {'links': [{'token': link.token,
+                                   'url': request.build_absolute_uri(f'/shared/{link.token}/'),
+                                   'name': link.name,
+                                   'created': link.created
+                                   } for link in links]}
+            else:
+                data = {'message': _('No links available.')}
+            return JsonResponse(data)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
+
+@login_required
+def delete_shared_link(request, link_token):
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return HttpResponseBadRequest('Invalid request')
+
+    if request.method == 'POST':
+        try:
+            link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
+            link.delete()
+            return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
+
+@login_required
+def update_shared_link(request, link_token):
+    if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return HttpResponseBadRequest('Invalid request')
+
+    link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
+
+    name = request.POST.get('name', '').strip()
+    link.name = name
+    link.save()
+
+    # Build the link URL to return
+    link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[link.token]))
+
+    return JsonResponse({
+        'status': 'success',
+        'message': _('Link name updated successfully.'),
+        'link': {
+            'url': link_url
+        }
+    })
+
+
+def shared_thread_detail(request, token):
+    shared_link = get_object_or_404(SharedLink, token=token)
+    assistant_id = shared_link.assistant_id
+
+    # Initial context
+    context = {
+        'assistant_id': assistant_id,
+        'token': token,
+        'is_shared_thread': True,
+    }
+
+    return render(request, 'chat/chat.html', context)

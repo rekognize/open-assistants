@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from ninja import Schema
 from pydantic import field_validator
 
@@ -24,11 +24,11 @@ def validate_metadata(v):
 
 class AssistantSchema(Schema):
     name: str
-    instructions: str
     description: Optional[str] = None
+    instructions: str
     model: str
-    vector_store_id: Optional[str] = None
-    tools: List[Dict[str, str]] = [{"type": "code_interpreter"}]
+    tools: Optional[List[Dict[str, Any]]] = None
+    tool_resources: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, str]] = None
 
     _validate_metadata = field_validator('metadata')(validate_metadata)

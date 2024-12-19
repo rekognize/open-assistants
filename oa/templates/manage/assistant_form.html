@@ -1,5 +1,5 @@
 <div class="col">
-    <div class="card">
+    <div class="card border-success">
         <div class="card-body" id="assistant-${tempId}">
 
             <!-- Edit Form (Initially Visible) -->
@@ -17,11 +17,6 @@
                     </div>
 
                     <div class="form-floating mb-3">
-                        ${selectVectorStore}
-                        <label for="vs-${tempId}">Vector store</label>
-                    </div>
-
-                    <div class="form-floating mb-3">
                         <textarea class="form-control" id="instructions-${tempId}" placeholder="Instructions"
                                   style="height: 100px"></textarea>
                         <label for="instructions-${tempId}">Instructions</label>
@@ -35,11 +30,37 @@
                         <label for="model-${tempId}">Model</label>
                     </div>
 
+                    <h6 class="card-title text-secondary">Tools</h6>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="fileSearchSwitch-${tempId}" onchange="toggleAssistantFileSearch('${tempId}')">
+                            <label class="form-check-label" for="fileSearchSwitch-${tempId}">File search</label>
+                        </div>
+
+                        <div class="form-floating" id="vector-store-div-${tempId}" style="display: none;">
+                            ${selectVectorStore}
+                            <label for="vs-${tempId}">Vector store</label>
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="codeInterpreterSwitch-${tempId}" checked>
+                        <label class="form-check-label" for="codeInterpreterSwitch-${tempId}">Code interpreter</label>
+                    </div>
+
+                    <small class="text-secondary">Functions</small>
+                    <div class="mb-3" id="functions-list-${tempId}">
+                        <!-- Function checkboxes will be inserted here -->
+                    </div>
+
+                    <h6 class="card-title text-secondary">Metadata</h6>
+
                     <!-- Metadata Fields -->
                     <div class="metadata-fields" id="metadata-fields-${tempId}">
                         <!-- Parameter entries will be added here dynamically -->
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addMetadataField('${tempId}')">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMetadataField('${tempId}')">
                         Add parameter
                     </button>
                 </form>

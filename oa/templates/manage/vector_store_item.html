@@ -10,7 +10,7 @@
                 <div class="d-flex justify-content-between align-items-center">
 
                     <h6 class="card-title my-0">
-                        ${store.name ?? 'Untitled'}
+                        ${storeName}
                     </h6>
 
                     <div>
@@ -67,11 +67,13 @@
                         <label for="expiration-days-${store.id}" class="form-label">Expiration after days of inactivity</label>
                     </div>
 
+                    <h6 class="card-title text-secondary">Metadata</h6>
+
                     <!-- Metadata Fields -->
                     <div class="metadata-fields" id="metadata-fields-${store.id}">
                         <!-- Parameter entries will be added here dynamically -->
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addMetadataField('${store.id}')">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMetadataField('${store.id}')">
                         Add parameter
                     </button>
 
@@ -86,6 +88,7 @@
 
             <div>
 
+                <!-- Edit Mode Toggle Buttons -->
                 <div class="brief-info">
                     <button type="button" onclick="toggleEditMode('${store.id}', 'vectorStore')"
                             class="btn btn-sm btn-outline-secondary"
@@ -94,6 +97,7 @@
                     </button>
                 </div>
 
+                <!-- Save/Cancel Buttons in Edit Mode -->
                 <div class="edit-mode d-none">
                     <button type="button" class="btn btn-sm btn-outline-success btnModifyVectorStore"
                             onclick="modifyVectorStore('${store.id}');"
@@ -110,9 +114,12 @@
 
             </div>
 
-            <div>
-                <button type="button" class="btn btn-sm btn-outline-secondary"
-                        data-bs-toggle="tooltip" data-bs-title="Files">
+            <!-- Action Buttons to Hide in Edit Mode -->
+            <div class="brief-info">
+                <button type="button" class="btn btn-sm btn-outline-secondary vector-store-files-button"
+                        data-bs-toggle="tooltip" data-bs-title="Files"
+                        data-store-id="${store.id}"
+                        onclick="hideTooltip(this); toggleFileFilterByVectorStore('${store.id}', this)">
                     <i class="bi bi-archive"></i>
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-secondary"
