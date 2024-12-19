@@ -5,19 +5,24 @@ from .models import Project, Thread, SharedLink
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ['name', 'user', 'key']
-    readonly_fields = ('list_threads',)
+    readonly_fields = ('list_shared_links',)
 
-    def list_threads(self, obj):
-        threads = obj.threads.all()
-        return ", ".join([thread.openai_id or str(thread.uuid) for thread in threads])
-    list_threads.short_description = 'Threads'
+    def list_shared_links(self, obj):
+        shared_links = obj.shared_links.all()
+        return ", ".join([f"{link.name} ({link.token})" for link in shared_links])
+    list_shared_links.short_description = 'Shared Links'
 
 
 @admin.register(Thread)
 class ThreadAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'openai_id', 'created_at')
-    search_fields = ('uuid', 'openai_id', 'created_at')
+    list_display = ('uuid', 'openai_id', 'created_at', 'shared_link_display')
+    search_fields = ('uuid', 'openai_id', 'created_at', 'shared_link__name', 'shared_link__token')
 
+    def shared_link_display(self, obj):
+        if obj.shared_link:
+            return f"{obj.shared_link.name} ({obj.shared_link.token})"
+        return "-"
+    shared_link_display.short_description = 'Shared Link'
 
 @admin.register(SharedLink)
 class SharedLinkAdmin(admin.ModelAdmin):
