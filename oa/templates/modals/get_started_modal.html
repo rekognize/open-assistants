@@ -1,6 +1,6 @@
 <!-- Get Started Modal -->
 <div class="modal fade" id="getStartedModal" tabindex="-1" aria-labelledby="getStartedModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header with Close Button -->
             <div class="modal-header">
@@ -21,19 +21,36 @@
                         <label for="assistantDescription">Description</label>
                         <small id="descriptionHelp" class="form-text text-danger d-none">The maximum character length is reached.</small>
                     </div>
-                    <div class="form-floating mb-3">
+                    <div class="form-floating mb-3 position-relative">
                         <textarea class="form-control" id="assistantInstructions" placeholder="Instructions" style="height: 100px" required></textarea>
                         <label for="assistantInstructions">Instructions</label>
+                            <button type="button" id="instructionsHelpButton" class="btn btn-sm btn-outline-light text-info-emphasis position-absolute top-0 end-0 me-3 mt-3">
+                                <i class="bi bi-stars"></i> Generate
+                            </button>
                     </div>
                 </form>
             </div>
             <!-- Modal Footer -->
             <div class="modal-footer py-2">
-                <button type="button" class="btn btn-secondary btn-sm me-auto" id="getStartedResetButton">Reset</button>
                 <button type="button" class="btn btn-primary btn-sm" id="getStartedCreateButton">
                     <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                     <span class="button-text">Create</span>
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Instructions Help Modal -->
+<div class="modal fade" id="instructionsHelpModal" tabindex="-1" aria-labelledby="instructionsHelpModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="instructionsHelpModalLabel">Describe your assistant's purpose.</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <button type="button" class="btn btn-success btn-sm" id="confirmInstructionsHelpModal">Apply</button>
             </div>
         </div>
     </div>

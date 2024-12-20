@@ -1,7 +1,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const createButton = document.getElementById('getStartedCreateButton');
-    const resetButton = document.getElementById('getStartedResetButton');
     const spinner = createButton.querySelector('.spinner-border');
     const buttonText = createButton.querySelector('.button-text');
 
@@ -33,7 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
         spinner.classList.add('d-none');
         buttonText.textContent = 'Create';
         createButton.disabled = false;
-        resetButton.disabled = false;
     }
 
     createButton.addEventListener('click', async function() {
@@ -50,7 +48,6 @@ document.addEventListener('DOMContentLoaded', function() {
         spinner.classList.remove('d-none');
         buttonText.textContent = 'Creating...';
         createButton.disabled = true;
-        resetButton.disabled = true;
 
         let creationSuccess = false;
 
@@ -85,13 +82,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Re-enable buttons only if there was an error
                 buttonText.textContent = 'Create';
                 createButton.disabled = false;
-                resetButton.disabled = false;
             }
         }
-    });
-
-    resetButton.addEventListener('click', function() {
-        resetModal();
     });
 
     const getStartedModal = document.getElementById('getStartedModal');
@@ -101,6 +93,12 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             assistantNameInput.focus();
         }, 500);
+    });
+
+    const instructionsHelpButton = document.getElementById('instructionsHelpButton');
+    instructionsHelpButton.addEventListener('click', function() {
+        const instructionsHelpModal = new bootstrap.Modal(document.getElementById('instructionsHelpModal'));
+        instructionsHelpModal.show();
     });
 
     async function createAssistantApi(assistantData) {
