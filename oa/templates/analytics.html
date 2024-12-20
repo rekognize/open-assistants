@@ -3,6 +3,15 @@
 
 {% block title %}Analytics - Open Assistants{% endblock %}
 
+{% block extra_head %}
+<style>
+    .custom-popover {
+      --bs-popover-max-width: 400px;
+    }
+</style>
+
+{% endblock %}
+
 {% block content %}
 
     <div class="container mt-4 mb-4">
@@ -113,6 +122,13 @@
 <script>
 
     /* Utility functions */
+
+    function initializePopovers() {
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
+    }
 
     function formatDbDate(dateString) {
         if (!dateString) return '<span class="text-secondary">No threads</span>';
@@ -273,9 +289,23 @@
                         const vectorStoreId = assistant.tool_resources?.file_search?.vector_store_ids?.[0];
                         const vectorStoreName = vectorStoreId ? (vectorStoresDict[vectorStoreId] || vectorStoreId) : '<span class="text-secondary">No vector store</span>';
 
+                        const popoverContent = `
+                            <p><strong>Description:</strong> ${assistant.description || 'No description available.'}</p>
+                            <p><strong>Instructions:</strong> ${assistant.instructions || 'No instructions available.'}</p>
+                            <p><strong>Model:</strong> ${assistant.model || 'Unknown'}</p>
+                            <p><strong>Tools:</strong> ${assistant.tools?.map(tool => tool.type).join(', ') || 'No tools assigned'}</p>
+                        `;
+
                         return `
                             <tr>
-                                <td>${assistant.name || 'Untitled assistant'}</td>
+                                <td>
+                                    ${assistant.name || 'Untitled assistant'}
+                                    <i class="bi bi-info-circle small text-info-emphasis ms-1 assistant-info-icon" tabindex="0"
+                                           data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto"
+                                           data-bs-custom-class="custom-popover" data-bs-html=true
+                                           data-bs-title="${assistant.name || 'Untitled assistant'}"
+                                           data-bs-content="${popoverContent}"></i>
+                                </td>
                                 <td>${formatUnixTimestamp(assistant.created_at)}</td>
                                 <td>${vectorStoreName}</td>
                                 <td>${sharedDisplay} ${notSharedDisplay} total: ${total}</td>
@@ -287,6 +317,8 @@
 
                 tableBody.innerHTML = rows.join('');
                 document.getElementById('assistants-table').classList.remove('d-none');
+
+                initializePopovers();
             } else {
                 document.getElementById('no-assistants').classList.remove('d-none');
             }
