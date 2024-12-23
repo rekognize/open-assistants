@@ -95,11 +95,61 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
     });
 
+
+    /* Generate Instructions */
+
     const instructionsHelpButton = document.getElementById('instructionsHelpButton');
     instructionsHelpButton.addEventListener('click', function() {
         const instructionsHelpModal = new bootstrap.Modal(document.getElementById('instructionsHelpModal'));
         instructionsHelpModal.show();
     });
+
+    const instructionsHelpModalElement = document.getElementById('instructionsHelpModal');
+    // Create a Bootstrap modal instance for the help modal
+    const instructionsHelpModalInstance = new bootstrap.Modal(instructionsHelpModalElement);
+
+    const instructionsHelpInput = document.getElementById('instructionsHelpInput');
+    const confirmInstructionsHelpModal = document.getElementById('confirmInstructionsHelpModal');
+
+    // Listen for "Apply" button in the help modal
+    confirmInstructionsHelpModal.addEventListener('click', async function() {
+        const userPrompt = instructionsHelpInput.value.trim();
+
+        if (!userPrompt) {
+            showToast('Info!', 'Please provide a prompt before applying.', 'info');
+            return;
+        }
+
+        try {
+            // Example: Call your backend to get auto-generated instructions text
+            const response = await fetch('/wizard/generate-instructions/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ prompt: userPrompt })
+            });
+
+            if (!response.ok) {
+                showToast('Error!', 'Could not generate instructions.', 'error');
+            } else {
+                const data = await response.json();
+
+                // Put the returned text into your instructions box:
+                assistantInstructionsInput.value = data.generated_text || '';
+
+                // Optionally, close the help modal:
+                instructionsHelpModalInstance.hide();
+            }
+        } catch (error) {
+            console.error('Error generating instructions:', error);
+            showToast('Creation Error', 'An unexpected error occurred.', 'error');
+        }
+    });
+
+
+    /* API call functions */
 
     async function createAssistantApi(assistantData) {
         try {

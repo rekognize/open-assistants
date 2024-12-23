@@ -43,14 +43,22 @@
 
 <!-- Instructions Help Modal -->
 <div class="modal fade" id="instructionsHelpModal" tabindex="-1" aria-labelledby="instructionsHelpModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
+            <!-- Modal header -->
             <div class="modal-header">
-                <h5 class="modal-title" id="instructionsHelpModalLabel">Describe your assistant's purpose.</h5>
+                <h5 class="modal-title" id="instructionsHelpModalLabel">Generate Instructions</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <!-- Modal body with textarea for user prompt -->
             <div class="modal-body">
-                <button type="button" class="btn btn-success btn-sm" id="confirmInstructionsHelpModal">Apply</button>
+                <textarea id="instructionsHelpInput" class="form-control" placeholder="Describe your assistant's purpose..." style="height: 150px;"></textarea>
+            </div>
+            <!-- Modal Footer -->
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-success btn-sm" id="confirmInstructionsHelpModal">
+                    Apply
+                </button>
             </div>
         </div>
     </div>
