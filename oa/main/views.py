@@ -5,7 +5,7 @@ import logging
 import os
 
 from asgiref.sync import async_to_sync, sync_to_async
-from django.db.models import Count, Min, Max
+from django.db.models import Count, Min, Max, Q
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
     HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
@@ -57,7 +57,6 @@ def get_assistant_threads(request):
         # Parse the JSON body to get assistant IDs
         body = json.loads(request.body)
         assistant_ids = body.get("assistant_ids", [])
-        print("Assistant IDs:", assistant_ids)
 
         if not assistant_ids:
             return JsonResponse({}, status=200)
@@ -68,7 +67,9 @@ def get_assistant_threads(request):
             .filter(metadata___asst__in=assistant_ids)
             .values("metadata")
             .annotate(
-                thread_count=Count("uuid"),
+                total_thread_count=Count("uuid"),
+                shared_thread_count=Count("uuid", filter=Q(shared_link__isnull=False)),
+                not_shared_thread_count=Count("uuid", filter=Q(shared_link__isnull=True)),
                 first_thread=Min("created_at"),
                 last_thread=Max("created_at"),
             )
@@ -78,12 +79,14 @@ def get_assistant_threads(request):
         for item in assistant_threads:
             assistant_id = item["metadata"]["_asst"]
             thread_data[assistant_id] = {
-                "thread_count": item["thread_count"],
+                "thread_count": {
+                    "shared": item["shared_thread_count"],
+                    "not_shared": item["not_shared_thread_count"],
+                    "total": item["total_thread_count"],
+                },
                 "first_thread": item["first_thread"],
                 "last_thread": item["last_thread"],
             }
-
-        print("Thread Data:", thread_data)
 
         return JsonResponse(thread_data, status=200)
     except Exception as e:
@@ -101,7 +104,6 @@ def list_threads(request):
         if not assistant_ids:
             return JsonResponse({"threads": []}, status=200)
 
-        # Fetch only threads that belong to these assistants
         threads_qs = (
             Thread.objects
             .filter(metadata___asst__in=assistant_ids)
@@ -112,18 +114,22 @@ def list_threads(request):
         threads_data = []
         for t in threads_qs:
             created_ts = int(t.created_at.timestamp()) if t.created_at else None
-            shared = t.shared_link is not None
+
+            if t.shared_link:
+                name = t.shared_link.name if t.shared_link.name else "Untitled link"
+                shared_name = name
+            else:
+                shared_name = None
+
             assistant_id = t.metadata.get("_asst") if t.metadata else None
 
             thread_info = {
                 "id": str(t.openai_id),
                 "created_at": created_ts,
                 "assistant_id": assistant_id,
-                "shared": shared,
+                "shared_link_name": shared_name,
             }
             threads_data.append(thread_info)
-
-        print("Threads Data:", threads_data)
 
         return JsonResponse({"threads": threads_data}, status=200)
     except Exception as e:
@@ -184,21 +190,17 @@ class EventHandler(AsyncAssistantEventHandler):
         self.token = token
 
     async def on_message_created(self, message):
-        print("on_message_created called")
         self.current_message = ""
         self.current_annotations = []
         self.shared_data.append({"type": "message_created"})
 
     async def on_text_delta(self, delta: TextDelta, snapshot: Text):
-        # print(f"on_text_delta called with delta: {delta.value}")
-
         if delta.value:
             self.current_message += delta.value
 
         # Collect annotations from the snapshot
         self.current_annotations = []
         if snapshot.annotations:
-            print(f"Annotations found: {snapshot.annotations}")
             for annotation in snapshot.annotations:
                 annotation_dict = annotation.to_dict()
 
@@ -219,7 +221,6 @@ class EventHandler(AsyncAssistantEventHandler):
         })
 
     async def on_message_done(self, message):
-        print("on_message_done called")
         # Send the final message content and annotations to the client
         self.shared_data.append({
             "type": "message_done",
@@ -228,7 +229,6 @@ class EventHandler(AsyncAssistantEventHandler):
         })
 
     async def on_image_file_done(self, image_file: ImageFile) -> None:
-        print(f"on_image_file_done called with file_id: {image_file.file_id}")
         image_url = reverse('serve_image_file', args=[image_file.file_id])
         if self.token:
             image_url += f'?token={self.token}'
@@ -242,7 +242,6 @@ class EventHandler(AsyncAssistantEventHandler):
         })
 
     async def on_end(self):
-        print("on_end called")
         self.stream_done = True
         self.shared_data.append({"type": "end_of_stream"})
 
@@ -306,8 +305,6 @@ async def stream_responses(request, thread_id, assistant_id):
             ) as stream:
                 # Process events as they arrive
                 async for event in stream:
-                    print(f"Received event: {event.event}")
-
                     # Handle 'requires_action' events here
                     if event.event == "thread.run.requires_action":
                         run_id = event.data.id
@@ -322,9 +319,6 @@ async def stream_responses(request, thread_id, assistant_id):
                                 function_args_json = tool_call.function.arguments
                                 function_args = json.loads(function_args_json)
 
-                                print("tool_call_id:", tool_call_id)
-                                print(f"Function call received: {function_name} with arguments {function_args}")
-
                                 # Execute the function and get the output
                                 if function_name in FUNCTION_IMPLEMENTATIONS:
                                     function_class = FUNCTION_IMPLEMENTATIONS[function_name]
@@ -333,7 +327,6 @@ async def stream_responses(request, thread_id, assistant_id):
                                         function_instance = function_class(**function_args)
                                         # If 'main' is synchronous, run it in a thread
                                         output = await asyncio.to_thread(function_instance.main)
-                                        print(f"Output successful for: {function_name}")
                                         # Ensure the output is JSON-serializable
                                         output_json = json.dumps(output)
                                     except Exception as e:
@@ -357,8 +350,6 @@ async def stream_responses(request, thread_id, assistant_id):
                             ) as tool_output_stream:
                                 # Process events from the tool output stream
                                 async for tool_event in tool_output_stream:
-                                    print(f"tool_event: {tool_event.event}")
-
                                     while shared_data:
                                         data = shared_data.pop(0)
                                         yield f"data: {json.dumps(data)}\n\n"
@@ -376,7 +367,6 @@ async def stream_responses(request, thread_id, assistant_id):
                 # After the stream ends, process any remaining shared_data
                 while shared_data:
                     data = shared_data.pop(0)
-                    print(f"Streaming data after stream ends: {data}")
                     yield f"data: {json.dumps(data)}\n\n"
                     await asyncio.sleep(0)  # Yield control to the event loop
                     if data.get("type") == "end_of_stream":
@@ -705,19 +695,28 @@ def share_assistant(request, assistant_id):
             return JsonResponse({
                 'status': 'success',
                 'message': _('New shareable link created.'),
-                'link': {'token': str(new_link.token), 'url': link_url}
+                'link': {
+                    'token': str(new_link.token),
+                    'url': link_url,
+                    'created': new_link.created
+                }
             })
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     elif request.method == 'GET':
-        links = SharedLink.objects.filter(assistant_id=assistant_id, project=selected_project)
+        links = SharedLink.objects.filter(
+            assistant_id=assistant_id,
+            project=selected_project,
+            project__user=request.user
+        ).order_by('-created')
 
         try:
             if links:
                 data = {'links': [{'token': link.token,
                                    'url': request.build_absolute_uri(f'/shared/{link.token}/'),
-                                   'name': link.name
+                                   'name': link.name,
+                                   'created': link.created
                                    } for link in links]}
             else:
                 data = {'message': _('No links available.')}
@@ -735,13 +734,36 @@ def delete_shared_link(request, link_token):
 
     if request.method == 'POST':
         try:
-            link = get_object_or_404(SharedLink, token=link_token)
+            link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
             link.delete()
             return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
+
+@login_required
+def update_shared_link(request, link_token):
+    if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return HttpResponseBadRequest('Invalid request')
+
+    link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
+
+    name = request.POST.get('name', '').strip()
+    link.name = name
+    link.save()
+
+    # Build the link URL to return
+    link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[link.token]))
+
+    return JsonResponse({
+        'status': 'success',
+        'message': _('Link name updated successfully.'),
+        'link': {
+            'url': link_url
+        }
+    })
 
 
 def shared_thread_detail(request, token):

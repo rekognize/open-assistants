@@ -25,7 +25,6 @@ class FeedParser(AssistantTool):
 
         feed_md = 'Below are the RSS entries. Fetch the contents you find relevant. \n\n'
         for entry in feed.entries:
-            print(entry)
             feed_md += (
                 f"# {entry.title}\n"
                 f"{entry.published}\n"

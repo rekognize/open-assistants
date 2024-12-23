@@ -1,143 +1,91 @@
-<style>
-.get-started-step {
-    min-height: 450px;
-}
-</style>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let currentStep = 1;
-    const totalSteps = 3;
-
-    const backButton = document.getElementById('getStartedBackButton');
-    const nextButton = document.getElementById('getStartedNextButton');
+    const createButton = document.getElementById('getStartedCreateButton');
     const resetButton = document.getElementById('getStartedResetButton');
-    const progressBar = document.getElementById('getStartedProgressBar');
-    const spinner = nextButton.querySelector('.spinner-border');
-    const buttonText = nextButton.querySelector('.button-text');
-
-    let assistantData = {};
-    let vectorStoreData = {};
-
-    const maxNameLength = 256;
-    const maxDescriptionLength = 512;
+    const spinner = createButton.querySelector('.spinner-border');
+    const buttonText = createButton.querySelector('.button-text');
 
     const assistantNameInput = document.getElementById('assistantName');
     const assistantDescriptionInput = document.getElementById('assistantDescription');
     const assistantInstructionsInput = document.getElementById('assistantInstructions');
-    const assistantModelSelect = document.getElementById('assistantModel');
     const nameHelp = document.getElementById('nameHelp');
     const descriptionHelp = document.getElementById('descriptionHelp');
 
-    const existingVectorStoreSelect = document.getElementById('existingVectorStoreSelect');
+    const maxNameLength = 256;
+    const maxDescriptionLength = 512;
 
-    // Show/hide name help text
+    // Field length validation
     assistantNameInput.addEventListener('input', function() {
         const currentLength = assistantNameInput.value.length;
         nameHelp.classList.toggle('d-none', currentLength < maxNameLength);
     });
 
-    // Show/hide description help text
     assistantDescriptionInput.addEventListener('input', function() {
         const currentLength = assistantDescriptionInput.value.length;
         descriptionHelp.classList.toggle('d-none', currentLength < maxDescriptionLength);
     });
 
-    function showStep(step) {
-        for (let i = 1; i <= totalSteps; i++) {
-            const stepDiv = document.getElementById('getStartedStep' + i);
-            stepDiv.classList.toggle('d-none', i !== step);
-        }
-
-        const progressPercent = (step / totalSteps) * 100;
-        progressBar.style.width = progressPercent + '%';
-        progressBar.setAttribute('aria-valuenow', progressPercent);
-        progressBar.innerText = 'Step ' + step + ' of ' + totalSteps;
-
-        backButton.disabled = (step === 1);
-
-        if (step === totalSteps) {
-            nextButton.classList.remove('btn-primary');
-            nextButton.classList.add('btn-success');
-            buttonText.textContent = 'Finish';
-            populateSummary();
-        } else {
-            nextButton.classList.remove('btn-success');
-            nextButton.classList.add('btn-primary');
-            buttonText.textContent = 'Next';
-        }
+    function resetModal() {
+        document.getElementById('assistantForm').reset();
+        assistantNameInput.value = "My first assistant";
+        nameHelp.classList.add('d-none');
+        descriptionHelp.classList.add('d-none');
+        spinner.classList.add('d-none');
+        buttonText.textContent = 'Create';
+        createButton.disabled = false;
+        resetButton.disabled = false;
     }
 
-    backButton.addEventListener('click', function() {
-        if (currentStep > 1) {
-            currentStep--;
-            showStep(currentStep);
+    createButton.addEventListener('click', async function() {
+        const assistantName = assistantNameInput.value.trim();
+        const assistantDescription = assistantDescriptionInput.value.trim();
+        const assistantInstructions = assistantInstructionsInput.value.trim();
+
+        if (!assistantInstructions) {
+            showToast('Info!', 'Please fill in instructions.', 'info');
+            return;
         }
-    });
 
-    nextButton.addEventListener('click', async function() {
-        const isValid = validateStep(currentStep);
-        if (isValid) {
-            if (currentStep < totalSteps) {
-                currentStep++;
-                showStep(currentStep);
+        // Show loading
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Creating...';
+        createButton.disabled = true;
+        resetButton.disabled = true;
+
+        let creationSuccess = false;
+
+        const assistantData = {
+            name: assistantName,
+            description: assistantDescription,
+            instructions: assistantInstructions,
+            model: 'gpt-4o'
+        };
+
+        try {
+            const assistantCreated = await createAssistantApi(assistantData);
+            if (assistantCreated) {
+                creationSuccess = true;
+                buttonText.textContent = 'Done';
+                createButton.classList.remove('btn-primary');
+                createButton.classList.add('btn-success');
+
+                showToast('Success!', 'Your assistant has been set up.', 'success');
+                setTimeout(() => {
+                    window.location.href = '{% url "manage_assistants" %}';
+                }, 1000);
             } else {
-                // On finish, show loading spinner and start creation process
-                spinner.classList.remove('d-none');
-                buttonText.textContent = 'Creating...';
-                nextButton.disabled = true;
-                backButton.disabled = true;
-                resetButton.disabled = true;
-
-                let creationSuccess = false;
-
-                try {
-                    const vectorStoreOption = document.querySelector('input[name="vectorStoreOption"]:checked').value;
-
-                    let createdVectorStoreId = null;
-
-                    // 1. Create Vector Store if needed
-                    if (vectorStoreOption === 'create') {
-                        createdVectorStoreId = await createVectorStoreApi(vectorStoreData.name);
-                        if (!createdVectorStoreId) {
-                            throw new Error('Failed to create vector store.');
-                        }
-                    }
-
-                    let associatedVectorStoreId = null;
-                    if (vectorStoreOption === 'select') {
-                        associatedVectorStoreId = existingVectorStoreSelect.value || null;
-                    } else if (vectorStoreOption === 'create') {
-                        associatedVectorStoreId = createdVectorStoreId;
-                    }
-
-                    // 2. Create the Assistant
-                    const assistantCreated = await createAssistantApi(assistantData, associatedVectorStoreId);
-                    if (!assistantCreated) {
-                        throw new Error('Failed to create assistant.');
-                    }
-
-                    creationSuccess = true;
-
-                    // On success
-                    showToast('Setup Completed', 'Your assistant has been set up.', 'success');
-                    setTimeout(() => {
-                        window.location.href = '{% url "manage_assistants" %}';
-                    }, 1000);
-
-                } catch (error) {
-                    showToast('Creation Error', error.message, 'warning');
-                    console.error(error);
-                } finally {
-                    spinner.classList.add('d-none');
-                    buttonText.textContent = 'Finish';
-                    if (!creationSuccess) {
-                        // Re-enable buttons only if there was an error
-                        nextButton.disabled = false;
-                        backButton.disabled = false;
-                        resetButton.disabled = false;
-                    }
-                }
+                showToast('Creation Error', 'Failed to create assistant.', 'warning');
+            }
+        } catch (error) {
+            console.error('Create assistant error:', error);
+            showToast('Creation Error', 'An unexpected error occurred.', 'warning');
+        } finally {
+            spinner.classList.add('d-none');
+            if (!creationSuccess) {
+                // Re-enable buttons only if there was an error
+                buttonText.textContent = 'Create';
+                createButton.disabled = false;
+                resetButton.disabled = false;
             }
         }
     });
@@ -146,218 +94,20 @@ document.addEventListener('DOMContentLoaded', function() {
         resetModal();
     });
 
-    function resetModal() {
-        currentStep = 1;
-        showStep(currentStep);
-
-        assistantData = {};
-        vectorStoreData = {};
-
-        // Reset form fields
-        document.getElementById('assistantForm').reset();
-        nameHelp.classList.add('d-none');
-        descriptionHelp.classList.add('d-none');
-
-        // Reset vector store options
-        document.getElementById('noVectorStoreOption').checked = true;
-        toggleVectorStoreOptions();
-
-        // Clear vector store selection
-        existingVectorStoreSelect.selectedIndex = 0;
-
-        // Reload vector stores
-        loadExistingVectorStores();
-
-        // Hide spinner if visible
-        spinner.classList.add('d-none');
-        buttonText.textContent = 'Next';
-    }
-
-    function validateStep(step) {
-        let isValid = true;
-        if (step === 1) {
-            const assistantName = assistantNameInput.value.trim();
-            const assistantDescription = assistantDescriptionInput.value.trim();
-            const assistantInstructions = assistantInstructionsInput.value.trim();
-            const assistantModel = assistantModelSelect.value;
-
-            if (!assistantName || !assistantInstructions || !assistantModel) {
-                isValid = false;
-                showToast('Validation Error', 'Please fill in all required fields.', 'warning');
-            }
-
-            if (isValid) {
-                assistantData = {
-                    name: assistantName,
-                    description: assistantDescription,
-                    instructions: assistantInstructions,
-                    model: assistantModel
-                };
-            }
-        } else if (step === 2) {
-            const vectorStoreOption = document.querySelector('input[name="vectorStoreOption"]:checked').value;
-            vectorStoreData = {};
-
-            if (vectorStoreOption === 'select') {
-                const selectedId = existingVectorStoreSelect.value;
-                if (!selectedId) {
-                    isValid = false;
-                    showToast('Validation Error', 'Please select a vector store.', 'warning');
-                } else {
-                    vectorStoreData.id = selectedId;
-                }
-            } else if (vectorStoreOption === 'create') {
-                const vectorStoreName = document.getElementById('vectorStoreName').value.trim();
-                if (!vectorStoreName) {
-                    isValid = false;
-                    showToast('Validation Error', 'Please enter a name for the vector store.', 'warning');
-                }
-                if (isValid) {
-                    vectorStoreData.name = vectorStoreName;
-                }
-            }
-        }
-        return isValid;
-    }
-
-    function populateSummary() {
-        const summaryContent = document.getElementById('summaryContent');
-        let html = '<div class="border p-3 mb-3 rounded">';
-        html += '<h5 class="fw-bold mb-2">Assistant Details</h5>';
-        html += `<p><strong>Name:</strong> ${assistantData.name}</p>`;
-        html += `<p><strong>Description:</strong> ${assistantData.description || 'N/A'}</p>`;
-        html += `<p><strong>Instructions:</strong> ${assistantData.instructions}</p>`;
-        html += `<p><strong>Model:</strong> ${assistantData.model}</p>`;
-        html += `<p><strong>Tools:</strong> code_interpreter`;
-        if (vectorStoreData.id || vectorStoreData.name) {
-            html += ', file_search';
-        }
-        html += '</p>';
-        html += '</div>';
-
-        // Vector Store section
-        if (vectorStoreData.id) {
-            html += '<div class="border p-3 mb-3 rounded">';
-            html += '<h6 class="fw-bold mb-2">Selected Vector Store</h6>';
-            const vsName = vectorStores[vectorStoreData.id]?.name ?? 'Untitled Store';
-            html += `<p><strong>Name:</strong> ${vsName}</p>`;
-            html += '</div>';
-        } else if (vectorStoreData.name) {
-            html += '<div class="border p-3 mb-3 rounded">';
-            html += '<h6 class="fw-bold mb-2">Vector Store to be Created</h6>';
-            html += `<p><strong>Name:</strong> ${vectorStoreData.name}</p>`;
-            html += '</div>';
-        } else {
-            // No Vector Store associated
-            html += '<div class="border p-3 mb-3 rounded">';
-            html += '<h6 class="fw-bold mb-2">No Vector Store</h6>';
-            html += '<p>No vector store will be associated.</p>';
-            html += '</div>';
-        }
-
-        summaryContent.innerHTML = html;
-    }
-
-    const vectorStoreOptions = document.querySelectorAll('input[name="vectorStoreOption"]');
-    vectorStoreOptions.forEach(option => {
-        option.addEventListener('change', toggleVectorStoreOptions);
+    const getStartedModal = document.getElementById('getStartedModal');
+    getStartedModal.addEventListener('show.bs.modal', function () {
+        resetModal();
+        // Focus name field
+        setTimeout(() => {
+            assistantNameInput.focus();
+        }, 500);
     });
 
-    function toggleVectorStoreOptions() {
-        const selectedOption = document.querySelector('input[name="vectorStoreOption"]:checked').value;
-        const selectSection = document.getElementById('selectVectorStoreSection');
-        const createSection = document.getElementById('createVectorStoreSection');
-
-        if (selectedOption === 'none') {
-            selectSection.classList.add('d-none');
-            createSection.classList.add('d-none');
-            document.getElementById('vectorStoreName').value = '';
-        } else if (selectedOption === 'select') {
-            selectSection.classList.remove('d-none');
-            createSection.classList.add('d-none');
-            document.getElementById('vectorStoreName').value = '';
-            loadExistingVectorStores();
-        } else if (selectedOption === 'create') {
-            selectSection.classList.add('d-none');
-            createSection.classList.remove('d-none');
-        }
-    }
-
-    function loadExistingVectorStores() {
-        const existingSelect = document.getElementById('existingVectorStoreSelect');
-        const selectOptionRadio = document.getElementById('selectVectorStoreOption');
-        const selectOptionLabel = document.querySelector('label[for="selectVectorStoreOption"]');
-        const selectSection = document.getElementById('selectVectorStoreSection');
-
-        // Hide "Select Existing" option by default
-        selectOptionRadio.classList.add('d-none');
-        selectOptionLabel.classList.add('d-none');
-
-        // Clear old options
-        for (let i = existingSelect.options.length - 1; i >= 1; i--) {
-            existingSelect.remove(i);
-        }
-
-        const vectorStoreEntries = Object.entries(vectorStores || {});
-        if (vectorStoreEntries.length === 0) {
-            // If no vector stores, ensure we don't show the select option
-            if (selectOptionRadio.checked) {
-                document.getElementById('noVectorStoreOption').checked = true;
-            }
-            selectSection.classList.add('d-none');
-        } else {
-            // Show "Select Existing" option if vector stores exist
-            selectOptionRadio.classList.remove('d-none');
-            selectOptionLabel.classList.remove('d-none');
-
-            vectorStoreEntries.forEach(([vsId, vs]) => {
-                const option = document.createElement('option');
-                option.value = vsId;
-                option.textContent = vs.name ?? 'Untitled Store';
-                existingSelect.appendChild(option);
-            });
-        }
-    }
-
-    async function createVectorStoreApi(name) {
+    async function createAssistantApi(assistantData) {
         try {
-            const payload = { name: name };
-            const response = await fetch("{% url 'api-1.0.0:create_vector_store' %}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify(payload)
-            });
-            if (response.ok) {
-                const data = await response.json();
-                return data.id;
-            } else {
-                const errorData = await response.json();
-                console.error('Create vector store error:', errorData);
-            }
-        } catch (error) {
-            console.error('Create vector store error:', error);
-        }
-        return null;
-    }
-
-    async function createAssistantApi(assistantData, vectorStoreId) {
-        try {
-            let tools = [];
-            let tool_resources = {};
-
             // Always add code_interpreter
-            tools.push({ "type": "code_interpreter" });
-
-            if (vectorStoreId) {
-                // Add file_search if a vector store is associated
-                tools.push({ "type": "file_search" });
-                tool_resources["file_search"] = {
-                    "vector_store_ids": [vectorStoreId]
-                };
-            }
+            let tools = [{ "type": "code_interpreter" }];
+            let tool_resources = {};
 
             const payload = {
                 name: assistantData.name,
@@ -389,14 +139,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return false;
     }
-
-    // Re-init modal each time it's shown
-    const getStartedModal = document.getElementById('getStartedModal');
-    getStartedModal.addEventListener('show.bs.modal', function () {
-        resetModal();
-    });
-
-    // Initialize
-    showStep(currentStep);
 });
 </script>
