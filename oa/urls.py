@@ -1,20 +1,25 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.contrib.auth.views import LogoutView
+from django.urls import path
 
 from oa.api.views import api
 from oa.main import views as main_views
+from oa.tenants.views import login_view
 
 
 urlpatterns = [
-    path('accounts/', include('accounts.urls', namespace='accounts')),
-
     path('oaAdmin/', admin.site.urls),
+
+    path('login/', login_view, name='login'),
+    path('logout/', LogoutView.as_view(), name='logout'),
 
     path("api/", api.urls),
 
     path('', main_views.HomeView.as_view(), name='home'),
 
+    path('<uuid:uuid>/manage/', main_views.manage_assistants, name='manage_assistants'),
     path('manage/', main_views.manage_assistants, name='manage_assistants'),
+
     path('analytics/', main_views.analytics, name='analytics'),
     path('analytics/thread_data/', main_views.get_assistant_threads, name='get_assistant_threads'),
 
