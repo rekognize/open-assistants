@@ -1981,7 +1981,7 @@
 
     async function fetchAssistants() {
         try {
-            const response = await fetch(url, {
+            const response = await fetch('{% url "api-1.0.0:list_assistants" %}', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
@@ -2561,7 +2561,7 @@
 
     async function fetchFiles() {
         try {
-            const response = await fetch(url, {
+            const response = await fetch('{% url "api-1.0.0:list_files" %}', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
