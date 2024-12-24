@@ -1,6 +1,8 @@
 from typing import Any
 from django.contrib.auth import aget_user
-from openai import AsyncOpenAI
+from django.urls import reverse
+from openai import AsyncOpenAI, AsyncAssistantEventHandler
+from openai.types.beta.threads import Text, TextDelta, ImageFile
 from oa.main.models import Project, SharedLink
 
 
@@ -77,3 +79,66 @@ async def aget_openai_client(request):
                 raise APIError("Invalid token.", status=403)
         else:
             raise APIError("Authentication required.", status=401)
+
+
+class EventHandler(AsyncAssistantEventHandler):
+    def __init__(self, shared_data):
+        super().__init__()
+        self.current_message = ""
+        self.shared_data = shared_data  # Use shared_data instead of response_data
+        self.stream_done = False
+        self.current_annotations = []
+
+    async def on_message_created(self, message):
+        self.current_message = ""
+        self.current_annotations = []
+        self.shared_data.append({"type": "message_created"})
+
+    async def on_text_delta(self, delta: TextDelta, snapshot: Text):
+        if delta.value:
+            self.current_message += delta.value
+
+        # Collect annotations from the snapshot
+        self.current_annotations = []
+        if snapshot.annotations:
+            for annotation in snapshot.annotations:
+                annotation_dict = annotation.to_dict()
+
+                if hasattr(annotation, 'file_citation') and annotation.file_citation:
+                    # Manually construct the file_citation dictionary
+                    annotation_dict['file_citation'] = {
+                        'file_id': annotation.file_citation.file_id,
+                        'filename': 'Unknown File'  # Placeholder
+                    }
+
+                self.current_annotations.append(annotation_dict)
+
+        # Send the updated message and annotations to the client
+        self.shared_data.append({
+            "type": "text_delta",
+            "text": self.current_message,
+            "annotations": self.current_annotations
+        })
+
+    async def on_message_done(self, message):
+        # Send the final message content and annotations to the client
+        self.shared_data.append({
+            "type": "message_done",
+            "text": self.current_message,
+            "annotations": self.current_annotations
+        })
+
+    async def on_image_file_done(self, image_file: ImageFile) -> None:
+        image_url = reverse('serve_image_file', args=[image_file.file_id])
+        self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
+
+        # No annotations for images
+        self.shared_data.append({
+            "type": "image_file",
+            "text": self.current_message,
+            "annotations": []
+        })
+
+    async def on_end(self):
+        self.stream_done = True
+        self.shared_data.append({"type": "end_of_stream"})

@@ -9,21 +9,19 @@ from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django import forms
 from django.db.models import Count, Min, Max, Q
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
-    HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponse, Http404, HttpResponseNotFound, HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views import View
 from django.views.generic import TemplateView
-from openai import AsyncAssistantEventHandler, OpenAIError
-from openai.types.beta.threads import Text, TextDelta, ImageFile
+from openai import OpenAIError
 
 from .models import Project, SharedLink, Thread
 from .utils import format_time, verify_openai_key
 from ..api.utils import APIError, aget_openai_client
-from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
+from ..tools import FUNCTION_DEFINITIONS
 
 logger = logging.getLogger(__name__)
 
@@ -207,72 +205,6 @@ async def create_db_thread(request):
 
 # Chat
 
-class EventHandler(AsyncAssistantEventHandler):
-    def __init__(self, shared_data, token=None):
-        super().__init__()
-        self.current_message = ""
-        self.shared_data = shared_data  # Use shared_data instead of response_data
-        self.stream_done = False
-        self.current_annotations = []
-        self.token = token
-
-    async def on_message_created(self, message):
-        self.current_message = ""
-        self.current_annotations = []
-        self.shared_data.append({"type": "message_created"})
-
-    async def on_text_delta(self, delta: TextDelta, snapshot: Text):
-        if delta.value:
-            self.current_message += delta.value
-
-        # Collect annotations from the snapshot
-        self.current_annotations = []
-        if snapshot.annotations:
-            for annotation in snapshot.annotations:
-                annotation_dict = annotation.to_dict()
-
-                if hasattr(annotation, 'file_citation') and annotation.file_citation:
-                    # Manually construct the file_citation dictionary
-                    annotation_dict['file_citation'] = {
-                        'file_id': annotation.file_citation.file_id,
-                        'filename': 'Unknown File'  # Placeholder
-                    }
-
-                self.current_annotations.append(annotation_dict)
-
-        # Send the updated message and annotations to the client
-        self.shared_data.append({
-            "type": "text_delta",
-            "text": self.current_message,
-            "annotations": self.current_annotations
-        })
-
-    async def on_message_done(self, message):
-        # Send the final message content and annotations to the client
-        self.shared_data.append({
-            "type": "message_done",
-            "text": self.current_message,
-            "annotations": self.current_annotations
-        })
-
-    async def on_image_file_done(self, image_file: ImageFile) -> None:
-        image_url = reverse('serve_image_file', args=[image_file.file_id])
-        if self.token:
-            image_url += f'?token={self.token}'
-        self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
-
-        # No annotations for images
-        self.shared_data.append({
-            "type": "image_file",
-            "text": self.current_message,
-            "annotations": []
-        })
-
-    async def on_end(self):
-        self.stream_done = True
-        self.shared_data.append({"type": "end_of_stream"})
-
-
 def serve_image_file(request, file_id):
     try:
         image_binary = async_to_sync(fetch_image_binary)(request, file_id)
@@ -290,294 +222,16 @@ async def fetch_image_binary(request, file_id):
     return image_binary
 
 
-def thread_detail(request):
-    # Get assistant
+def thread_detail(request, project_uuid):
+    if request.user.is_staff:
+        selected_project = get_object_or_404(Project, uuid=project_uuid)
+    else:
+        selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
+
     return render(request, "chat/chat.html", {
-        'assistant_id': request.GET.get('a')
+        'assistant_id': request.GET.get('a'),
+        'selected_project': selected_project,
     })
-
-
-def create_stream_url(request, thread_id, assistant_id):
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
-
-    # Generate the URL for 'stream_responses'
-    stream_path = reverse('stream_responses', kwargs={
-        'assistant_id': assistant_id,
-        'thread_id': thread_id
-    })
-    stream_url = request.build_absolute_uri(stream_path)
-
-    return JsonResponse({'success': True, 'stream_url': stream_url})
-
-
-async def stream_responses(request, thread_id, assistant_id):
-    token = request.GET.get('token')
-    if token:
-        request.GET = request.GET.copy()
-        request.GET['token'] = token
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    async def event_stream():
-        shared_data = []
-        event_handler = EventHandler(shared_data=shared_data, token=token)
-        try:
-            async with client.beta.threads.runs.stream(
-                thread_id=thread_id,
-                assistant_id=assistant_id,
-                event_handler=event_handler,
-            ) as stream:
-                # Process events as they arrive
-                async for event in stream:
-                    # Handle 'requires_action' events here
-                    if event.event == "thread.run.requires_action":
-                        run_id = event.data.id
-                        required_action = event.data.required_action
-                        if required_action.type == "submit_tool_outputs":
-                            tool_calls = required_action.submit_tool_outputs.tool_calls
-                            tool_outputs = []
-
-                            for tool_call in tool_calls:
-                                tool_call_id = tool_call.id
-                                function_name = tool_call.function.name
-                                function_args_json = tool_call.function.arguments
-                                function_args = json.loads(function_args_json)
-
-                                # Execute the function and get the output
-                                if function_name in FUNCTION_IMPLEMENTATIONS:
-                                    function_class = FUNCTION_IMPLEMENTATIONS[function_name]
-                                    try:
-                                        # Instantiate the class with the arguments
-                                        function_instance = function_class(**function_args)
-                                        # If 'main' is synchronous, run it in a thread
-                                        output = await asyncio.to_thread(function_instance.main)
-                                        # Ensure the output is JSON-serializable
-                                        output_json = json.dumps(output)
-                                    except Exception as e:
-                                        output = f"Error executing function {function_name}: {str(e)}"
-                                        output_json = json.dumps({"error": output})
-                                else:
-                                    output = f"Function {function_name} not found"
-                                    output_json = json.dumps({"error": output})
-
-                                tool_outputs.append({"tool_call_id": tool_call_id, "output": output_json})
-
-                            # Create a new EventHandler instance for the submit_tool_outputs_stream
-                            tool_output_event_handler = EventHandler(shared_data=shared_data)
-
-                            # Submit tool outputs
-                            async with client.beta.threads.runs.submit_tool_outputs_stream(
-                                thread_id=thread_id,
-                                run_id=run_id,
-                                tool_outputs=tool_outputs,
-                                event_handler=tool_output_event_handler,
-                            ) as tool_output_stream:
-                                # Process events from the tool output stream
-                                async for tool_event in tool_output_stream:
-                                    while shared_data:
-                                        data = shared_data.pop(0)
-                                        yield f"data: {json.dumps(data)}\n\n"
-
-                                        await asyncio.sleep(0)
-
-                    # Yield data to the client immediately
-                    while shared_data:
-                        data = shared_data.pop(0)
-                        yield f"data: {json.dumps(data)}\n\n"
-
-                        # Flush the response to the client
-                        await asyncio.sleep(0)  # Yield control to the event loop
-
-                # After the stream ends, process any remaining shared_data
-                while shared_data:
-                    data = shared_data.pop(0)
-                    yield f"data: {json.dumps(data)}\n\n"
-                    await asyncio.sleep(0)  # Yield control to the event loop
-                    if data.get("type") == "end_of_stream":
-                        return
-
-        except Exception as e:
-            # Yield an error message to the client
-            error_data = {"type": "error", "message": str(e)}
-            yield f"data: {json.dumps(error_data)}\n\n"
-
-    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
-    response['Cache-Control'] = 'no-cache'
-    response['X-Accel-Buffering'] = 'no'  # For Nginx
-    return response
-
-
-async def get_messages(request, thread_id):
-    token = request.headers.get('X-Token') or request.GET.get('token')
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    messages = await fetch_messages(client, thread_id, token)
-    return JsonResponse({'success': True, 'messages': messages})
-
-
-async def fetch_messages(client, thread_id, token=None):
-    try:
-        response = await client.beta.threads.messages.list(
-            thread_id=thread_id,
-            order='asc',
-        )
-        messages = response.data
-
-        async def format_message(message):
-            role = message.role
-            content = ""
-            if message.content:
-                for content_item in message.content:
-                    if content_item.type == "text":
-                        text_content = content_item.text.value
-                        annotations = content_item.text.annotations
-
-                        for index, annotation in enumerate(annotations):
-                            # Fetch file citation
-                            if file_citation := getattr(annotation, 'file_citation', None):
-                                citation_file_id = getattr(file_citation, 'file_id', None)
-                                try:
-                                    cited_file = await client.files.retrieve(citation_file_id)
-                                    file_info = f'({cited_file.filename})'
-                                except OpenAIError as e:
-                                    logger.warning(f"File with id {citation_file_id} not found: {e}")
-                                    file_info = '(Reference file is not available)'
-
-                                # Replace the annotation text with the file info
-                                text_content = text_content.replace(annotation.text, f' [{index + 1}] {file_info}')
-
-                            # Fetch file path
-                            if file_path := getattr(annotation, 'file_path', None):
-                                file_path_file_id = getattr(file_path, 'file_id', None)
-                                download_link = reverse('download_file', args=[thread_id, file_path_file_id])
-
-                                # Include the token in the download link
-                                if token:
-                                    download_link += f'?token={token}'
-
-                                # Replace the annotation text with the download link
-                                text_content = text_content.replace(annotation.text, download_link)
-
-                        content += f"<p>{text_content}</p>"
-
-                    elif content_item.type == "image_file":
-                        image_file_id = content_item.image_file.file_id
-                        try:
-                            image_data = await fetch_image_file(client, image_file_id)
-                            content += f'<p><img src="{image_data}" style="max-width: 100%;"></p>'
-                        except OpenAIError as e:
-                            logger.warning(f"Error fetching image file with id {image_file_id}: {e}")
-                            content += f"<p>(Error fetching image file)</p>"
-                    else:
-                        content += f"<p>Unsupported content type: {content_item.type}</p>"
-
-            # Fetch assistant name if role is 'assistant'
-            if role == 'assistant':
-                try:
-                    assistant_response = await client.beta.assistants.retrieve(assistant_id=message.assistant_id)
-                    name = assistant_response.name
-                except OpenAIError as e:
-                    logger.warning(f"Assistant with id {message.assistant_id} not found: {e}")
-                    name = "assistant"
-            else:
-                name = role
-
-            return {
-                "role": role,
-                "name": name,
-                "message": content
-            }
-
-        # Run the formatting tasks concurrently
-        formatted_messages_tasks = [format_message(message) for message in messages]
-        formatted_messages = await asyncio.gather(*formatted_messages_tasks)
-
-        return formatted_messages
-    except Exception as e:
-        logger.error(f"Error fetching messages: {e}")
-        return []
-
-
-async def fetch_image_file(client, file_id):
-    content_response = await client.files.content(file_id)
-
-    # Read the binary content from the response
-    image_binary = content_response.read()
-
-    # Convert the binary content to a base64 encoded string
-    image_base64 = base64.b64encode(image_binary).decode('utf-8')
-
-    # Create a data URL
-    image_data_url = f"data:image/png;base64,{image_base64}"
-
-    return image_data_url
-
-
-async def get_thread_files(request, thread_id):
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        # Retrieve the thread details from OpenAI
-        response = await client.beta.threads.retrieve(thread_id=thread_id)
-        file_ids = response.tool_resources.code_interpreter.file_ids
-    except Exception as e:
-        logger.error(f"Error retrieving file IDs from OpenAI: {e}")
-        return JsonResponse({'success': False, 'error': 'Error retrieving file IDs from OpenAI'}, status=500)
-
-    async def fetch_file(file_id):
-        try:
-            file_response = await client.files.retrieve(file_id=file_id)
-            return {
-                "file_id": file_id,
-                "file_name": file_response.filename,
-                "created_at": format_time(file_response.created_at),
-                "bytes": file_response.bytes,
-            }
-        except Exception as e:
-            logger.error(f"Error retrieving file from OpenAI: {e}")
-            return None
-
-    # Run the file retrieval tasks concurrently
-    file_tasks = [fetch_file(file_id) for file_id in file_ids]
-    files_responses = await asyncio.gather(*file_tasks)
-
-    # Filter out any failed file retrievals
-    files = [file for file in files_responses if file is not None]
-
-    return JsonResponse({'success': True, 'files': files})
-
-
-class DownloadFileView(View):
-    async def get(self, request, thread_id, file_id):
-        try:
-            client = await aget_openai_client(request)
-        except APIError as e:
-            return JsonResponse({"error": e.message}, status=e.status)
-
-        try:
-            # Retrieve file metadata
-            file_info = await client.files.retrieve(file_id)
-            # Retrieve file content
-            file_content_response = await client.files.content(file_id)
-            file_content = file_content_response.read()  # Read the content as bytes
-
-            # Extract the filename from the full path
-            filename = os.path.basename(file_info.filename)
-
-            response = HttpResponse(file_content, content_type='application/octet-stream')
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            return response
-        except OpenAIError as e:
-            raise Http404(f"File not found: {e}")
 
 
 # Projects
@@ -707,14 +361,6 @@ def share_assistant(request, assistant_id):
         return JsonResponse({'status': 'error', 'message': _('No project selected.')}, status=400)
 
     if request.method == 'POST':
-        # Check the number of existing shared links for the assistant
-        links_count = SharedLink.objects.filter(assistant_id=assistant_id, project=selected_project).count()
-        if links_count >= 5:
-            return JsonResponse({
-                'status': 'info',
-                'message': _('You can only create up to 5 links per assistant.')
-            })
-
         try:
             # Create a new shareable link
             new_link = SharedLink.objects.create(assistant_id=assistant_id, project=selected_project)
