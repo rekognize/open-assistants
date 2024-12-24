@@ -1,29 +1,44 @@
 import json
 from ninja import NinjaAPI, File, Form
+from ninja.errors import AuthenticationError
+from ninja.security import HttpBearer
 from ninja.files import UploadedFile
 from typing import List
+from openai import AsyncOpenAI
 from django.http import JsonResponse
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema
-from .utils import serialize_to_dict, APIError, aget_openai_client
+from .utils import serialize_to_dict, APIError
+from oa.main.models import Project
+
 
 api = NinjaAPI()
 
 
+class BearerAuth(HttpBearer):
+    async def authenticate(self, request, token: str):
+        try:
+            project = await Project.objects.aget(uuid=token)
+        except Project.DoesNotExist:
+            return AuthenticationError("Invalid or missing Bearer token.")
+
+        try:
+            client = AsyncOpenAI(api_key=project.key)
+        except APIError as e:
+            return JsonResponse({"error": e.message}, status=e.status)
+
+        return {'client': client}
+
+
 # Assistants
 
-@api.post("/assistants")
+@api.post("/assistants", auth=BearerAuth())
 async def create_assistant(request, payload: AssistantSchema):
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
     # Use the tools and tool_resources from the payload
     tools = payload.tools or []
     tool_resources = payload.tool_resources or {}
 
     try:
-        assistant = await client.beta.assistants.create(
+        assistant = await request.auth['client'].beta.assistants.create(
             name=payload.name,
             description=payload.description,
             instructions=payload.instructions,
@@ -38,15 +53,10 @@ async def create_assistant(request, payload: AssistantSchema):
     return JsonResponse(serialize_to_dict(assistant), status=201)
 
 
-@api.get("/assistants")
+@api.get("/assistants", auth=BearerAuth())
 async def list_assistants(request):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        assistants = await client.beta.assistants.list(order="desc", limit=100)
+        assistants = await request.auth['client'].beta.assistants.list(order="desc", limit=100)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -55,34 +65,24 @@ async def list_assistants(request):
     })
 
 
-@api.get("/assistants/{assistant_id}")
+@api.get("/assistants/{assistant_id}", auth=BearerAuth())
 async def retrieve_assistant(request, assistant_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        assistant = await client.beta.assistants.retrieve(assistant_id)
+        assistant = await request.auth['client'].beta.assistants.retrieve(assistant_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse(serialize_to_dict(assistant))
 
 
-@api.post("/assistants/{assistant_id}")
+@api.post("/assistants/{assistant_id}", auth=BearerAuth())
 async def modify_assistant(request, assistant_id, payload: AssistantSchema):
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
     # Use tools and tool_resources from the payload
     tools = payload.tools or []
     tool_resources = payload.tool_resources or {}
 
     try:
-        assistant = await client.beta.assistants.update(
+        assistant = await request.auth['client'].beta.assistants.update(
             assistant_id,
             name=payload.name,
             description=payload.description,
@@ -98,15 +98,10 @@ async def modify_assistant(request, assistant_id, payload: AssistantSchema):
     return JsonResponse(serialize_to_dict(assistant), status=200)
 
 
-@api.delete("/assistants/{assistant_id}")
+@api.delete("/assistants/{assistant_id}", auth=BearerAuth())
 async def delete_assistant(request, assistant_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        assistant = await client.beta.assistants.delete(assistant_id)
+        assistant = await request.auth['client'].beta.assistants.delete(assistant_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -115,13 +110,8 @@ async def delete_assistant(request, assistant_id):
 
 # Vector Stores
 
-@api.post("/vector_stores")
+@api.post("/vector_stores", auth=BearerAuth())
 async def create_vector_store(request, payload: VectorStoreSchema):
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
     expiration_days = payload.expiration_days if payload.expiration_days is not None else None
 
     expires_after = None
@@ -132,7 +122,7 @@ async def create_vector_store(request, payload: VectorStoreSchema):
         }
 
     try:
-        vector_store = await client.beta.vector_stores.create(
+        vector_store = await request.auth['client'].beta.vector_stores.create(
             name=payload.name,
             expires_after=expires_after,
             metadata=payload.metadata
@@ -143,15 +133,10 @@ async def create_vector_store(request, payload: VectorStoreSchema):
     return JsonResponse(serialize_to_dict(vector_store), status=201)
 
 
-@api.get("/vector_stores")
+@api.get("/vector_stores", auth=BearerAuth())
 async def list_vector_stores(request):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        vector_stores = await client.beta.vector_stores.list(
+        vector_stores = await request.auth['client'].beta.vector_stores.list(
             order="desc",
             limit=100,
         )
@@ -161,28 +146,18 @@ async def list_vector_stores(request):
     return JsonResponse({"vector_stores": serialize_to_dict(vector_stores.data)})
 
 
-@api.get("/vector_stores/{vector_store_id}")
+@api.get("/vector_stores/{vector_store_id}", auth=BearerAuth())
 async def retrieve_vector_store(request, vector_store_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        vector_store = await client.beta.vector_stores.retrieve(vector_store_id)
+        vector_store = await request.auth['client'].beta.vector_stores.retrieve(vector_store_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse(serialize_to_dict(vector_store))
 
 
-@api.post("/vector_stores/{vector_store_id}")
+@api.post("/vector_stores/{vector_store_id}", auth=BearerAuth())
 async def modify_vector_store(request, vector_store_id, payload: VectorStoreSchema):
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
     expires_after = None
     if payload.expiration_days:
         expires_after = {
@@ -191,7 +166,7 @@ async def modify_vector_store(request, vector_store_id, payload: VectorStoreSche
         }
 
     try:
-        vector_store = await client.beta.vector_stores.update(
+        vector_store = await request.auth['client'].beta.vector_stores.update(
             vector_store_id,
             name=payload.name,
             expires_after=expires_after,
@@ -203,15 +178,10 @@ async def modify_vector_store(request, vector_store_id, payload: VectorStoreSche
     return JsonResponse(serialize_to_dict(vector_store), status=201)
 
 
-@api.delete("/vector_stores/{vector_store_id}")
+@api.delete("/vector_stores/{vector_store_id}", auth=BearerAuth())
 async def delete_vector_store(request, vector_store_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        vector_store = await client.beta.vector_stores.delete(vector_store_id)
+        vector_store = await request.auth['client'].beta.vector_stores.delete(vector_store_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -220,15 +190,10 @@ async def delete_vector_store(request, vector_store_id):
 
 # Vector Store Files
 
-@api.get("/vector_stores/{vector_store_id}/files")
+@api.get("/vector_stores/{vector_store_id}/files", auth=BearerAuth())
 async def list_vector_store_files(request, vector_store_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        vector_store_files = await client.beta.vector_stores.files.list(
+        vector_store_files = await request.auth['client'].beta.vector_stores.files.list(
             vector_store_id=vector_store_id,
             order="desc",
             limit=100,
@@ -239,15 +204,10 @@ async def list_vector_store_files(request, vector_store_id):
     return JsonResponse({"files": serialize_to_dict(vector_store_files.data)})
 
 
-@api.get("/vector_stores/{vector_store_id}/files/{file_id}")
+@api.get("/vector_stores/{vector_store_id}/files/{file_id}", auth=BearerAuth())
 async def retrieve_vector_store_file(request, vector_store_id, file_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        vector_store_file = await client.beta.vector_stores.files.retrieve(
+        vector_store_file = await request.auth['client'].beta.vector_stores.files.retrieve(
             vector_store_id=vector_store_id,
             file_id=file_id
         )
@@ -259,16 +219,12 @@ async def retrieve_vector_store_file(request, vector_store_id, file_id):
 
 # Files
 
-@api.post("/files/upload")
+@api.post("/files/upload", auth=BearerAuth())
 async def upload_files(
         request,
         files: List[UploadedFile] = File(...),
         payload: FileUploadSchema = Form(...)
 ):
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
 
     uploaded_files, failed_files, supported_files = [], [], []
 
@@ -302,7 +258,7 @@ async def upload_files(
     for uploaded_file in files:
         try:
             # Upload the file
-            response = await client.files.create(
+            response = await request.auth['client'].files.create(
                 file=(uploaded_file.name, uploaded_file.file),
                 purpose="assistants"
             )
@@ -324,13 +280,13 @@ async def upload_files(
     for vector_store_id in vector_store_ids:
         if len(supported_files) > 1:
             # Batch assignment for multiple files
-            await client.beta.vector_stores.file_batches.create(
+            await request.auth['client'].beta.vector_stores.file_batches.create(
                 vector_store_id=vector_store_id,
                 file_ids=[f['id'] for f in supported_files]
             )
         elif len(supported_files) == 1:
             # Assign a single file
-            await client.beta.vector_stores.files.create(
+            await request.auth['client'].beta.vector_stores.files.create(
                 vector_store_id=vector_store_id,
                 file_id=supported_files[0]['id']
             )
@@ -343,15 +299,10 @@ async def upload_files(
     })
 
 
-@api.get("/files")
+@api.get("/files", auth=BearerAuth())
 async def list_files(request):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        files = await client.files.list(
+        files = await request.auth['client'].files.list(
             purpose='assistants'
         )
     except Exception as e:
@@ -360,34 +311,24 @@ async def list_files(request):
     return JsonResponse({"files": serialize_to_dict(files.data)})
 
 
-@api.get("/files/{file_id}")
+@api.get("/files/{file_id}", auth=BearerAuth())
 async def retrieve_file(request, file_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        file = await client.files.retrieve(file_id)
+        file = await request.auth['client'].files.retrieve(file_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse(serialize_to_dict(file))
 
 
-@api.post("/files/{file_id}/vector_stores/add")
+@api.post("/files/{file_id}/vector_stores/add", auth=BearerAuth())
 async def add_file_to_vector_stores(request, file_id, payload: VectorStoreIdsSchema):
     """Adds the file to the given vector stores."""
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
     status = {'success': [], 'error': []}
 
     for vector_store_id in payload.vector_store_ids:
         try:
-            vector_store_file = await client.beta.vector_stores.files.create(
+            vector_store_file = await request.auth['client'].beta.vector_stores.files.create(
                 vector_store_id=vector_store_id,
                 file_id=file_id
             )
@@ -398,19 +339,14 @@ async def add_file_to_vector_stores(request, file_id, payload: VectorStoreIdsSch
     return JsonResponse(serialize_to_dict(status))
 
 
-@api.post("/files/{file_id}/vector_stores/remove")
+@api.post("/files/{file_id}/vector_stores/remove", auth=BearerAuth())
 async def remove_file_from_vector_stores(request, file_id, payload: VectorStoreIdsSchema):
     """Removes the file from the given vector stores."""
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
     status = {'success': [], 'error': []}
 
     for vector_store_id in payload.vector_store_ids:
         try:
-            vector_store_file = await client.beta.vector_stores.files.delete(
+            vector_store_file = await request.auth['client'].beta.vector_stores.files.delete(
                 vector_store_id=vector_store_id,
                 file_id=file_id
             )
@@ -421,15 +357,10 @@ async def remove_file_from_vector_stores(request, file_id, payload: VectorStoreI
     return JsonResponse(serialize_to_dict(status))
 
 
-@api.delete("/files/{file_id}")
+@api.delete("/files/{file_id}", auth=BearerAuth())
 async def delete_file(request, file_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        response = await client.files.delete(file_id)
+        response = await request.auth['client'].files.delete(file_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -438,17 +369,12 @@ async def delete_file(request, file_id):
 
 # Threads
 
-@api.post("/threads")
+@api.post("/threads", auth=BearerAuth())
 async def create_thread(request):
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
     assistant_id = request.GET.get('asst')
 
     try:
-        response = await client.beta.threads.create(metadata={
+        response = await request.auth['client'].beta.threads.create(metadata={
             "_asst": assistant_id,
         })
     except Exception as e:
@@ -457,28 +383,18 @@ async def create_thread(request):
     return JsonResponse(serialize_to_dict(response))
 
 
-@api.get("/threads/{thread_id}")
+@api.get("/threads/{thread_id}", auth=BearerAuth())
 async def retrieve_thread(request, thread_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        thread = await client.beta.threads.retrieve(thread_id)
+        thread = await request.auth['client'].beta.threads.retrieve(thread_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse(serialize_to_dict(thread))
 
 
-@api.post("/threads/{thread_id}")
+@api.post("/threads/{thread_id}", auth=BearerAuth())
 async def modify_thread(request, thread_id, payload: ThreadSchema):
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
     # Prepare parameters for update
     update_params = {}
     if payload.title is not None:
@@ -490,7 +406,7 @@ async def modify_thread(request, thread_id, payload: ThreadSchema):
         return JsonResponse({"error": "No data provided to update."}, status=400)
 
     try:
-        thread = await client.beta.threads.update(
+        thread = await request.auth['client'].beta.threads.update(
             thread_id=thread_id,
             **update_params
         )
@@ -500,13 +416,8 @@ async def modify_thread(request, thread_id, payload: ThreadSchema):
     return JsonResponse(serialize_to_dict(thread), status=200)
 
 
-@api.post("/threads/{thread_id}/messages")
+@api.post("/threads/{thread_id}/messages", auth=BearerAuth())
 async def create_message(request, thread_id):
-    try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
     try:
         # Parse JSON body
         body = json.loads(request.body)
@@ -542,7 +453,7 @@ async def create_message(request, thread_id):
         if formatted_attachments:
             message_data["attachments"] = formatted_attachments
 
-        response = await client.beta.threads.messages.create(**message_data)
+        response = await request.auth['client'].beta.threads.messages.create(**message_data)
 
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON."}, status=400)
@@ -556,15 +467,10 @@ async def create_message(request, thread_id):
 
 # Runs
 
-@api.get("/threads/{thread_id}/runs")
+@api.get("/threads/{thread_id}/runs", auth=BearerAuth())
 async def list_runs(request, thread_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        runs = await client.beta.threads.runs.list(
+        runs = await request.auth['client'].beta.threads.runs.list(
             thread_id=thread_id
         )
     except Exception as e:
@@ -575,15 +481,10 @@ async def list_runs(request, thread_id):
     })
 
 
-@api.get("/threads/{thread_id}/runs/{run_id}")
+@api.get("/threads/{thread_id}/runs/{run_id}", auth=BearerAuth())
 async def retrieve_run(request, thread_id, run_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        run = await client.beta.threads.runs.retrieve(
+        run = await request.auth['client'].beta.threads.runs.retrieve(
             thread_id= thread_id,
             run_id= run_id
         )
@@ -593,15 +494,10 @@ async def retrieve_run(request, thread_id, run_id):
     return JsonResponse(serialize_to_dict(run))
 
 
-@api.post("/threads/{thread_id}/runs/{run_id}/cancel")
+@api.post("/threads/{thread_id}/runs/{run_id}/cancel", auth=BearerAuth())
 async def cancel_run(request, thread_id, run_id):
     try:
-        client = await aget_openai_client(request)
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-
-    try:
-        run = await client.beta.threads.runs.cancel(
+        run = await request.auth['client'].beta.threads.runs.cancel(
             thread_id= thread_id,
             run_id= run_id
         )

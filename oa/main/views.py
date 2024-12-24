@@ -5,6 +5,9 @@ import logging
 import os
 
 from asgiref.sync import async_to_sync, sync_to_async
+from django.contrib.auth import authenticate, login
+from django.contrib import messages
+from django import forms
 from django.db.models import Count, Min, Max, Q
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound, \
     HttpResponseBadRequest
@@ -25,19 +28,43 @@ from ..tools import FUNCTION_DEFINITIONS, FUNCTION_IMPLEMENTATIONS
 logger = logging.getLogger(__name__)
 
 
+class LoginForm(forms.Form):
+    username = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))
+
+
+def login_view(request):
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+                return redirect('home')
+            else:
+                messages.error(request, 'Invalid username or password.')
+    else:
+        form = LoginForm()
+    return render(request, 'login.html', {'form': form})
+
+
 class HomeView(TemplateView):
     template_name = 'home.html'
 
 
 @login_required
-def manage_assistants(request):
-    if not Project.objects.filter(user=request.user).exists():
-        return redirect('home')
+def manage_assistants(request, project_uuid):
+    if request.user.is_staff:
+        selected_project = get_object_or_404(Project, uuid=project_uuid)
+    else:
+        selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
 
-    function_definitions_json = json.dumps(FUNCTION_DEFINITIONS)
     return render(request, "manage.html", {
-        'function_definitions_json': function_definitions_json,
-        'active_nav': 'manage'
+        'function_definitions_json': json.dumps(FUNCTION_DEFINITIONS),
+        'active_nav': 'manage',
+        'selected_project': selected_project,
     })
 
 

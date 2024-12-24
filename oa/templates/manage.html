@@ -458,6 +458,8 @@
 
 <script>
 
+    const API_KEY = "{{ selected_project.uuid }}";
+
     const functionDefinitions = {{ function_definitions_json|safe }};
 
     /* Utility functions */
@@ -1349,7 +1351,14 @@
 
     async function fetchVectorStores() {
         try {
-            const response = await fetch('{% url "api-1.0.0:list_vector_stores" %}');
+            const response = await fetch('{% url "api-1.0.0:list_vector_stores" %}', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
             const data = await response.json();
 
             if (data.vector_stores) {
@@ -1383,7 +1392,13 @@
         const fetchPromises = vectorStoreIds.map(async (vsId) => {
             const url = "{% url 'api-1.0.0:retrieve_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}".replace('VS_ID_PLACEHOLDER', vsId);
             try {
-                const response = await fetch(url);
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     vectorStores[vsId] = data;
@@ -1518,7 +1533,13 @@
         const url = listVSFilesUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
 
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
             const data = await response.json();
 
             if (data.files) {
@@ -1638,6 +1659,7 @@
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
@@ -1729,6 +1751,7 @@
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
@@ -1848,6 +1871,7 @@
             const response = await fetch(url, {
                 method: 'DELETE',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 }
@@ -1957,7 +1981,14 @@
 
     async function fetchAssistants() {
         try {
-            const response = await fetch('{% url "api-1.0.0:list_assistants" %}');
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
             const data = await response.json();
 
             if (data.assistants) {
@@ -2268,6 +2299,7 @@
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
@@ -2407,6 +2439,7 @@
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
@@ -2496,6 +2529,7 @@
             const response = await fetch(url, {
                 method: 'DELETE',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 }
@@ -2527,7 +2561,14 @@
 
     async function fetchFiles() {
         try {
-            const response = await fetch('{% url "api-1.0.0:list_files" %}');
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
             const data = await response.json();
 
             if (data.files) {
@@ -2739,6 +2780,7 @@
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
                         'Content-Type': 'application/json',
                         'X-CSRFToken': '{{ csrf_token }}'
                     },
@@ -2799,6 +2841,7 @@
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
                         'Content-Type': 'application/json',
                         'X-CSRFToken': '{{ csrf_token }}'
                     },
@@ -2919,6 +2962,7 @@
             const response = await fetch(url, {
                 method: 'DELETE',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 }
@@ -3183,6 +3227,8 @@
             const response = await fetch('{% url "api-1.0.0:upload_files" %}', {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: formData

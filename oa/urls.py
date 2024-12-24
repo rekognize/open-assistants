@@ -4,20 +4,19 @@ from django.urls import path
 
 from oa.api.views import api
 from oa.main import views as main_views
-from oa.tenants.views import login_view
 
 
 urlpatterns = [
     path('oaAdmin/', admin.site.urls),
 
-    path('login/', login_view, name='login'),
+    path('login/', main_views.login_view, name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
 
     path("api/", api.urls),
 
     path('', main_views.HomeView.as_view(), name='home'),
 
-    path('<uuid:uuid>/manage/', main_views.manage_assistants, name='manage_assistants'),
+    path('<uuid:project_uuid>/manage/', main_views.manage_assistants, name='manage_assistants'),
     path('manage/', main_views.manage_assistants, name='manage_assistants'),
 
     path('analytics/', main_views.analytics, name='analytics'),
