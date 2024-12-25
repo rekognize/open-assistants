@@ -2,6 +2,9 @@ from oa.main.models import Project
 
 
 def user_projects(request):
+    if request.user.is_anonymous:
+        return {}
+
     if request.user.is_staff:
         projects = Project.objects.all()
     else:
