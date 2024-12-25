@@ -374,37 +374,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     }
 
-    // Create run
-    async function createRun() {
-        const formData = new FormData();
-        formData.append('assistant_id', assistantId);
-        formData.append('thread_id', threadId);
-
-        const createStreamUrlTemplate = "{% url 'api-1.0.0:stream_responses' assistant_id='ASST_ID' thread_id='THREAD_ID' %}";
-        const createStreamUrl = createStreamUrlTemplate.replace('ASST_ID', assistantId).replace('THREAD_ID', threadId);
-
-        try {
-            const response = await fetch(createStreamUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: formData
-            });
-
-            if (response.ok) {
-                return await response.json();
-
-            } else {
-                const data = await response.json();
-                console.error('Error creating run:', data.error);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-        }
-    }
 
     if (dropZone) {
         dropZone.addEventListener('click', function () {
@@ -442,7 +411,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json'
                 }
             });
 
@@ -483,7 +451,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json'
                 }
             });
 
@@ -589,9 +556,6 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
             try {
-                const runData = await createRun();
-
-                console.log('runData', runData);
 
                 // Clear the textarea
                 textarea.value = '';
@@ -601,7 +565,11 @@ document.addEventListener("DOMContentLoaded", async function () {
                 if (eventSource) {
                     eventSource.close();
                 }
-                eventSource = handleSSE(runData.stream_url, assistantName);
+
+                const responseStreamUrlTemplate = "{% url 'api-1.0.0:stream_responses' assistant_id='ASST_ID' thread_id='THREAD_ID' %}";
+                const responseStreamUrl = responseStreamUrlTemplate.replace('ASST_ID', assistantId).replace('THREAD_ID', threadId);
+
+                eventSource = handleSSE(responseStreamUrl, assistantName);
 
                 scrollToBottom();
 
@@ -617,7 +585,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Handle Server-Sent Events (SSE)
     function handleSSE(url, assistantName) {
-        const eventSource = new EventSource(url);
+        const eventSource = new EventSourcePolyfill(url, {
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+            }
+        });
+
         let currentText = "";
         let assistantMessageElement = null;
         let assistantResponseContent = null;

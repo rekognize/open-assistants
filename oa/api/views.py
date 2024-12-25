@@ -519,7 +519,7 @@ async def cancel_run(request, thread_id, run_id):
 
 # Chat
 
-@api.post("/stream/{assistant_id}/{thread_id}", auth=BearerAuth())
+@api.get("/stream/{assistant_id}/{thread_id}", auth=BearerAuth())
 async def stream_responses(request, assistant_id: str, thread_id: str):
     async def event_stream():
         shared_data = []
