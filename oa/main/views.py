@@ -67,12 +67,15 @@ def manage_assistants(request, project_uuid):
 
 
 @login_required
-def analytics(request):
-    if not Project.objects.filter(user=request.user).exists():
-        return redirect('home')
+def analytics(request, project_uuid):
+    if request.user.is_staff:
+        selected_project = get_object_or_404(Project, uuid=project_uuid)
+    else:
+        selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
 
     return render(request, "analytics.html", {
-        'active_nav': 'analytics'
+        'active_nav': 'analytics',
+        'selected_project': selected_project,
     })
 
 

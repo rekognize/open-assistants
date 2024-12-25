@@ -36,7 +36,7 @@
             <div id="no-assistants" class="text-center text-secondary d-none">
                 <p>No assistants available.</p>
                 <span class="text-secondary">
-                    You can create assistants on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                    You can create assistants on <a href="{% url "manage_assistants" project_uuid=selected_project.uuid %}" class="text-decoration-none" >manage</a> page.
                 </span>
             </div>
         </div>
@@ -63,7 +63,7 @@
             <div id="no-vector-stores" class="text-center text-secondary d-none">
                 <p>No vector stores available.</p>
                 <span class="text-secondary">
-                    You can create vector stores on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                    You can create vector stores on <a href="{% url "manage_assistants" project_uuid=selected_project.uuid %}" class="text-decoration-none" >manage</a> page.
                 </span>
             </div>
         </div>
@@ -86,7 +86,7 @@
             <div id="no-files" class="text-center text-secondary d-none">
                 <p>No files available.</p>
                 <span class="text-secondary">
-                    You can upload files on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                    You can upload files on <a href="{% url "manage_assistants" project_uuid=selected_project.uuid %}" class="text-decoration-none" >manage</a> page.
                 </span>
             </div>
         </div>
@@ -109,7 +109,7 @@
             <div id="no-threads" class="text-center text-secondary d-none">
                 <p>No threads available.</p>
                 <span class="text-secondary">
-                    You can create conversations on <a href="{% url "manage_assistants" %}" class="text-decoration-none" >manage</a> page.
+                    You can create conversations on <a href="{% url "manage_assistants" project_uuid=selected_project.uuid %}" class="text-decoration-none" >manage</a> page.
                 </span>
             </div>
         </div>
@@ -120,6 +120,8 @@
 
 {% block extra_scripts %}
 <script>
+
+    const API_KEY = "{{ selected_project.uuid }}";
 
     /* Utility functions */
 
@@ -184,7 +186,14 @@
 
     async function fetchVectorStoresTable() {
         try {
-            const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}");
+          const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
             const data = await response.json();
 
             console.log('fetchVectorStoresTable:', data);
@@ -249,7 +258,14 @@
 
     async function fetchAssistantsTable() {
         try {
-            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}");
+            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
             const assistantsData = await assistantsResponse.json();
 
             console.log('fetchAssistantsTable:', assistantsData);
@@ -334,7 +350,14 @@
 
     async function fetchFilesTable() {
         try {
-            const response = await fetch("{% url 'api-1.0.0:list_files' %}");
+            const response = await fetch("{% url 'api-1.0.0:list_files' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
             const data = await response.json();
 
             console.log('fetchFilesTable:', data);
