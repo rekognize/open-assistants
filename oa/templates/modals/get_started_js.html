@@ -122,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch("{% url 'api-1.0.0:create_assistant' %}", {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
