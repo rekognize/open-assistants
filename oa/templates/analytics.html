@@ -187,7 +187,7 @@
 
     async function fetchVectorStoresTable() {
         try {
-          const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}", {
+            const response = await fetch("{% url 'api-1.0.0:list_vector_stores' %}", {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
@@ -416,19 +416,30 @@
                     const listRunsUrlTemplate = "{% url 'api-1.0.0:list_runs' thread_id='THREAD_ID_PLACEHOLDER' %}";
                     const url = listRunsUrlTemplate.replace('THREAD_ID_PLACEHOLDER', thread.id);
                     try {
-                        const runsResp = await fetch(url);
+                        const runsResp = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${API_KEY}`,
+                                'Content-Type': 'application/json',
+                                "X-CSRFToken": '{{ csrf_token }}'
+                            }
+                        });
                         const runsData = await runsResp.json();
 
                         console.log('runsData', runsData);
 
                         if (runsData.runs && Array.isArray(runsData.runs)) {
-                            runsData.runs.forEach(run => {
+                            // Process runs asynchronously
+                            const tokenPromises = runsData.runs.map(async (run) => {
                                 console.log('run model:', run.model);
-
                                 if (run.usage?.total_tokens) {
-                                    totalTokens += run.usage.total_tokens;
+                                    return run.usage.total_tokens;
                                 }
+                                return 0;
                             });
+
+                            const tokenResults = await Promise.all(tokenPromises);
+                            totalTokens = tokenResults.reduce((sum, tokens) => sum + tokens, 0);
                         }
                     } catch (error) {
                         console.error(`Error fetching runs for thread ${thread.id}:`, error);
@@ -480,7 +491,7 @@
     }
 
 
-/* Initialize Page */
+    /* Initialize Page */
 
     async function initializePage() {
         // Show loading indicator initially for all

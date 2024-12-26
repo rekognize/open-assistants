@@ -39,8 +39,6 @@ urlpatterns = [
     path('a/share/delete/<uuid:link_token>/', main_views.delete_shared_link, name='delete_shared_link'),
     path('a/share/update/<uuid:link_token>/', main_views.update_shared_link, name='update_shared_link'),
     path('shared/<uuid:shared_token>/', main_views.shared_thread_detail, name='shared_thread_detail'),
-
-    path('wizard/generate-instructions/', main_views.generate_instructions_view, name='generate_instructions'),
 ]
 
 admin.site.index_title = 'Open Assistants'

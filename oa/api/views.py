@@ -772,3 +772,29 @@ async def download_file(request, file_id: str):
 
     except Exception as e:
         raise Http404(f"File not found: {e}")
+
+
+# Get started
+
+@api.post("/get_started/generate_instructions", auth=BearerAuth())
+async def generate_instructions(request):
+    data = json.loads(request.body)
+    prompt = data.get("prompt")
+
+    if not prompt:
+        return JsonResponse({"error": "Missing prompt in request."}, status=400)
+
+    try:
+        response = await request.auth['client'].chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Provide system instructions for an assistant with the user prompt."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        # Extract the generated text from the API response
+        generated_text = response.choices[0].message.content
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"generated_text": generated_text}, status=200)

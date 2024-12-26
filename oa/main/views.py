@@ -453,39 +453,3 @@ def shared_thread_detail(request, shared_token):
     }
 
     return render(request, 'chat/chat.html', context)
-
-
-# Completions
-
-@login_required
-async def generate_instructions_view(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        prompt = data.get("prompt")
-
-        if not prompt:
-            return JsonResponse({"error": "Missing prompt in request."}, status=400)
-
-        try:
-            client = await aget_openai_client(request)
-        except APIError as e:
-            return JsonResponse({"error": e.message}, status=e.status)
-
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Provide system instructions for an assistant with the user prompt."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        # Extract the generated text from the API response
-        generated_text = response.choices[0].message.content
-
-        return JsonResponse({"generated_text": generated_text}, status=200)
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
