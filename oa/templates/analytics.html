@@ -102,6 +102,7 @@
                         <th>Created</th>
                         <th>Assistant</th>
                         <th>Shared</th>
+                        <th>Usage</th>
                     </tr>
                 </thead>
                 <tbody id="threads-table-body"></tbody>
@@ -408,17 +409,51 @@
             console.log('fetchThreadsTable:', data);
 
             if (data.threads?.length > 0) {
+                // We'll fetch usage for each thread in parallel.
+                const usagePromises = data.threads.map(async (thread) => {
+                    let totalTokens = 0;
+
+                    const listRunsUrlTemplate = "{% url 'api-1.0.0:list_runs' thread_id='THREAD_ID_PLACEHOLDER' %}";
+                    const url = listRunsUrlTemplate.replace('THREAD_ID_PLACEHOLDER', thread.id);
+                    try {
+                        const runsResp = await fetch(url);
+                        const runsData = await runsResp.json();
+
+                        console.log('runsData', runsData);
+
+                        if (runsData.runs && Array.isArray(runsData.runs)) {
+                            runsData.runs.forEach(run => {
+                                console.log('run model:', run.model);
+
+                                if (run.usage?.total_tokens) {
+                                    totalTokens += run.usage.total_tokens;
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching runs for thread ${thread.id}:`, error);
+                    }
+                    return totalTokens;
+                });
+
+                // Wait for all usagePromises to resolve
+                const usageResults = await Promise.all(usagePromises);
+
+                // Attach usage to each thread
+                data.threads.forEach((thread, idx) => {
+                    thread.usage = usageResults[idx];
+                });
+
+                // Now build the table rows
                 const tableBody = document.getElementById('threads-table-body');
                 tableBody.innerHTML = '';
 
                 const rows = data.threads.map(thread => {
                     const created = formatUnixTimestamp(thread.created_at);
                     const asstName = assistantsDict[thread.assistant_id] || '<span class="text-secondary">Unknown</span>';
-                    let sharedDisplay;
+                    let sharedDisplay = '<span class="text-secondary">No</span>';
                     if (thread.shared_link_name) {
                         sharedDisplay = `<span class="text-success">${thread.shared_link_name}</span>`;
-                    } else {
-                        sharedDisplay = '<span class="text-secondary">No</span>';
                     }
 
                     return `
@@ -427,7 +462,9 @@
                             <td>${created}</td>
                             <td>${asstName}</td>
                             <td>${sharedDisplay}</td>
-                        </tr>`;
+                            <td>${thread.usage || 0}</td>
+                        </tr>
+                    `;
                 });
 
                 tableBody.innerHTML = rows.join('');
