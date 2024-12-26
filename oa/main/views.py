@@ -357,7 +357,7 @@ def share_assistant(request, assistant_id):
 
     if selected_project_id:
         try:
-            selected_project = Project.objects.get(id=int(selected_project_id), user=request.user)
+            selected_project = Project.objects.get(id=int(selected_project_id))
         except (ValueError, Project.DoesNotExist):
             return JsonResponse({'status': 'error', 'message': _('Invalid project selected.')}, status=400)
     else:
@@ -384,7 +384,6 @@ def share_assistant(request, assistant_id):
         links = SharedLink.objects.filter(
             assistant_id=assistant_id,
             project=selected_project,
-            project__user=request.user
         ).order_by('-created')
 
         try:
