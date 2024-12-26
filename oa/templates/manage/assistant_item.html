@@ -149,7 +149,7 @@
             <!-- Action Buttons to Hide in Edit Mode -->
             <div class="brief-info">
                 <a class="btn btn-sm btn-outline-secondary"
-                   href="{% url 'thread_detail' %}?a=${assistant.id}" target="_blank"
+                   href="{% url 'thread_detail' project_uuid=selected_project.uuid %}?a=${assistant.id}" target="_blank"
                    data-bs-toggle="tooltip" data-bs-title="Start a conversation">
                     <i class="bi bi-chat"></i>
                 </a>

@@ -1,7 +1,7 @@
 <script>
 // Define globals
 let assistantId = '{{ assistant_id }}';
-let token = '{{ token }}';
+let shared_token = '{{ shared_token }}';
 let threadId, assistantName;
 
 // Set the DOM elements
@@ -81,9 +81,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             const response = await fetch(retrieveAssistantUrl, {
                 method: 'GET',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'X-Token': token
+                    'X-Token': shared_token
                 }
             });
 
@@ -117,15 +117,17 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Create a new thread
     async function createThread(assistantId) {
-        const createThreadUrl = "{% url 'api-1.0.0:create_thread' %}";
+        const createThreadUrlTemplate = "{% url 'api-1.0.0:create_thread' assistant_id='ASST_ID_PLACEHOLDER' %}";
+        const createThreadUrl = createThreadUrlTemplate.replace('ASST_ID_PLACEHOLDER', assistantId);
 
         try {
-            const response = await fetch(`${createThreadUrl}?asst=${assistantId}`, {
+            const response = await fetch(createThreadUrl, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}',
-                    'X-Token': token
+                    'X-Token': shared_token
                 }
             });
 
@@ -151,13 +153,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     async function createDbThread(openai_id, created_at, metadata) {
-        const dbThreadUrl = "/db_threads/";
+        const dbThreadUrl = "{% url 'create_db_thread' %}";
         const response = await fetch(dbThreadUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}',
-                'X-Token': token
+                'X-Token': shared_token
             },
             body: JSON.stringify({
                 openai_id: openai_id,
@@ -184,9 +186,10 @@ document.addEventListener("DOMContentLoaded", async function () {
             const response = await fetch(retrieveThreadUrl, {
                 method: 'GET',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}',
-                    'X-Token': token
+                    'X-Token': shared_token
                 }
             });
 
@@ -226,8 +229,10 @@ document.addEventListener("DOMContentLoaded", async function () {
             const response = await fetch(`{% url 'api-1.0.0:upload_files' %}`, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}',
-                    'X-Token': token
+                    'X-Token': shared_token
                 },
                 body: formData
             });
@@ -350,9 +355,10 @@ document.addEventListener("DOMContentLoaded", async function () {
             const response = await fetch(createMessageUrl, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}',
-                    'X-Token': token
+                    'X-Token': shared_token
                 },
                 body: JSON.stringify(payload)
             });
@@ -375,36 +381,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     }
 
-    // Create run
-    async function createRun() {
-        const formData = new FormData();
-        formData.append('assistant_id', assistantId);
-        formData.append('thread_id', threadId);
-
-        // Dynamically construct the URL
-        const createStreamUrl = `/chat/${assistantId}/stream/${threadId}/`;
-
-        try {
-            const response = await fetch(createStreamUrl, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'X-Token': token
-                },
-                body: formData
-            });
-
-            if (response.ok) {
-                return await response.json();
-
-            } else {
-                const data = await response.json();
-                console.error('Error creating run:', data.error);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-        }
-    }
 
     if (dropZone) {
         dropZone.addEventListener('click', function () {
@@ -433,14 +409,16 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     async function fetchThreadFiles(threadId) {
         console.log("Fetching files for threadId:", threadId);
+
+        const getThreadFilesUrlTemplate = "{% url 'api-1.0.0:get_thread_files' thread_id='THREAD_ID' %}";
+        const getThreadFilesUrl = getThreadFilesUrlTemplate.replace('THREAD_ID', threadId);
+
         try {
-            const url = `/t/${threadId}/files/`;
-            const response = await fetch(url, {
+            const response = await fetch(getThreadFilesUrl, {
                 method: 'GET',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json',
-                    'X-Token': token
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'X-Token': shared_token
                 }
             });
 
@@ -472,14 +450,16 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     async function fetchMessages(threadId) {
         console.log("Fetching messages for threadId:", threadId);
+
+        const getThreadMessagesUrlTemplate = "{% url 'api-1.0.0:get_thread_messages' thread_id='THREAD_ID' %}";
+        const getThreadMessagesUrl = getThreadMessagesUrlTemplate.replace('THREAD_ID', threadId);
+
         try {
-            const url = `/t/${threadId}/messages/`;
-            const response = await fetch(url, {
+            const response = await fetch(getThreadMessagesUrl, {
                 method: 'GET',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json',
-                    'X-Token': token
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'X-Token': shared_token
                 }
             });
 
@@ -585,9 +565,6 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
             try {
-                const runData = await createRun();
-
-                console.log('runData', runData);
 
                 // Clear the textarea
                 textarea.value = '';
@@ -597,7 +574,11 @@ document.addEventListener("DOMContentLoaded", async function () {
                 if (eventSource) {
                     eventSource.close();
                 }
-                eventSource = handleSSE(runData.stream_url, assistantName);
+
+                const responseStreamUrlTemplate = "{% url 'api-1.0.0:stream_responses' assistant_id='ASST_ID' thread_id='THREAD_ID' %}";
+                const responseStreamUrl = responseStreamUrlTemplate.replace('ASST_ID', assistantId).replace('THREAD_ID', threadId);
+
+                eventSource = handleSSE(responseStreamUrl, assistantName);
 
                 scrollToBottom();
 
@@ -614,8 +595,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Handle Server-Sent Events (SSE)
     function handleSSE(url, assistantName) {
         // Include the token in the URL
-        const sseUrlWithToken = url + '?token=' + encodeURIComponent(token);
-        const eventSource = new EventSource(sseUrlWithToken);
+        const sseUrlWithToken = url + '?token=' + encodeURIComponent(shared_token);
+        const eventSource = new EventSourcePolyfill(sseUrlWithToken, {
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+            }
+        });
+
         let currentText = "";
         let assistantMessageElement = null;
         let assistantResponseContent = null;
@@ -706,9 +692,10 @@ document.addEventListener("DOMContentLoaded", async function () {
             const response = await fetch(retrieveFile, {
                 method: 'GET',
                 headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
                     'X-CSRFToken': '{{ csrf_token }}',
                     'Content-Type': 'application/json',
-                    'X-Token': token
+                    'X-Token': shared_token
                 }
             });
 
@@ -749,7 +736,13 @@ document.addEventListener("DOMContentLoaded", async function () {
                 content = content.replace(annotation.text, replacementText);
             } else if (annotation.file_path) {
                 const fileId = annotation.file_path.file_id;
-                const downloadUrl = `/t/${threadId}/download/${fileId}/?token=${token}`;
+                const downloadUrlTemplate = "{% url 'api-1.0.0:download_file' file_id='FILE_ID' %}";
+                const downloadUrlTemplateToken = downloadUrlTemplate + `?token=${shared_token}`
+                const downloadUrl = downloadUrlTemplateToken.replace('ASST_ID_PLACEHOLDER', fileId);
+
+                console.log(downloadUrlTemplate);
+                console.log(downloadUrlTemplateToken);
+                console.log(downloadUrl);
 
                 content = content.replace(annotation.text, downloadUrl);
             }

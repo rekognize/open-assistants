@@ -4,15 +4,10 @@ from django.contrib.auth.models import User
 
 
 class Project(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='projects')
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     key = models.CharField(max_length=255)
     name = models.CharField(max_length=100, blank=True, null=True)
-    is_oa_project = models.BooleanField(default=False)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['user', 'key'], name='unique_key_per_user')
-        ]
+    users = models.ManyToManyField(User, blank=True)
 
     def __str__(self):
         return self.name or self.get_partial_key()

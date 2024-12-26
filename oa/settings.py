@@ -24,6 +24,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'storages',
+    'widget_tweaks',
+
     'oa.main',
 ]
 
@@ -196,19 +199,6 @@ CSRF_TRUSTED_ORIGINS = [
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db-private.sqlite3',  # private db
-    }
-}
-
-INSTALLED_APPS += [
-    "storages",
-    "django_recaptcha",
-    "widget_tweaks",
-    'accounts',
-]
 
 # Logging configuration
 LOGGING = {
@@ -289,7 +279,3 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 SESAME_MAX_AGE = 300
-
-
-STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY')
-STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
