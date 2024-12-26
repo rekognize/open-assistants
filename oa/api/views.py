@@ -14,7 +14,7 @@ from openai import AsyncOpenAI, OpenAIError
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema
 from .utils import serialize_to_dict, APIError, EventHandler
-from oa.main.models import Project
+from oa.main.models import Project, SharedLink
 from ..main.utils import format_time
 from ..tools import FUNCTION_IMPLEMENTATIONS
 
@@ -26,15 +26,34 @@ logger = logging.getLogger(__name__)
 
 class BearerAuth(HttpBearer):
     async def authenticate(self, request, token: str):
-        try:
-            project = await Project.objects.aget(uuid=token)
-        except Project.DoesNotExist:
-            return AuthenticationError("Invalid or missing Bearer token.")
+        if token:
+            try:
+                project = await Project.objects.aget(uuid=token)
+            except Project.DoesNotExist:
+                return AuthenticationError("Invalid or missing Bearer token.")
 
-        try:
-            client = AsyncOpenAI(api_key=project.key)
-        except APIError as e:
-            return JsonResponse({"error": e.message}, status=e.status)
+            try:
+                client = AsyncOpenAI(api_key=project.key)
+            except APIError as e:
+                return JsonResponse({"error": e.message}, status=e.status)
+        else:
+            # User is anonymous, check for shared token
+            shared_token = request.headers.get('X-Token') or request.GET.get('token')
+
+            print('shared_token', shared_token)
+            print('X-Token', request.headers.get('X-Token'))
+            print('token', request.GET.get('token'))
+
+            if shared_token:
+                try:
+                    shared_link = await SharedLink.objects.select_related('project').aget(token=shared_token)
+                    project = shared_link.project
+                    client = AsyncOpenAI(api_key=project.key)
+
+                except SharedLink.DoesNotExist:
+                    raise APIError("Invalid or missing shared token.", status=403)
+            else:
+                raise APIError("Authentication required.", status=401)
 
         return {'client': client}
 

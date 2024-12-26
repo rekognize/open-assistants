@@ -441,14 +441,14 @@ def update_shared_link(request, link_token):
     })
 
 
-def shared_thread_detail(request, token):
-    shared_link = get_object_or_404(SharedLink, token=token)
+def shared_thread_detail(request, shared_token):
+    shared_link = get_object_or_404(SharedLink, token=shared_token)
     assistant_id = shared_link.assistant_id
 
     # Initial context
     context = {
         'assistant_id': assistant_id,
-        'token': token,
+        'shared_token': shared_token,
         'is_shared_thread': True,
     }
 

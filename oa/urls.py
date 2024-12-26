@@ -38,7 +38,7 @@ urlpatterns = [
     path('a/share/<str:assistant_id>/', main_views.share_assistant, name='share_assistant'),
     path('a/share/delete/<uuid:link_token>/', main_views.delete_shared_link, name='delete_shared_link'),
     path('a/share/update/<uuid:link_token>/', main_views.update_shared_link, name='update_shared_link'),
-    path('shared/<uuid:token>/', main_views.shared_thread_detail, name='shared_thread_detail'),
+    path('shared/<uuid:shared_token>/', main_views.shared_thread_detail, name='shared_thread_detail'),
 ]
 
 admin.site.index_title = 'Open Assistants'
