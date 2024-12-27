@@ -4,7 +4,7 @@ from .models import Project, Thread, SharedLink
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ['name', 'uuid', 'key']
+    list_display = ['name', 'uuid', 'openai_id', 'key']
     readonly_fields = ('list_shared_links',)
 
     def list_shared_links(self, obj):

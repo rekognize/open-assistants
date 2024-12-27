@@ -1,4 +1,23 @@
 <script>
+
+    async function fetchAndShowProjectDetails(start_time, project_id) {
+        const accordionBody = document.querySelector("#projectDetailsPanel .accordion-body");
+        if (!accordionBody) return;
+
+        const costsData = await getCosts(start_time, [project_id], 'project_id');
+
+        if (!costsData) {
+            accordionBody.innerHTML = "No costs data returned";
+            return;
+        }
+
+        accordionBody.innerHTML = "";
+        const pre = document.createElement('pre');
+        pre.textContent = JSON.stringify(costsData, null, 2);
+        accordionBody.appendChild(pre);
+    }
+
+
     /* Admin APIs */
 
     async function getCosts(start_time, projectIds = [], groupBy = 'project_id') {
@@ -25,13 +44,20 @@
             if (response.ok) {
                 const data = await response.json();
                 console.log('Costs data:', data.costs);
+                return data.costs;
+
             } else {
                 const errorData = await response.json();
                 console.error('getCosts error:', errorData);
+                return null;
+
             }
         } catch (error) {
             console.error('getCosts error:', error);
+            return null;
         }
     }
+
+    fetchAndShowProjectDetails("1730419200", "{{ selected_project.openai_id }}");
 
 </script>

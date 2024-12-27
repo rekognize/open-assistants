@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 
 class Project(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
+    openai_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     key = models.CharField(max_length=255)
     name = models.CharField(max_length=100, blank=True, null=True)
     users = models.ManyToManyField(User, blank=True)
