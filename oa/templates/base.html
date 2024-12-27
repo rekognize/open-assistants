@@ -25,7 +25,7 @@
 
                     {% elif user_projects|length == 1 %}
 
-                        <a class="navbar-brand text-muted" href="{% url 'manage_assistants' project_uuid=user_projects.0.uuid %}">{{ user_projects.0.name }}</a>
+                        <a class="navbar-brand text-muted" href="{% url "home" %}">{{ user_projects.0.name }}</a>
 
                     {% else %}
 
@@ -44,6 +44,18 @@
 
                     {% endif %}
                 </li>
+
+                {% if user_projects|length == 1 %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_nav == 'manage' %}text-decoration-underline{% endif %}"
+                           href="{% url 'manage_assistants' project_uuid=user_projects.0.uuid %}">Manage</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_nav == 'analytics' %}text-decoration-underline{% endif %}"
+                           href="{% url "analytics" project_uuid=user_projects.0.uuid %}">Analytics</a>
+                    </li>
+                {% endif %}
+
             </ul>
 
             <div class="ms-auto d-flex align-items-center">
@@ -102,37 +114,6 @@
             selector: '[data-bs-toggle="tooltip"]'
         });
     });
-
-    function setProject(projectId) {
-        fetch("{% url 'set_project' %}", {
-            method: "POST",
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({project_id: projectId})
-        }).then(response => {
-            if (response.ok) {
-                // Show success message
-                showToast('Success!', 'Key has been set successfully!', 'success');
-
-                // Delay the page reload to allow the user to see the toast
-                setTimeout(() => {
-                    window.location.reload();  // Reload to reflect the selected project
-                }, 1000); // Delay of 1 second
-            } else {
-                response.json().then(data => {
-                    showToast('Error!', data.error);
-                    console.error('Error!', data.error);
-                }).catch(() => {
-                    showToast('Error', 'An unexpected error occurred');
-                });
-            }
-        }).catch(error => {
-            showToast('Error:', error);
-            console.error('Error:', error);
-        });
-    }
 
     // Function to show toast messages
     function showToast(title, body = "", style = "danger") {
@@ -267,6 +248,7 @@
         const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
         return supportedFileTypes.hasOwnProperty(extension);
     }
+
 
     /* Utility functions */
 

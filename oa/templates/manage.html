@@ -78,6 +78,23 @@
         display: inline-block;
         vertical-align: middle;
     }
+
+    /* Ensure header background and border remain white */
+    .accordion-button {
+        background-color: white !important;
+        color: black !important; /* Always black text */
+    }
+
+    /* Maintain header styles when opened */
+    .accordion-button:not(.collapsed) {
+        background-color: white !important; /* White background when opened */
+        color: black !important; /* Always black text */
+    }
+
+    /* Remove focus highlight box-shadow */
+    .accordion-button:focus {
+        box-shadow: none !important;
+    }
 </style>
 {% endblock %}
 
@@ -85,12 +102,29 @@
 {% block content %}
 
 <div class="container mt-4 mb-4">
-    <div class="row mb-2">
+    <div class="row mb-4">
 
-        <div class="col-md d-flex justify-content-end">
+        <div class="col-md d-flex justify-content-end mb-2 me-2">
             <a class="text-secondary" href="#" data-bs-toggle="modal" data-bs-target="#getStartedModal">
                 <i class="bi bi-patch-question-fill"></i>
             </a>
+        </div>
+
+        <div class="accordion" id="accordionProjectDetailsPanel">
+            <div class="accordion-item">
+                <h1 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#projectDetailsPanel" aria-expanded="true"
+                            aria-controls="projectDetailsPanel">
+                        Project details
+                    </button>
+                </h1>
+                <div id="projectDetailsPanel" class="accordion-collapse collapse show">
+                    <div class="accordion-body">
+
+                    </div>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -3341,5 +3375,6 @@
 {% include "modals/share_assistant_js.html" %}
 {% include "modals/get_started_js.html" %}
 {% include "partials/utils_js.html" %}
+{% include "project_details_js.html" %}
 
 {% endblock %}
