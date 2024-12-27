@@ -4,6 +4,7 @@ import json
 import logging
 import os
 
+import httpx
 from django.urls import reverse
 from ninja import NinjaAPI, File, Form
 from ninja.errors import AuthenticationError
@@ -798,3 +799,68 @@ async def generate_instructions(request):
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"generated_text": generated_text}, status=200)
+
+
+# Admin APIs
+
+@api.get("/get_costs", auth=BearerAuth())
+async def get_costs(request):
+    try:
+        await request.auth['client'].models.list()
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    openai_admin_key = os.getenv('OPENAI_ADMIN_KEY')
+    if not openai_admin_key:
+        return JsonResponse({'error': 'API key is missing'}, status=400)
+
+    start_time = request.GET.get('start_time')
+    if not start_time:
+        return JsonResponse({'error': 'start_time is required'}, status=400)
+
+    # Optional params
+    project_ids_str = request.GET.get('project_ids')
+    group_by = request.GET.get('group_by') or 'project_id'  # default to project_id if not set
+
+    # Convert 'project_ids' into a list if present
+    project_ids = []
+    if project_ids_str:
+        project_ids = project_ids_str.split(',')
+
+    params = [
+        ("start_time", start_time),
+        ("limit", "180"),  # maximum
+        ("group_by", group_by),
+    ]
+
+    for pid in project_ids:
+        params.append(("project_ids", pid.strip()))
+
+    headers = {
+        "Authorization": f"Bearer {openai_admin_key}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        # DEBUG
+        from urllib.parse import urlencode
+        param_str = urlencode(params, doseq=True)
+        debug_url = f"https://api.openai.com/v1/organization/costs?{param_str}"
+        print("DEBUG: final request URL ->", debug_url)
+
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(
+                "https://api.openai.com/v1/organization/costs",
+                headers=headers,
+                params=params
+            )
+        response_data = response.json()
+
+        print('response_data', response_data)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({
+        'costs': serialize_to_dict(response_data)
+    })

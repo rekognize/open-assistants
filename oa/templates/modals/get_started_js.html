@@ -66,6 +66,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 createButton.classList.remove('btn-primary');
                 createButton.classList.add('btn-success');
 
+                resetModal();
+
                 showToast('Success!', 'Your assistant has been set up.', 'success');
                 setTimeout(() => {
                     window.location.href = '{% url "manage_assistants" project_uuid=selected_project.uuid %}';
@@ -88,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const getStartedModal = document.getElementById('getStartedModal');
     getStartedModal.addEventListener('show.bs.modal', function () {
-        resetModal();
+
         // Focus name field
         setTimeout(() => {
             assistantNameInput.focus();

@@ -490,6 +490,42 @@
         }
     }
 
+    /* Admin APIs */
+
+    async function getCosts(start_time, projectIds = [], groupBy = 'project_id') {
+        try {
+            let url = "{% url 'api-1.0.0:get_costs' %}?start_time=" + encodeURIComponent(start_time);
+
+            if (projectIds.length > 0) {
+                url += "&project_ids=" + encodeURIComponent(projectIds.join(","));
+            }
+
+            if (groupBy) {
+                url += "&group_by=" + encodeURIComponent(groupBy);
+            }
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Costs data:', data.costs);
+            } else {
+                const errorData = await response.json();
+                console.error('getCosts error:', errorData);
+            }
+        } catch (error) {
+            console.error('getCosts error:', error);
+        }
+    }
+
+    getCosts('1730419200');
 
     /* Initialize Page */
 

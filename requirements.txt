@@ -5,6 +5,7 @@ openai
 pydantic
 uvicorn
 whitenoise
+httpx
 
 docstring-parser
 feedparser
