@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional, Any
 from ninja import Schema
-from pydantic import field_validator
+from pydantic import field_validator, Field
 
 
 def validate_metadata(v):
@@ -54,8 +54,11 @@ class VectorStoreIdsSchema(Schema):
 
 
 class FileUploadSchema(Schema):
-    vector_store_ids: Optional[List[str]] = []  # To hold selected vector store IDs
+    vector_store_ids: List[str] = Field(default_factory=list)
 
+    @field_validator("vector_store_ids",  mode="before")
+    def ensure_list(cls, value):
+        return value or []
 
 class ThreadSchema(Schema):
     title: Optional[str] = None
