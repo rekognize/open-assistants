@@ -30,10 +30,6 @@ urlpatterns = [
 
     path('files/image/<str:file_id>/', main_views.serve_image_file, name='serve_image_file'),
 
-    path('projects/set/', main_views.set_project, name='set_project'),
-    path('projects/create/', main_views.create_project, name='create_project'),
-    path('projects/<int:project_id>/edit/', main_views.edit_project, name='edit_project'),
-    path('projects/<int:project_id>/delete/', main_views.delete_project, name='delete_project'),
 
     path('a/share/<str:assistant_id>/', main_views.share_assistant, name='share_assistant'),
     path('a/share/delete/<uuid:link_token>/', main_views.delete_shared_link, name='delete_shared_link'),

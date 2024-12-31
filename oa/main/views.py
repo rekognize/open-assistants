@@ -79,6 +79,8 @@ def analytics(request, project_uuid):
     })
 
 
+# Analytics
+
 @login_required
 def get_assistant_threads(request):
     try:
@@ -235,113 +237,6 @@ def thread_detail(request, project_uuid):
         'assistant_id': request.GET.get('a'),
         'selected_project': selected_project,
     })
-
-
-# Projects
-
-@login_required
-def set_project(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            project_id = data.get('project_id')
-
-            if project_id:
-                # Set the selected project ID in the session
-                request.session['selected_project_id'] = project_id
-                return JsonResponse({'status': 'success'}, status=200)
-            else:
-                return JsonResponse({'error': 'Invalid project ID'}, status=400)
-        except ValueError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
-    return JsonResponse({'error': 'Bad Request'}, status=400)
-
-
-@login_required
-def create_project(request):
-    if request.method == "POST":
-        name = request.POST.get('name')
-        key = request.POST.get('key')
-
-        if not name:
-            return JsonResponse({'success': False, 'error': 'Name is required.'})
-        if not key:
-            return JsonResponse({'success': False, 'error': 'Key is required.'})
-
-        # Verify the key with OpenAI
-        is_valid, error_message = verify_openai_key(key)
-        if not is_valid:
-            return JsonResponse({'success': False, 'error': error_message})
-
-        # Check if the user already has a project with this key
-        if Project.objects.filter(user=request.user, key=key).exists():
-            return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
-
-        try:
-            project = Project.objects.create(user=request.user, name=name, key=key)
-            return JsonResponse({
-                'success': True,
-                'project': {
-                    'id': project.id,
-                    'name': project.name,
-                    'partial_key': project.get_partial_key()
-                }
-            })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-
-    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
-
-
-@login_required
-def edit_project(request, project_id):
-    if request.method == "POST":
-        name = request.POST.get('name')
-        key = request.POST.get('key')
-
-        if not name:
-            return JsonResponse({'success': False, 'error': 'Name is required.'})
-
-        try:
-            project = get_object_or_404(Project, id=project_id, user=request.user)
-
-            # Update the name
-            project.name = name
-
-            # Update the key only if it is provided
-            if key:
-                # Check if another project with the same key exists for the user
-                if Project.objects.filter(user=request.user, key=key).exclude(id=project_id).exists():
-                    return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
-                project.key = key
-
-            project.save()
-
-            return JsonResponse({
-                'success': True,
-                'project': {
-                    'id': project.id,
-                    'name': project.name,
-                    'partial_key': project.get_partial_key()
-                }
-            })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-
-    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
-
-
-@login_required
-def delete_project(request, project_id):
-    if request.method == "POST":
-        try:
-            project = get_object_or_404(Project, id=project_id, user=request.user)
-            project.delete()
-            return JsonResponse({'success': True})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-
-    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
 
 
 # Sharing
