@@ -1,8 +1,5 @@
-import asyncio
-import base64
 import json
 import logging
-import os
 
 from asgiref.sync import async_to_sync, sync_to_async
 from django.contrib.auth import authenticate, login
@@ -14,12 +11,11 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.translation import gettext as _
-from django.views import View
 from django.views.generic import TemplateView
 from openai import OpenAIError
 
 from .models import Project, SharedLink, Thread
-from .utils import format_time, verify_openai_key
+from .utils import format_time
 from ..api.utils import APIError, aget_openai_client
 from ..tools import FUNCTION_DEFINITIONS
 
@@ -247,12 +243,12 @@ def share_assistant(request, assistant_id):
         return HttpResponseBadRequest('Invalid request')
 
     # Retrieve the selected project
-    selected_project_id = request.session.get('selected_project_id') or request.GET.get('selected_project_id')
+    selected_project_uuid = request.GET.get('selected_project_uuid')
     selected_project = None
 
-    if selected_project_id:
+    if selected_project_uuid:
         try:
-            selected_project = Project.objects.get(id=int(selected_project_id))
+            selected_project = Project.objects.get(uuid=selected_project_uuid, users=request.user)
         except (ValueError, Project.DoesNotExist):
             return JsonResponse({'status': 'error', 'message': _('Invalid project selected.')}, status=400)
     else:
@@ -304,7 +300,7 @@ def delete_shared_link(request, link_token):
 
     if request.method == 'POST':
         try:
-            link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
+            link = get_object_or_404(SharedLink, token=link_token, project__users=request.user)
             link.delete()
             return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
         except Exception as e:
@@ -318,7 +314,7 @@ def update_shared_link(request, link_token):
     if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
         return HttpResponseBadRequest('Invalid request')
 
-    link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
+    link = get_object_or_404(SharedLink, token=link_token, project__users=request.user)
 
     name = request.POST.get('name', '').strip()
     link.name = name
