@@ -1,8 +1,5 @@
-import asyncio
-import base64
 import json
 import logging
-import os
 
 from asgiref.sync import async_to_sync, sync_to_async
 from django.contrib.auth import authenticate, login
@@ -14,12 +11,11 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.translation import gettext as _
-from django.views import View
 from django.views.generic import TemplateView
 from openai import OpenAIError
 
 from .models import Project, SharedLink, Thread
-from .utils import format_time, verify_openai_key
+from .utils import format_time
 from ..api.utils import APIError, aget_openai_client
 from ..tools import FUNCTION_DEFINITIONS
 
@@ -78,6 +74,8 @@ def analytics(request, project_uuid):
         'selected_project': selected_project,
     })
 
+
+# Analytics
 
 @login_required
 def get_assistant_threads(request):
@@ -237,113 +235,6 @@ def thread_detail(request, project_uuid):
     })
 
 
-# Projects
-
-@login_required
-def set_project(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            project_id = data.get('project_id')
-
-            if project_id:
-                # Set the selected project ID in the session
-                request.session['selected_project_id'] = project_id
-                return JsonResponse({'status': 'success'}, status=200)
-            else:
-                return JsonResponse({'error': 'Invalid project ID'}, status=400)
-        except ValueError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
-    return JsonResponse({'error': 'Bad Request'}, status=400)
-
-
-@login_required
-def create_project(request):
-    if request.method == "POST":
-        name = request.POST.get('name')
-        key = request.POST.get('key')
-
-        if not name:
-            return JsonResponse({'success': False, 'error': 'Name is required.'})
-        if not key:
-            return JsonResponse({'success': False, 'error': 'Key is required.'})
-
-        # Verify the key with OpenAI
-        is_valid, error_message = verify_openai_key(key)
-        if not is_valid:
-            return JsonResponse({'success': False, 'error': error_message})
-
-        # Check if the user already has a project with this key
-        if Project.objects.filter(user=request.user, key=key).exists():
-            return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
-
-        try:
-            project = Project.objects.create(user=request.user, name=name, key=key)
-            return JsonResponse({
-                'success': True,
-                'project': {
-                    'id': project.id,
-                    'name': project.name,
-                    'partial_key': project.get_partial_key()
-                }
-            })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-
-    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
-
-
-@login_required
-def edit_project(request, project_id):
-    if request.method == "POST":
-        name = request.POST.get('name')
-        key = request.POST.get('key')
-
-        if not name:
-            return JsonResponse({'success': False, 'error': 'Name is required.'})
-
-        try:
-            project = get_object_or_404(Project, id=project_id, user=request.user)
-
-            # Update the name
-            project.name = name
-
-            # Update the key only if it is provided
-            if key:
-                # Check if another project with the same key exists for the user
-                if Project.objects.filter(user=request.user, key=key).exclude(id=project_id).exists():
-                    return JsonResponse({'success': False, 'error': 'You already have a project with this key.'})
-                project.key = key
-
-            project.save()
-
-            return JsonResponse({
-                'success': True,
-                'project': {
-                    'id': project.id,
-                    'name': project.name,
-                    'partial_key': project.get_partial_key()
-                }
-            })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-
-    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
-
-
-@login_required
-def delete_project(request, project_id):
-    if request.method == "POST":
-        try:
-            project = get_object_or_404(Project, id=project_id, user=request.user)
-            project.delete()
-            return JsonResponse({'success': True})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-
-    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
-
-
 # Sharing
 
 @login_required
@@ -352,12 +243,12 @@ def share_assistant(request, assistant_id):
         return HttpResponseBadRequest('Invalid request')
 
     # Retrieve the selected project
-    selected_project_id = request.session.get('selected_project_id') or request.GET.get('selected_project_id')
+    selected_project_uuid = request.GET.get('selected_project_uuid')
     selected_project = None
 
-    if selected_project_id:
+    if selected_project_uuid:
         try:
-            selected_project = Project.objects.get(id=int(selected_project_id))
+            selected_project = Project.objects.get(uuid=selected_project_uuid, users=request.user)
         except (ValueError, Project.DoesNotExist):
             return JsonResponse({'status': 'error', 'message': _('Invalid project selected.')}, status=400)
     else:
@@ -409,7 +300,7 @@ def delete_shared_link(request, link_token):
 
     if request.method == 'POST':
         try:
-            link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
+            link = get_object_or_404(SharedLink, token=link_token, project__users=request.user)
             link.delete()
             return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
         except Exception as e:
@@ -423,7 +314,7 @@ def update_shared_link(request, link_token):
     if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
         return HttpResponseBadRequest('Invalid request')
 
-    link = get_object_or_404(SharedLink, token=link_token, project__user=request.user)
+    link = get_object_or_404(SharedLink, token=link_token, project__users=request.user)
 
     name = request.POST.get('name', '').strip()
     link.name = name
