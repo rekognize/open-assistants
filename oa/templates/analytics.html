@@ -168,7 +168,6 @@ function populateTabsAndContent(assistants) {
             <h4>${assistant.name || 'Unnamed Assistant'}</h4>
             <p><strong>Model:</strong> ${assistant.model}</p>
             <p><strong>Tools:</strong> ${assistant.tools.map(tool => tool.type).join(', ') || 'None'}</p>
-            <p><em>Fetching threads...</em></p>
             <div id="stats-${assistant.id}"></div>
         `;
 
@@ -248,6 +247,7 @@ async function fetchTokenUsageStats(assistantId) {
                                         <th>Thread ID</th>
                                         <th>Date</th>
                                         <th>Tokens Used</th>
+                                        <th>Tools Used</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -290,10 +290,22 @@ async function fetchThreadRuns(threads, progressId, tableId, sectionId) {
             const tokensTotal = runsData.runs.reduce((sum, run) => sum + run.usage.total_tokens, 0);
             const tokensPrompt = runsData.runs.reduce((sum, run) => sum + run.usage.prompt_tokens, 0);
             const tokensCompletion = runsData.runs.reduce((sum, run) => sum + run.usage.completion_tokens, 0);
+            const toolsUsed = runsData.runs.reduce((tools, run) => {
+                run.tools.forEach(tool => {
+                    tools[tool.type] = (tools[tool.type] || 0) + 1;
+                });
+                return tools;
+            }, {});
+
+            const toolsUsedString = Object.entries(toolsUsed)
+                .map(([tool, count]) => `${tool} (${count})`)
+                .join(', ');
+
             const threadRow = `<tr>
-                <td>${thread.id}</td>
+                <td>...${thread.id.slice(-5)}</td>
                 <td>${new Date(thread.created_at).toLocaleString()}</td>
                 <td>${tokensPrompt} prompt, ${tokensCompletion} completion, ${tokensTotal} total</td>
+                <td>${toolsUsedString}</td>
             </tr>`;
 
             document.querySelector(`#${tableId} tbody`).innerHTML += threadRow;
