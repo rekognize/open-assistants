@@ -110,291 +110,214 @@
     }
 
 
-    /* Globals */
-
-    let vectorStoresDict = {}; // vectorStoreId -> vectorStoreName
-    let assistantsDict = {}; // assistantId -> assistantName
-    let threadsDict = {}; // threadId -> thread data
-
-
     /* Assistants */
 
-    async function fetchAssistants() {
-        try {
-            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            const assistantsData = await assistantsResponse.json();
-
-            console.log('assistants:', assistantsData);
-
-            populateTabsAndContent(assistantsData.assistants);
-
-        } catch (error) {
-            console.error('Error fetching assistants:', error);
-        } finally {
-            toggleLoading('assistants', false);
-        }
-    }
-
-    function populateTabsAndContent(assistants) {
-        // Get references to the tabs and content containers
-        const tabsContainer = document.getElementById('assistantTabs');
-        const contentContainer = document.getElementById('assistantContent');
-
-        // Clear existing content
-        tabsContainer.innerHTML = '';
-        contentContainer.innerHTML = '';
-
-        // Populate tabs and contents
-        assistants.forEach((assistant, index) => {
-            // Create a tab item
-            const tabItem = document.createElement('li');
-            tabItem.className = 'nav-item';
-
-            const tabLink = document.createElement('a');
-            tabLink.className = `nav-link ${index === 0 ? 'active' : ''}`;
-            tabLink.setAttribute('data-bs-toggle', 'tab');
-            tabLink.setAttribute('href', `#assistant-${assistant.id}`);
-            tabLink.setAttribute('role', 'tab');
-            tabLink.setAttribute('aria-controls', `assistant-${assistant.id}`);
-            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-            tabLink.textContent = assistant.name || 'Unnamed Assistant';
-
-            tabItem.appendChild(tabLink);
-            tabsContainer.appendChild(tabItem);
-
-            // Create a content pane
-            const contentPane = document.createElement('div');
-            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
-            contentPane.setAttribute('id', `assistant-${assistant.id}`);
-            contentPane.setAttribute('role', 'tabpanel');
-            contentPane.setAttribute('aria-labelledby', `assistant-${assistant.id}-tab`);
-
-            // Populate content pane with assistant details
-            contentPane.innerHTML = `
-                <h4>${assistant.name || 'Unnamed Assistant'}</h4>
-                <p><strong>Model:</strong> ${assistant.model}</p>
-                <p><strong>Tools:</strong> ${assistant.tools.map(tool => tool.type).join(', ') || 'None'}</p>
-                <div id="stats-${assistant.id}"></div>
-            `;
-
-            contentContainer.appendChild(contentPane);
-
-            // Fetch and display cumulative token usage stats
-            fetchTokenUsageStats(assistant.id);
+async function fetchAssistants() {
+    try {
+        const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+            }
         });
+
+        const assistantsData = await assistantsResponse.json();
+
+        console.log('assistants:', assistantsData);
+
+        populateTabsAndContent(assistantsData.assistants);
+
+    } catch (error) {
+        console.error('Error fetching assistants:', error);
+    } finally {
+        toggleLoading('assistants', false);
     }
+}
 
-    async function fetchTokenUsageStats(assistantId) {
+function populateTabsAndContent(assistants) {
+    const tabsContainer = document.getElementById('assistantTabs');
+    const contentContainer = document.getElementById('assistantContent');
 
-        const listThreadsUrlTemplate = "{% url 'api-1.0.0:list_threads' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
-        const url = listThreadsUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+    tabsContainer.innerHTML = '';
+    contentContainer.innerHTML = '';
 
+    assistants.forEach((assistant, index) => {
+        const tabItem = document.createElement('li');
+        tabItem.className = 'nav-item';
+
+        const tabLink = document.createElement('a');
+        tabLink.className = `nav-link ${index === 0 ? 'active' : ''}`;
+        tabLink.setAttribute('data-bs-toggle', 'tab');
+        tabLink.setAttribute('href', `#assistant-${assistant.id}`);
+        tabLink.setAttribute('role', 'tab');
+        tabLink.setAttribute('aria-controls', `assistant-${assistant.id}`);
+        tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+        tabLink.textContent = assistant.name || 'Unnamed Assistant';
+
+        tabItem.appendChild(tabLink);
+        tabsContainer.appendChild(tabItem);
+
+        const contentPane = document.createElement('div');
+        contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+        contentPane.setAttribute('id', `assistant-${assistant.id}`);
+        contentPane.setAttribute('role', 'tabpanel');
+        contentPane.setAttribute('aria-labelledby', `assistant-${assistant.id}-tab`);
+
+        contentPane.innerHTML = `
+            <h4>${assistant.name || 'Unnamed Assistant'}</h4>
+            <p><strong>Model:</strong> ${assistant.model}</p>
+            <p><strong>Tools:</strong> ${assistant.tools.map(tool => tool.type).join(', ') || 'None'}</p>
+            <div id="stats-${assistant.id}"></div>
+        `;
+
+        contentContainer.appendChild(contentPane);
+
+        fetchTokenUsageStats(assistant.id);
+    });
+}
+
+async function fetchTokenUsageStats(assistantId) {
+    const listThreadsUrlTemplate = "{% url 'api-1.0.0:list_threads' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
+    const url = listThreadsUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+
+    try {
+        const threadsResponse = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+            }
+        });
+        const threadsData = await threadsResponse.json();
+
+        const threads = threadsData['threads'];
+        if (threads.length === 0) {
+            document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>No threads yet.</strong>`;
+            return;
+        }
+
+        let sharedThreads = 0;
+        let testThreads = 0;
+        const threadSections = {};
+
+        threads.forEach(thread => {
+            const shareName = thread.share || 'Test Threads';
+            threadSections[shareName] = threadSections[shareName] || [];
+            threadSections[shareName].push(thread);
+
+            if (thread.share) {
+                sharedThreads++;
+            } else {
+                testThreads++;
+            }
+        });
+
+        const firstDate = new Date(threads[0].created_at).toLocaleString();
+        const lastDate = new Date(threads[threads.length - 1].created_at).toLocaleString();
+
+        const summary = `<p>${sharedThreads} shared and ${testThreads} test threads run between ${firstDate} & ${lastDate}</p>`;
+
+        const accordionId = `accordion-${assistantId}`;
+        let accordionHtml = `<div class="accordion" id="${accordionId}">`;
+
+        Object.keys(threadSections).forEach((shareName, index) => {
+            const threads = threadSections[shareName];
+            const sectionId = `collapse-${assistantId}-${index}`;
+            const progressId = `progress-${assistantId}-${index}`;
+            const tableId = `table-${assistantId}-${index}`;
+
+            accordionHtml += `
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${sectionId}" aria-expanded="false" aria-controls="${sectionId}" disabled>
+                            <span>${shareName}</span>
+                            <div class="ms-auto w-50">
+                                <div class="progress">
+                                    <div id="${progressId}" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="${sectionId}" class="accordion-collapse collapse" aria-labelledby="heading-${index}" data-bs-parent="#${accordionId}">
+                        <div class="accordion-body">
+                            <table id="${tableId}" class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Thread ID</th>
+                                        <th>Date</th>
+                                        <th>Tokens Used</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`;
+
+            fetchThreadRuns(threads, progressId, tableId, sectionId);
+        });
+
+        accordionHtml += `</div>`;
+
+        document.getElementById(`stats-${assistantId}`).innerHTML = summary + accordionHtml;
+
+    } catch (error) {
+        console.error(`Error fetching token usage stats for assistant ${assistantId}:`, error);
+        document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>Error loading stats.</strong>`;
+    }
+}
+
+async function fetchThreadRuns(threads, progressId, tableId, sectionId) {
+    let completedThreads = 0;
+    const totalThreads = threads.length;
+
+    for (const thread of threads) {
+        const listRunsUrlTemplate = "{% url 'api-1.0.0:list_runs' thread_id='THREAD_ID_PLACEHOLDER' %}";
+        const url = listRunsUrlTemplate.replace('THREAD_ID_PLACEHOLDER', thread.id);
 
         try {
-            // Fetch thread IDs for the assistant
-            const threadsResponse = await fetch(url, {
+            const runsResponse = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                 }
             });
-            const threadsData = await threadsResponse.json();
+            const runsData = await runsResponse.json();
 
-            const threadIds = threadsData['thread_ids'];
+            const tokensUsed = runsData.runs.reduce((sum, run) => sum + run.usage.total_tokens, 0);
+            const threadRow = `<tr>
+                <td>${thread.id}</td>
+                <td>${new Date(thread.created_at).toLocaleString()}</td>
+                <td>${tokensUsed}</td>
+            </tr>`;
 
-            if (threadIds.length === 0) {
-                document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>No threads found for this assistant.</strong>`;
-                return;
-            }
-
-            let cumulativeStats = {
-                prompt_tokens: 0,
-                completion_tokens: 0,
-                total_tokens: 0
-            };
-
-            let threadCreationDates = [];
-            let totalThreads = threadsData.length;
-
-            for (const threadId of threadIds) {
-
-                const listRunsUrlTemplate = "{% url 'api-1.0.0:list_runs' thread_id='THREAD_ID_PLACEHOLDER' %}";
-                const url = listRunsUrlTemplate.replace('THREAD_ID_PLACEHOLDER', threadId);
-
-                // Fetch runs for the thread
-                const runsResponse = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${API_KEY}`,
-                        'Content-Type': 'application/json',
-                    }
-                });
-                const runsData = await runsResponse.json();
-
-                // Aggregate token usage stats
-                for (const run of runsData.runs) {
-                    cumulativeStats.prompt_tokens += run.usage.prompt_tokens;
-                    cumulativeStats.completion_tokens += run.usage.completion_tokens;
-                    cumulativeStats.total_tokens += run.usage.total_tokens;
-                }
-            }
-
-            // Update the stats in the content pane
-            document.getElementById(`stats-${assistantId}`).innerHTML = `
-                <p><strong>Cumulative Token Usage:</strong></p>
-                <ul>
-                    <li>Prompt Tokens: ${cumulativeStats.prompt_tokens}</li>
-                    <li>Completion Tokens: ${cumulativeStats.completion_tokens}</li>
-                    <li>Total Tokens: ${cumulativeStats.total_tokens}</li>
-                </ul>
-            `;
+            document.querySelector(`#${tableId} tbody`).innerHTML += threadRow;
         } catch (error) {
-            console.error(`Error fetching token usage stats for assistant ${assistantId}:`, error);
-            document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>Error loading token usage stats.</strong>`;
-        }
-    }
-
-
-    /* Threads */
-
-    async function fetchThreadsData(assistantIds) {
-        try {
-            const response = await fetch("{% url 'get_assistant_threads' %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": '{{ csrf_token }}'
-                },
-                body: JSON.stringify({ assistant_ids: assistantIds }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch threads: ${response.statusText}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Error fetching thread counts:', error);
-            return {};
-        }
-    }
-
-    async function fetchThreadsTable(assistantIds) {
-        try {
-            const response = await fetch("{% url 'list_threads' %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": '{{ csrf_token }}'
-                },
-                body: JSON.stringify({ assistant_ids: assistantIds }),
-            });
-            const data = await response.json();
-
-            console.log('fetchThreadsTable:', data);
-
-            if (data.threads?.length > 0) {
-                // We'll fetch usage for each thread in parallel.
-                const usagePromises = data.threads.map(async (thread) => {
-                    let totalTokens = 0;
-
-                    const listRunsUrlTemplate = "{% url 'api-1.0.0:list_runs' thread_id='THREAD_ID_PLACEHOLDER' %}";
-                    const url = listRunsUrlTemplate.replace('THREAD_ID_PLACEHOLDER', thread.id);
-                    try {
-                        const runsResp = await fetch(url, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${API_KEY}`,
-                                'Content-Type': 'application/json',
-                                "X-CSRFToken": '{{ csrf_token }}'
-                            }
-                        });
-                        const runsData = await runsResp.json();
-
-                        console.log('runsData', runsData);
-
-                        if (runsData.runs && Array.isArray(runsData.runs)) {
-                            // Process runs asynchronously
-                            const tokenPromises = runsData.runs.map(async (run) => {
-                                console.log('run model:', run.model);
-                                if (run.usage?.total_tokens) {
-                                    return run.usage.total_tokens;
-                                }
-                                return 0;
-                            });
-
-                            const tokenResults = await Promise.all(tokenPromises);
-                            totalTokens = tokenResults.reduce((sum, tokens) => sum + tokens, 0);
-                        }
-                    } catch (error) {
-                        console.error(`Error fetching runs for thread ${thread.id}:`, error);
-                    }
-                    return totalTokens;
-                });
-
-                // Wait for all usagePromises to resolve
-                const usageResults = await Promise.all(usagePromises);
-
-                // Attach usage to each thread
-                data.threads.forEach((thread, idx) => {
-                    thread.usage = usageResults[idx];
-                });
-
-                // Now build the table rows
-                const tableBody = document.getElementById('threads-table-body');
-                tableBody.innerHTML = '';
-
-                const rows = data.threads.map(thread => {
-                    const created = formatUnixTimestamp(thread.created_at);
-                    const asstName = assistantsDict[thread.assistant_id] || '<span class="text-secondary">Unknown</span>';
-                    let sharedDisplay = '<span class="text-secondary">No</span>';
-                    if (thread.shared_link_name) {
-                        sharedDisplay = `<span class="text-success">${thread.shared_link_name}</span>`;
-                    }
-
-                    return `
-                        <tr>
-                            <td>${thread.id}</td>
-                            <td>${created}</td>
-                            <td>${asstName}</td>
-                            <td>${sharedDisplay}</td>
-                            <td>${thread.usage || 0}</td>
-                        </tr>
-                    `;
-                });
-
-                tableBody.innerHTML = rows.join('');
-                document.getElementById('threads-table').classList.remove('d-none');
-            } else {
-                document.getElementById('no-threads').classList.remove('d-none');
-            }
-        } catch (error) {
-            console.error('Error fetching threads:', error);
+            console.error(`Error fetching runs for thread ${thread.id}:`, error);
         } finally {
-            toggleLoading('threads', false);
+            completedThreads++;
+            const progress = (completedThreads / totalThreads) * 100;
+            const progressBar = document.getElementById(progressId);
+            progressBar.style.width = `${progress}%`;
+            progressBar.setAttribute('aria-valuenow', progress);
+
+            if (progress === 100) {
+                document.querySelector(`[data-bs-target="#${sectionId}"]`).removeAttribute('disabled');
+            }
         }
     }
+}
 
+/* Initialize Page */
 
-    /* Initialize Page */
+async function initializePage() {
+    toggleLoading('assistants', true);
+    fetchAssistants();
+}
 
-    async function initializePage() {
-        // Show loading indicator initially for all
-        toggleLoading('assistants', true);
-        toggleLoading('threads', true);
-
-        fetchAssistants();
-    }
-
-    initializePage()
+initializePage();
 
 </script>
 

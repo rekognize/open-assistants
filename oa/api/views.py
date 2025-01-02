@@ -5,6 +5,7 @@ import logging
 import os
 
 import httpx
+from asgiref.sync import sync_to_async
 from django.urls import reverse
 from ninja import NinjaAPI, File, Form
 from ninja.errors import AuthenticationError
@@ -141,13 +142,20 @@ async def delete_assistant(request, assistant_id):
 @api.get("/assistants/{assistant_id}/threads", auth=BearerAuth())
 async def list_threads(request, assistant_id):
     """
-    Returns the thread ids for the assistant
+    Returns the thread information for the given assistant
     """
     threads = Thread.objects.filter(metadata___asst=assistant_id)
-    return JsonResponse({
-        'thread_ids': [t.openai_id async for t in threads]
-    })
 
+    async def get_thread_data(t):
+        shared_link = await sync_to_async(lambda: t.shared_link)()
+        return {
+            'id': t.openai_id,
+            'created_at': t.created_at,
+            'share': str(shared_link) if shared_link else None,
+        }
+
+    threads_data = [await get_thread_data(t) async for t in threads]
+    return JsonResponse({'threads': threads_data})
 
 # Vector Stores
 
@@ -510,7 +518,8 @@ async def create_message(request, thread_id):
 async def list_runs(request, thread_id):
     try:
         runs = await request.auth['client'].beta.threads.runs.list(
-            thread_id=thread_id
+            thread_id=thread_id,
+            limit=100,
         )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
