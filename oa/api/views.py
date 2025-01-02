@@ -15,7 +15,7 @@ from openai import AsyncOpenAI, OpenAIError
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema
 from .utils import serialize_to_dict, APIError, EventHandler
-from oa.main.models import Project, SharedLink
+from oa.main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
 from ..tools import FUNCTION_IMPLEMENTATIONS
 
@@ -136,6 +136,17 @@ async def delete_assistant(request, assistant_id):
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse(serialize_to_dict(assistant))
+
+
+@api.get("/assistants/{assistant_id}/threads", auth=BearerAuth())
+async def list_threads(request, assistant_id):
+    """
+    Returns the thread ids for the assistant
+    """
+    threads = Thread.objects.filter(metadata___asst=assistant_id)
+    return JsonResponse({
+        'thread_ids': [t.openai_id async for t in threads]
+    })
 
 
 # Vector Stores
