@@ -190,6 +190,7 @@
 </script>
 
 {% if is_shared_thread %}
+    {% block navbar %}{% endblock %}
     {% include 'chat/shared_chat_js.html' %}
 {% else %}
     {% include 'chat/chat_js.html' %}
