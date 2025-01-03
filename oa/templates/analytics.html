@@ -244,8 +244,9 @@ async function fetchTokenUsageStats(assistantId) {
                             <table id="${tableId}" class="table table-striped">
                                 <thead>
                                     <tr>
-                                        <th>Thread ID</th>
+                                        <th>ID</th>
                                         <th>Date</th>
+                                        <th>Runs</th>
                                         <th>Tokens Used</th>
                                         <th>Tools Used</th>
                                     </tr>
@@ -304,6 +305,7 @@ async function fetchThreadRuns(threads, progressId, tableId, sectionId) {
             const threadRow = `<tr>
                 <td>...${thread.id.slice(-5)}</td>
                 <td>${new Date(thread.created_at).toLocaleString()}</td>
+                <td>${runsData.runs.length}</td>
                 <td>${tokensPrompt} prompt, ${tokensCompletion} completion, ${tokensTotal} total</td>
                 <td>${toolsUsedString}</td>
             </tr>`;
