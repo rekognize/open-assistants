@@ -302,11 +302,27 @@ async function fetchThreadRuns(threads, progressId, tableId, sectionId) {
                 .map(([tool, count]) => `${tool} (${count})`)
                 .join(', ');
 
+            const cancelledRuns = runsData.runs.filter(run => run.cancelled_at !== null).length;
+            const failedRuns = runsData.runs.filter(run => run.failed_at !== null).length;
+
+            let runsSummary = `${runsData.runs.length}`;
+            if (cancelledRuns > 0 || failedRuns > 0) {
+                const details = [];
+                if (cancelledRuns > 0) details.push(`${cancelledRuns} cancelled`);
+                if (failedRuns > 0) details.push(`${failedRuns} failed`);
+                runsSummary += ` (${details.join(', ')})`;
+            }
+
+            let tokensSummary = `${tokensTotal}`;
+            if (tokensTotal > 0) {
+                tokensSummary += ` (${tokensPrompt} prompt, ${tokensCompletion} completion)`;
+            }
+
             const threadRow = `<tr>
                 <td>...${thread.id.slice(-5)}</td>
                 <td>${new Date(thread.created_at).toLocaleString()}</td>
-                <td>${runsData.runs.length}</td>
-                <td>${tokensPrompt} prompt, ${tokensCompletion} completion, ${tokensTotal} total</td>
+                <td>${runsSummary}</td>
+                <td>${tokensSummary}</td>
                 <td>${toolsUsedString}</td>
             </tr>`;
 
