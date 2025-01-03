@@ -13,7 +13,8 @@
 
 {% block navbar %}
 
-    <nav class="navbar sticky-top navbar-expand-lg navbar-light border-bottom bg-light">
+    <nav class="navbar sticky-top navbar-expand-lg navbar-light border-bottom bg-light"
+         style="z-index: 100;">
         <div class="container">
 
             {% if not user_projects %}
@@ -29,37 +30,44 @@
 
                     <li class="nav-item dropdown">
 
-                        <a class="nav-link {% if user_projects|length > 1 %}dropdown-toggle{% endif %}"
-                            href="#" id="projectsDropdown"
-                            data-bs-toggle="dropdown" aria-expanded="false"
-                        >
-                            {{ selected_project.name }}
-                        </a>
-
                         {% if user_projects|length > 1 %}
 
+                            <a class="nav-link dropdown-toggle"
+                               href="#" id="projectsDropdown"
+                               data-bs-toggle="dropdown" aria-expanded="false"
+                            >
+                                {{ selected_project.name }}
+                            </a>
                             <ul class="dropdown-menu" id="projectsDropdown">
                                 {% for project in user_projects %}
                                     <li>
-                                        <a href="{% url 'manage_assistants' project_uuid=project.uuid %}" class="dropdown-item">{{ project }}</a>
+                                        <a href="{% url 'manage_assistants' project_uuid=project.uuid %}"
+                                           class="dropdown-item">{{ project }}
+                                        </a>
                                     </li>
                                 {% endfor %}
                             </ul>
 
+                        {% elif user_projects|length == 1 %}
+
+                            <a class="nav-link" href="{% url "home" %}">
+                                {{ user_projects.0.name }}
+                            </a>
                         {% endif %}
 
                     </li>
 
-                {% endif %}
 
-                <li class="nav-item">
-                    <a class="nav-link {% if active_nav == 'manage' %}active{% endif %}"
-                       href="{% url 'manage_assistants' project_uuid=user_projects.0.uuid %}">Manage</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
-                       href="{% url "analytics" project_uuid=user_projects.0.uuid %}">Monitor</a>
-                </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_nav == 'manage' %}active{% endif %}"
+                           href="{% url 'manage_assistants' project_uuid=user_projects.0.uuid %}">Manage</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
+                           href="{% url "analytics" project_uuid=user_projects.0.uuid %}">Monitor</a>
+                    </li>
+
+                {% endif %}
 
             </ul>
 
@@ -69,11 +77,15 @@
 
                     <ul class="navbar-nav ms-auto">
 
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#getStartedModal">
-                                <i class="bi bi-robot"></i>
-                            </a>
-                        </li>
+                        {% if active_nav == 'manage' or active_nav == 'analytics' %}
+
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#getStartedModal">
+                                    <i class="bi bi-robot"></i>
+                                </a>
+                            </li>
+
+                        {% endif %}
 
                         <li class="nav-item">
 
