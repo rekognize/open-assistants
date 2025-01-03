@@ -13,4 +13,19 @@
 
     </div>
 
+
+    {% if not user_projects and user.is_authenticated %}
+
+    <div class="container mt-4">
+        <div class="alert alert-warning">
+            You do not have any projects yet.
+            <hr>
+            <div class="d-flex justify-content-between">
+                Add your Project ID and API key to start using Open Assistants.
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+
 {% endblock %}
