@@ -50,7 +50,7 @@
 
                         {% elif user_projects|length == 1 %}
 
-                            <a class="nav-link" href="{% url "home" %}">
+                            <a class="nav-link" href="{% url "home" project_uuid=user_projects.0.uuid %}">
                                 {{ user_projects.0.name }}
                             </a>
                         {% endif %}
