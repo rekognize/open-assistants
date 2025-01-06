@@ -47,6 +47,21 @@ def login_view(request):
 class HomeView(TemplateView):
     template_name = 'home.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        request = self.request
+        project_uuid = self.kwargs.get('project_uuid', '')
+
+        if project_uuid:
+            if request.user.is_staff:
+                selected_project = get_object_or_404(Project, uuid=project_uuid)
+            else:
+                selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
+
+            context['selected_project'] = selected_project
+
+        return context
+
 
 @login_required
 def manage_assistants(request, project_uuid):

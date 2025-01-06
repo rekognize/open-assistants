@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/", api.urls),
 
     path('', main_views.HomeView.as_view(), name='home'),
+    path('<uuid:project_uuid>/', main_views.HomeView.as_view(), name='home'),
 
     # path('manage/', main_views.manage_assistants, name='manage_assistants'),
     path('<uuid:project_uuid>/manage/', main_views.manage_assistants, name='manage_assistants'),
@@ -29,7 +30,6 @@ urlpatterns = [
     path('db_threads/list/', main_views.list_threads, name='list_threads'),
 
     path('files/image/<str:file_id>/', main_views.serve_image_file, name='serve_image_file'),
-
 
     path('a/share/<str:assistant_id>/', main_views.share_assistant, name='share_assistant'),
     path('a/share/delete/<uuid:link_token>/', main_views.delete_shared_link, name='delete_shared_link'),
