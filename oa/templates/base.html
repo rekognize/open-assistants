@@ -28,11 +28,11 @@
 
                 {% if user_projects %}
 
-                    <li class="nav-item dropdown me-3">
+                    <li class="nav-item dropdown me-3 fw-semibold">
 
                         {% if user_projects|length > 1 %}
 
-                            <a class="nav-link dropdown-toggle"
+                            <a class="nav-link ps-0 dropdown-toggle"
                                href="#"
                                data-bs-toggle="dropdown" aria-expanded="false"
                             >
@@ -54,9 +54,10 @@
 
                         {% elif user_projects|length == 1 %}
 
-                            <a class="nav-link" href="{% url "home" project_uuid=user_projects.0.uuid %}">
+                            <a class="nav-link ps-0" href="{% url "home" project_uuid=user_projects.0.uuid %}">
                                 {{ user_projects.0.name }}
                             </a>
+
                         {% endif %}
 
                     </li>
