@@ -4,13 +4,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Override in .env file
+SECRET_KEY = os.environ.get('SECRET_KEY', 'insecure-key')
+SITE_NAME = os.environ.get('SITE_NAME', 'AI Assistants')
+SITE_HOST = os.environ.get('SITE_HOST', 'local.host')
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-621mr=g-bw*ojnya^d#0dsj$$k^1bup=mh3jl^+6-i2841&oj$'
 
-# SECURITY WARNING: don't run with debug turned on in production!
+# Don't run with debug turned on in production!
 DEBUG = True
 
 
@@ -53,6 +56,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'oa.context_processors.site_info',
                 'oa.context_processors.user_projects',
             ],
         },
@@ -177,7 +181,7 @@ else:
     AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
     AWS_S3_REGION_NAME = os.getenv("AWS_REGION_NAME")
 
-    AWS_STORAGE_BUCKET_NAME = f"openassistants-{BRANCH_NAME}".lower()
+    AWS_STORAGE_BUCKET_NAME = f"{SITE_HOST}-{BRANCH_NAME}".lower()
 
     STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/static/'
     MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
@@ -189,12 +193,11 @@ else:
 
 ALLOWED_HOSTS = [
     'localhost',
-    'openassistants.io',
-    'test.openassistants.io',
+    SITE_HOST,
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.openassistants.io",
+    f"https://*.{SITE_HOST}",
 ]
 
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -258,19 +261,6 @@ LOGOUT_REDIRECT_URL = '/'
 
 SESSION_COOKIE_AGE = 315360000  # 10 years
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-
-
-# reCAPTCHA v2
-RECAPTCHA_PUBLIC_KEY = os.getenv('RECAPTCHA_PUBLIC_KEY')
-RECAPTCHA_PRIVATE_KEY = os.getenv('RECAPTCHA_PRIVATE_KEY')
-
-
-DEFAULT_FROM_EMAIL = 'hello@openassistants.io'
-
-if IS_LOCAL:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-else:
-    EMAIL_BACKEND = 'django_ses.SESBackend'
 
 
 AUTHENTICATION_BACKENDS = [

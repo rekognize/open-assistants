@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.views import LogoutView
+from django.conf import settings
 from django.urls import path
 
 from oa.api.views import api
@@ -7,7 +8,7 @@ from oa.main import views as main_views
 
 
 urlpatterns = [
-    path('oaAdmin/', admin.site.urls),
+    path('aiAdmin/', admin.site.urls),
 
     path('login/', main_views.login_view, name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
@@ -37,6 +38,6 @@ urlpatterns = [
     path('shared/<uuid:shared_token>/', main_views.shared_thread_detail, name='shared_thread_detail'),
 ]
 
-admin.site.index_title = 'Open Assistants'
-admin.site.site_header = 'Open Assistants'
-admin.site.site_title = 'Open Assistants'
+admin.site.index_title = settings.SITE_NAME
+admin.site.site_header = settings.SITE_NAME
+admin.site.site_title = settings.SITE_NAME

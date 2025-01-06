@@ -1,4 +1,5 @@
 from oa.main.models import Project
+from django.conf import settings
 
 
 def user_projects(request):
@@ -12,4 +13,10 @@ def user_projects(request):
 
     return {
         'user_projects': projects,
+    }
+
+
+def site_info(request):
+    return {
+        'SITE_NAME': settings.SITE_NAME,
     }

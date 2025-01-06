@@ -1,22 +1,13 @@
-Django
-django-ninja
 requests
 openai
 pydantic
 uvicorn
 whitenoise
 httpx
+python-dotenv
 
-docstring-parser
-feedparser
-beautifulsoup4
-googlesearch-python
-
-# private
+django
+django-ninja
 django-storages[s3]
 django-sesame
 django-widget-tweaks
-django-recaptcha
-django-ses[events]
-python-dotenv
-stripe
