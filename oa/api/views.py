@@ -3,7 +3,6 @@ import base64
 import json
 import logging
 import os
-
 import httpx
 from asgiref.sync import sync_to_async
 from django.urls import reverse
@@ -53,33 +52,28 @@ class BearerAuth(HttpBearer):
             else:
                 raise APIError("Authentication required.", status=401)
 
-        return {'client': client}
+        return {
+            'project': project,
+            'client': client,
+        }
 
 
 # Shared link administration
 
 class AssistantSharedLink(Schema):
-    project_key: str
     assistant_id: str
     name: str
 
 
 @api.post("/sharedlink", auth=BearerAuth())
 def create_shared_link(request, data: AssistantSharedLink):
-    project = Project.objects.filter(key=data.project_key).first()
-
-    if not project:
-        return JsonResponse({
-            "error": str("Project does not exist."),
-        }, status=404)
-
-    link = SharedLink.objects.get_or_create(
-        project=project,
+    link, _ = SharedLink.objects.get_or_create(
+        project=request.auth['project'],
         assistant_id=data.assistant_id,
         name=data.name,
     )
 
-    uri = reverse('shared_thread_detail', kwargs={'token': link.token})
+    uri = reverse('shared_thread_detail', kwargs={'shared_token': link.token})
 
     return JsonResponse({
         "token": link.token,
@@ -89,18 +83,17 @@ def create_shared_link(request, data: AssistantSharedLink):
 
 @api.delete("/sharedlink", auth=BearerAuth())
 def delete_shared_link(request, data: AssistantSharedLink):
-    project = Project.objects.filter(key=data.project_key).first()
-
-    if not project:
-        return JsonResponse({
-            "error": str("Project does not exist."),
-        }, status=404)
-
-    link = SharedLink.objects.get_or_create(
-        project=project,
+    link = SharedLink.objects.filter(
+        project=request.auth['project'],
         assistant_id=data.assistant_id,
         name=data.name,
-    )
+    ).first()
+
+    if not link:
+        return JsonResponse({
+            "warning": "The shared link does not exist."
+        }, status=404)
+
     link.delete()
 
     return JsonResponse({
@@ -915,7 +908,6 @@ async def get_costs(request):
         from urllib.parse import urlencode
         param_str = urlencode(params, doseq=True)
         debug_url = f"https://api.openai.com/v1/organization/costs?{param_str}"
-        print("DEBUG: final request URL ->", debug_url)
 
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(
@@ -924,8 +916,6 @@ async def get_costs(request):
                 params=params
             )
         response_data = response.json()
-
-        print('response_data', response_data)
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
