@@ -7,7 +7,7 @@ import os
 import httpx
 from asgiref.sync import sync_to_async
 from django.urls import reverse
-from ninja import NinjaAPI, File, Form
+from ninja import NinjaAPI, File, Form, Schema
 from ninja.errors import AuthenticationError
 from ninja.security import HttpBearer
 from ninja.files import UploadedFile
@@ -42,10 +42,6 @@ class BearerAuth(HttpBearer):
             # User is anonymous, check for shared token
             shared_token = request.headers.get('X-Token') or request.GET.get('token')
 
-            print('shared_token', shared_token)
-            print('X-Token', request.headers.get('X-Token'))
-            print('token', request.GET.get('token'))
-
             if shared_token:
                 try:
                     shared_link = await SharedLink.objects.select_related('project').aget(token=shared_token)
@@ -58,6 +54,59 @@ class BearerAuth(HttpBearer):
                 raise APIError("Authentication required.", status=401)
 
         return {'client': client}
+
+
+# Shared link administration
+
+class AssistantSharedLink(Schema):
+    project_key: str
+    assistant_id: str
+    name: str
+
+
+@api.post("/sharedlink", auth=BearerAuth())
+def create_shared_link(request, data: AssistantSharedLink):
+    project = Project.objects.filter(key=data.project_key).first()
+
+    if not project:
+        return JsonResponse({
+            "error": str("Project does not exist."),
+        }, status=404)
+
+    link = SharedLink.objects.get_or_create(
+        project=project,
+        assistant_id=data.assistant_id,
+        name=data.name,
+    )
+
+    uri = reverse('shared_thread_detail', kwargs={'token': link.token})
+
+    return JsonResponse({
+        "token": link.token,
+        "assistant_url": f"https://{request.get_host()}{uri}"
+    })
+
+
+@api.delete("/sharedlink", auth=BearerAuth())
+def delete_shared_link(request, data: AssistantSharedLink):
+    project = Project.objects.filter(key=data.project_key).first()
+
+    if not project:
+        return JsonResponse({
+            "error": str("Project does not exist."),
+        }, status=404)
+
+    link = SharedLink.objects.get_or_create(
+        project=project,
+        assistant_id=data.assistant_id,
+        name=data.name,
+    )
+    link.delete()
+
+    return JsonResponse({
+        "success": f"Shared link token {link.token} deleted successfully.",
+        "token": link.token,
+    })
 
 
 # Assistants
