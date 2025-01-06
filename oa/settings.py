@@ -262,10 +262,3 @@ LOGOUT_REDIRECT_URL = '/'
 SESSION_COOKIE_AGE = 315360000  # 10 years
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
-
-AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
-    "sesame.backends.ModelBackend",
-]
-
-SESAME_MAX_AGE = 300

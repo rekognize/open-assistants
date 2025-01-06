@@ -9,5 +9,4 @@ python-dotenv
 django
 django-ninja
 django-storages[s3]
-django-sesame
 django-widget-tweaks
