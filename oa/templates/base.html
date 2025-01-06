@@ -28,17 +28,21 @@
 
                 {% if user_projects %}
 
-                    <li class="nav-item dropdown">
+                    <li class="nav-item dropdown me-3">
 
                         {% if user_projects|length > 1 %}
 
                             <a class="nav-link dropdown-toggle"
-                               href="#" id="projectsDropdown"
+                               href="#"
                                data-bs-toggle="dropdown" aria-expanded="false"
                             >
-                                {{ selected_project.name }}
+                                {% if selected_project %}
+                                    {{ selected_project.name }}
+                                {% else %}
+                                    {{ user_projects.0.name }}
+                                {% endif %}
                             </a>
-                            <ul class="dropdown-menu" id="projectsDropdown">
+                            <ul class="dropdown-menu">
                                 {% for project in user_projects %}
                                     <li>
                                         <a href="{% url 'manage_assistants' project_uuid=project.uuid %}"
@@ -57,29 +61,14 @@
 
                     </li>
                     
-                    {% if selected_project %}
-                        
-                        <li class="nav-item">
-                            <a class="nav-link {% if active_nav == 'manage' %}active{% endif %}"
-                               href="{% url 'manage_assistants' project_uuid=selected_project.uuid %}">Manage</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
-                               href="{% url "analytics" project_uuid=selected_project.uuid %}">Monitor</a>
-                        </li>
-                        
-                    {% else %}
-                        
-                        <li class="nav-item">
-                            <a class="nav-link {% if active_nav == 'manage' %}active{% endif %}"
-                               href="{% url 'manage_assistants' project_uuid=user_projects.0.uuid %}">Manage</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
-                               href="{% url "analytics" project_uuid=user_projects.0.uuid %}">Monitor</a>
-                        </li>
-                        
-                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_nav == 'manage' %}active{% endif %}"
+                           href="{% url 'manage_assistants' project_uuid=user_projects.0.uuid %}">Manage</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
+                           href="{% url "analytics" project_uuid=user_projects.0.uuid %}">Monitor</a>
+                    </li>
 
                 {% endif %}
 

@@ -9,6 +9,8 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'insecure-key')
 SITE_NAME = os.environ.get('SITE_NAME', 'AI Assistants')
 SITE_HOST = os.environ.get('SITE_HOST', 'local.host')
 
+IS_LOCAL = os.getenv("IS_LOCAL", "false").lower() == "true"
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -124,12 +126,6 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 
-#
-# Settings for the private version
-#
-
-# Override static settings to use S3
-IS_LOCAL = os.getenv("IS_LOCAL", "false").lower() == "true"
 
 
 # Static file serving configuration
