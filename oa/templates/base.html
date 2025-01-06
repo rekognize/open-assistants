@@ -56,16 +56,30 @@
                         {% endif %}
 
                     </li>
-
-
-                    <li class="nav-item">
-                        <a class="nav-link {% if active_nav == 'manage' %}active{% endif %}"
-                           href="{% url 'manage_assistants' project_uuid=user_projects.0.uuid %}">Manage</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
-                           href="{% url "analytics" project_uuid=user_projects.0.uuid %}">Monitor</a>
-                    </li>
+                    
+                    {% if selected_project %}
+                        
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_nav == 'manage' %}active{% endif %}"
+                               href="{% url 'manage_assistants' project_uuid=selected_project.uuid %}">Manage</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
+                               href="{% url "analytics" project_uuid=selected_project.uuid %}">Monitor</a>
+                        </li>
+                        
+                    {% else %}
+                        
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_nav == 'manage' %}active{% endif %}"
+                               href="{% url 'manage_assistants' project_uuid=user_projects.0.uuid %}">Manage</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
+                               href="{% url "analytics" project_uuid=user_projects.0.uuid %}">Monitor</a>
+                        </li>
+                        
+                    {% endif %}
 
                 {% endif %}
 
