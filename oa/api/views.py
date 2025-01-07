@@ -15,7 +15,7 @@ from openai import AsyncOpenAI, OpenAIError
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema
 from .utils import serialize_to_dict, APIError, EventHandler
-from oa.main.models import Project, SharedLink, Thread
+from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
 from ..tools import FUNCTION_IMPLEMENTATIONS
 

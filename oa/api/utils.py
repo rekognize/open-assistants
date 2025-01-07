@@ -3,7 +3,7 @@ from django.contrib.auth import aget_user
 from django.urls import reverse
 from openai import AsyncOpenAI, AsyncAssistantEventHandler
 from openai.types.beta.threads import Text, TextDelta, ImageFile
-from oa.main.models import Project, SharedLink
+from ..main.models import Project, SharedLink
 
 
 class APIError(Exception):

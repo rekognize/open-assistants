@@ -3,8 +3,8 @@ from django.contrib.auth.views import LogoutView
 from django.conf import settings
 from django.urls import path
 
-from oa.api.views import api
-from oa.main import views as main_views
+from .api.views import api
+from .main import views as main_views
 
 
 urlpatterns = [
