@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from django.utils.text import slugify
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -177,7 +178,7 @@ else:
     AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
     AWS_S3_REGION_NAME = os.getenv("AWS_REGION_NAME")
 
-    AWS_STORAGE_BUCKET_NAME = f"{SITE_HOST}-{BRANCH_NAME}".lower()
+    AWS_STORAGE_BUCKET_NAME = slugify(f"{SITE_NAME}-static-{BRANCH_NAME}")
 
     STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/static/'
     MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
@@ -188,7 +189,6 @@ else:
 
 
 ALLOWED_HOSTS = [
-    'localhost',
     SITE_HOST,
 ]
 
