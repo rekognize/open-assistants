@@ -24,6 +24,7 @@ class Thread(models.Model):
     openai_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     created_at = models.DateTimeField(blank=True, null=True, db_index=True)
     metadata = models.JSONField(blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="threads")
     shared_link = models.ForeignKey(
         'SharedLink',
         on_delete=models.SET_NULL,
@@ -48,6 +49,7 @@ class SharedLink(models.Model):
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     created = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=100, blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shared_links')
 
     def __str__(self):
         return self.name or f'Untitled {self.id}'

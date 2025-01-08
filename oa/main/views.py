@@ -272,7 +272,7 @@ def share_assistant(request, assistant_id):
     if request.method == 'POST':
         try:
             # Create a new shareable link
-            new_link = SharedLink.objects.create(assistant_id=assistant_id, project=selected_project)
+            new_link = SharedLink.objects.create(assistant_id=assistant_id, project=selected_project, user=request.user)
             link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[new_link.token]))
             return JsonResponse({
                 'status': 'success',
