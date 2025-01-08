@@ -13,7 +13,8 @@ from ninja.files import UploadedFile
 from typing import List
 from openai import AsyncOpenAI, OpenAIError
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404
-from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema
+from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
+    AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
 from oa.main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
@@ -60,45 +61,119 @@ class BearerAuth(HttpBearer):
 
 # Shared link administration
 
-class AssistantSharedLink(Schema):
-    assistant_id: str
-    name: str
-
-
 @api.post("/sharedlink", auth=BearerAuth())
-def create_shared_link(request, data: AssistantSharedLink):
-    link, _ = SharedLink.objects.get_or_create(
-        project=request.auth['project'],
-        assistant_id=data.assistant_id,
-        name=data.name,
-    )
+def retrieve_or_create_shared_link(request, data: AssistantSharedLink):
+    if data.token:
+        link = SharedLink.objects.filter(
+            project=request.auth['project'],
+            assistant_id=data.assistant_id,
+            token=data.token,
+        ).first()
+        if link:
+            is_created = False
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
+    else:
+        try:
+            link = SharedLink.objects.create(
+                project=request.auth['project'],
+                assistant_id=data.assistant_id,
+                user=request.user
+            )
+            is_created = True
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     uri = reverse('shared_thread_detail', kwargs={'shared_token': link.token})
 
     return JsonResponse({
-        "token": link.token,
-        "assistant_url": f"https://{request.get_host()}{uri}"
+        'status': 'success',
+        'message': f"Shared link token created successfully: {link.token}",
+        'shared_link': {
+            'token': link.token,
+            'url': f"https://{request.get_host()}{uri}",
+            'assistant_id': link.assistant_id,
+            'created': link.created,
+            'user': link.user.username,
+            'is_created': is_created,
+        }
     })
 
 
-@api.delete("/sharedlink", auth=BearerAuth())
-def delete_shared_link(request, data: AssistantSharedLink):
+@api.get("/sharedlinks/{assistant_id}", auth=BearerAuth())
+def list_shared_links(request, assistant_id):
+    try:
+        links = SharedLink.objects.filter(
+            project=request.auth['project'],
+            assistant_id=assistant_id,
+        ).order_by('-created')
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    shared_links = [
+        {
+            "token": link.token,
+            "url": f"https://{request.get_host()}{reverse('shared_thread_detail', kwargs={'shared_token': link.token})}",
+            "assistant_id": link.assistant_id,
+            "name": link.name,
+            "created": link.created,
+            "user": link.user.username,
+        }
+        for link in links
+    ]
+
+    return JsonResponse({"shared_links": shared_links})
+
+
+@api.delete("/sharedlink/{link_token}", auth=BearerAuth())
+def delete_shared_link(request, link_token):
     link = SharedLink.objects.filter(
         project=request.auth['project'],
-        assistant_id=data.assistant_id,
-        name=data.name,
+        token=link_token,
     ).first()
 
     if not link:
         return JsonResponse({
-            "warning": "The shared link does not exist."
+            "status": "error",
+            "message": "The shared link does not exist."
         }, status=404)
 
     link.delete()
 
     return JsonResponse({
-        "success": f"Shared link token {link.token} deleted successfully.",
+        "status": "success",
+        "message": f"Shared link token deleted successfully: {link.token}",
         "token": link.token,
+    })
+
+
+@api.post("/update/sharedlink", auth=BearerAuth())
+def update_shared_link(request, data: AssistantSharedLink):
+    try:
+        link = SharedLink.objects.get(
+            project=request.auth['project'],
+            assistant_id=data.assistant_id,
+            token=data.token,
+        )
+
+    except SharedLink.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Shared link not found."}, status=404)
+
+    # Update the name if provided
+    name = data.name.strip() if data.name is not None else None
+    link.name = name
+    link.save()
+
+    uri = reverse('shared_thread_detail', kwargs={'shared_token': link.token})
+
+    return JsonResponse({
+        "status": "success",
+        "message": f"Shared link name updated successfully: {link.name}",
+        "link": {
+            "token": link.token,
+            "url": f"https://{request.get_host()}{uri}",
+            "name": link.name,
+        }
     })
 
 

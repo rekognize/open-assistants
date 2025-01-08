@@ -231,6 +231,7 @@ def serve_image_file(request, file_id):
         logger.error(f"Error fetching image file: {e}")
         return HttpResponseNotFound('Image not found')
 
+
 async def fetch_image_binary(request, file_id):
     client = await aget_openai_client(request)
     content_response = await client.files.content(file_id)
@@ -247,103 +248,6 @@ def thread_detail(request, project_uuid):
     return render(request, "chat/chat.html", {
         'assistant_id': request.GET.get('a'),
         'selected_project': selected_project,
-    })
-
-
-# Sharing
-
-@login_required
-def share_assistant(request, assistant_id):
-    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return HttpResponseBadRequest('Invalid request')
-
-    # Retrieve the selected project
-    selected_project_uuid = request.GET.get('selected_project_uuid')
-    selected_project = None
-
-    if selected_project_uuid:
-        try:
-            selected_project = Project.objects.get(uuid=selected_project_uuid, users=request.user)
-        except (ValueError, Project.DoesNotExist):
-            return JsonResponse({'status': 'error', 'message': _('Invalid project selected.')}, status=400)
-    else:
-        return JsonResponse({'status': 'error', 'message': _('No project selected.')}, status=400)
-
-    if request.method == 'POST':
-        try:
-            # Create a new shareable link
-            new_link = SharedLink.objects.create(assistant_id=assistant_id, project=selected_project, user=request.user)
-            link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[new_link.token]))
-            return JsonResponse({
-                'status': 'success',
-                'message': _('New shareable link created.'),
-                'link': {
-                    'token': str(new_link.token),
-                    'url': link_url,
-                    'created': new_link.created
-                }
-            })
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-    elif request.method == 'GET':
-        links = SharedLink.objects.filter(
-            assistant_id=assistant_id,
-            project=selected_project,
-        ).order_by('-created')
-
-        try:
-            if links:
-                data = {'links': [{'token': link.token,
-                                   'url': request.build_absolute_uri(f'/shared/{link.token}/'),
-                                   'name': link.name,
-                                   'created': link.created
-                                   } for link in links]}
-            else:
-                data = {'message': _('No links available.')}
-            return JsonResponse(data)
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
-
-
-@login_required
-def delete_shared_link(request, link_token):
-    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return HttpResponseBadRequest('Invalid request')
-
-    if request.method == 'POST':
-        try:
-            link = get_object_or_404(SharedLink, token=link_token, project__users=request.user)
-            link.delete()
-            return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
-
-
-@login_required
-def update_shared_link(request, link_token):
-    if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
-        return HttpResponseBadRequest('Invalid request')
-
-    link = get_object_or_404(SharedLink, token=link_token, project__users=request.user)
-
-    name = request.POST.get('name', '').strip()
-    link.name = name
-    link.save()
-
-    # Build the link URL to return
-    link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[link.token]))
-
-    return JsonResponse({
-        'status': 'success',
-        'message': _('Link name updated successfully.'),
-        'link': {
-            'url': link_url
-        }
     })
 
 
