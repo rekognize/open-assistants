@@ -1,16 +1,14 @@
 import json
 import logging
 
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import async_to_sync
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django import forms
 from django.db.models import Count, Min, Max, Q
-from django.http import JsonResponse, HttpResponse, Http404, HttpResponseNotFound, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponse, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse
-from django.utils.translation import gettext as _
 from django.views.generic import TemplateView
 from openai import OpenAIError
 
@@ -179,43 +177,54 @@ def list_threads(request):
 
 # Threads
 
-async def create_db_thread(request):
+def create_db_thread(request):
     try:
-        data = await sync_to_async(request.body.decode)('utf-8')
-        data = json.loads(data)
+        data_str = request.body.decode('utf-8')
+        data = json.loads(data_str)
     except Exception as e:
         return JsonResponse({"error": f"Invalid JSON: {str(e)}"}, status=400)
 
     openai_id = data.get("openai_id")
     created_at = data.get("created_at")
     metadata = data.get("metadata", {})
+    shared_link_token = request.headers.get("X-Token")
 
-    shared_link_token = request.headers.get('X-Token')
-
+    # Validate required field
     if not openai_id:
         return JsonResponse({"error": "openai_id is required"}, status=400)
 
+    # Fetch the SharedLink if a token is provided
     shared_link = None
     if shared_link_token:
-        shared_link = await sync_to_async(SharedLink.objects.filter(token=shared_link_token).first)()
+        shared_link = SharedLink.objects.filter(token=shared_link_token).first()
         if not shared_link:
             return JsonResponse({"error": "Invalid token"}, status=400)
+
+    # Check if user is authenticated
+    user_id = None
+    if request.user and request.user.is_authenticated:
+        user_id = request.user.id
 
     # Create the thread in DB
     thread = Thread(
         openai_id=openai_id,
         created_at=format_time(created_at),
         metadata=metadata,
-        shared_link=shared_link
+        shared_link=shared_link,
     )
-    await sync_to_async(thread.save)()
+
+    if user_id:
+        thread.user_id = user_id
+
+    thread.save()
 
     return JsonResponse({
         "uuid": str(thread.uuid),
         "openai_id": thread.openai_id,
         "created_at": thread.created_at,
         "metadata": thread.metadata,
-        "shared_link_token": str(thread.shared_link.token) if thread.shared_link else None
+        "shared_link_token": str(thread.shared_link.token) if thread.shared_link else None,
+        "user": user_id or None
     }, status=201)
 
 
