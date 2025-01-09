@@ -1,16 +1,14 @@
 import json
 import logging
 
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import async_to_sync
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django import forms
 from django.db.models import Count, Min, Max, Q
-from django.http import JsonResponse, HttpResponse, Http404, HttpResponseNotFound, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponse, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse
-from django.utils.translation import gettext as _
 from django.views.generic import TemplateView
 from openai import OpenAIError
 
@@ -179,43 +177,54 @@ def list_threads(request):
 
 # Threads
 
-async def create_db_thread(request):
+def create_db_thread(request):
     try:
-        data = await sync_to_async(request.body.decode)('utf-8')
-        data = json.loads(data)
+        data_str = request.body.decode('utf-8')
+        data = json.loads(data_str)
     except Exception as e:
         return JsonResponse({"error": f"Invalid JSON: {str(e)}"}, status=400)
 
     openai_id = data.get("openai_id")
     created_at = data.get("created_at")
     metadata = data.get("metadata", {})
+    shared_link_token = request.headers.get("X-Token")
 
-    shared_link_token = request.headers.get('X-Token')
-
+    # Validate required field
     if not openai_id:
         return JsonResponse({"error": "openai_id is required"}, status=400)
 
+    # Fetch the SharedLink if a token is provided
     shared_link = None
     if shared_link_token:
-        shared_link = await sync_to_async(SharedLink.objects.filter(token=shared_link_token).first)()
+        shared_link = SharedLink.objects.filter(token=shared_link_token).first()
         if not shared_link:
             return JsonResponse({"error": "Invalid token"}, status=400)
+
+    # Check if user is authenticated
+    user_id = None
+    if request.user and request.user.is_authenticated:
+        user_id = request.user.id
 
     # Create the thread in DB
     thread = Thread(
         openai_id=openai_id,
         created_at=format_time(created_at),
         metadata=metadata,
-        shared_link=shared_link
+        shared_link=shared_link,
     )
-    await sync_to_async(thread.save)()
+
+    if user_id:
+        thread.user_id = user_id
+
+    thread.save()
 
     return JsonResponse({
         "uuid": str(thread.uuid),
         "openai_id": thread.openai_id,
         "created_at": thread.created_at,
         "metadata": thread.metadata,
-        "shared_link_token": str(thread.shared_link.token) if thread.shared_link else None
+        "shared_link_token": str(thread.shared_link.token) if thread.shared_link else None,
+        "user": user_id or None
     }, status=201)
 
 
@@ -231,6 +240,7 @@ def serve_image_file(request, file_id):
         logger.error(f"Error fetching image file: {e}")
         return HttpResponseNotFound('Image not found')
 
+
 async def fetch_image_binary(request, file_id):
     client = await aget_openai_client(request)
     content_response = await client.files.content(file_id)
@@ -238,6 +248,7 @@ async def fetch_image_binary(request, file_id):
     return image_binary
 
 
+@login_required
 def thread_detail(request, project_uuid):
     if request.user.is_staff:
         selected_project = get_object_or_404(Project, uuid=project_uuid)
@@ -247,103 +258,7 @@ def thread_detail(request, project_uuid):
     return render(request, "chat/chat.html", {
         'assistant_id': request.GET.get('a'),
         'selected_project': selected_project,
-    })
-
-
-# Sharing
-
-@login_required
-def share_assistant(request, assistant_id):
-    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return HttpResponseBadRequest('Invalid request')
-
-    # Retrieve the selected project
-    selected_project_uuid = request.GET.get('selected_project_uuid')
-    selected_project = None
-
-    if selected_project_uuid:
-        try:
-            selected_project = Project.objects.get(uuid=selected_project_uuid, users=request.user)
-        except (ValueError, Project.DoesNotExist):
-            return JsonResponse({'status': 'error', 'message': _('Invalid project selected.')}, status=400)
-    else:
-        return JsonResponse({'status': 'error', 'message': _('No project selected.')}, status=400)
-
-    if request.method == 'POST':
-        try:
-            # Create a new shareable link
-            new_link = SharedLink.objects.create(assistant_id=assistant_id, project=selected_project)
-            link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[new_link.token]))
-            return JsonResponse({
-                'status': 'success',
-                'message': _('New shareable link created.'),
-                'link': {
-                    'token': str(new_link.token),
-                    'url': link_url,
-                    'created': new_link.created
-                }
-            })
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-    elif request.method == 'GET':
-        links = SharedLink.objects.filter(
-            assistant_id=assistant_id,
-            project=selected_project,
-        ).order_by('-created')
-
-        try:
-            if links:
-                data = {'links': [{'token': link.token,
-                                   'url': request.build_absolute_uri(f'/shared/{link.token}/'),
-                                   'name': link.name,
-                                   'created': link.created
-                                   } for link in links]}
-            else:
-                data = {'message': _('No links available.')}
-            return JsonResponse(data)
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
-
-
-@login_required
-def delete_shared_link(request, link_token):
-    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return HttpResponseBadRequest('Invalid request')
-
-    if request.method == 'POST':
-        try:
-            link = get_object_or_404(SharedLink, token=link_token, project__users=request.user)
-            link.delete()
-            return JsonResponse({'status': 'success', 'message': _('Link deleted successfully.')})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
-
-
-@login_required
-def update_shared_link(request, link_token):
-    if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
-        return HttpResponseBadRequest('Invalid request')
-
-    link = get_object_or_404(SharedLink, token=link_token, project__users=request.user)
-
-    name = request.POST.get('name', '').strip()
-    link.name = name
-    link.save()
-
-    # Build the link URL to return
-    link_url = request.build_absolute_uri(reverse('shared_thread_detail', args=[link.token]))
-
-    return JsonResponse({
-        'status': 'success',
-        'message': _('Link name updated successfully.'),
-        'link': {
-            'url': link_url
-        }
+        'is_shared_thread': False,
     })
 
 

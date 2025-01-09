@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 
-{% block title %}Analytics{% endblock %}
+{% block title %}Analytics - {{ SITE_NAME }}{% endblock %}
 
 {% block extra_head %}
 
@@ -114,245 +114,386 @@
 
     /* Assistants */
 
-async function fetchAssistants() {
-    try {
-        const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-            }
-        });
-
-        const assistantsData = await assistantsResponse.json();
-
-        console.log('assistants:', assistantsData);
-
-        populateTabsAndContent(assistantsData.assistants);
-
-    } catch (error) {
-        console.error('Error fetching assistants:', error);
-    } finally {
-        toggleLoading('assistants', false);
-    }
-}
-
-function populateTabsAndContent(assistants) {
-    const tabsContainer = document.getElementById('assistantTabs');
-    const contentContainer = document.getElementById('assistantContent');
-
-    tabsContainer.innerHTML = '';
-    contentContainer.innerHTML = '';
-
-    assistants.forEach((assistant, index) => {
-        const tabItem = document.createElement('li');
-        tabItem.className = 'nav-item';
-
-        const tabLink = document.createElement('a');
-        tabLink.className = `nav-link ${index === 0 ? 'active' : ''}`;
-        tabLink.setAttribute('data-bs-toggle', 'tab');
-        tabLink.setAttribute('href', `#assistant-${assistant.id}`);
-        tabLink.setAttribute('role', 'tab');
-        tabLink.setAttribute('aria-controls', `assistant-${assistant.id}`);
-        tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-        tabLink.textContent = assistant.name || 'Unnamed Assistant';
-
-        tabItem.appendChild(tabLink);
-        tabsContainer.appendChild(tabItem);
-
-        const contentPane = document.createElement('div');
-        contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
-        contentPane.setAttribute('id', `assistant-${assistant.id}`);
-        contentPane.setAttribute('role', 'tabpanel');
-        contentPane.setAttribute('aria-labelledby', `assistant-${assistant.id}-tab`);
-
-        contentPane.innerHTML = `
-            <h4>${assistant.name || 'Unnamed Assistant'}</h4>
-            <p><strong>Model:</strong> ${assistant.model}</p>
-            <p><strong>Tools:</strong> ${assistant.tools.map(tool => tool.type).join(', ') || 'None'}</p>
-            <div id="stats-${assistant.id}"></div>
-        `;
-
-        contentContainer.appendChild(contentPane);
-
-        fetchTokenUsageStats(assistant.id);
-    });
-}
-
-async function fetchTokenUsageStats(assistantId) {
-    const listThreadsUrlTemplate = "{% url 'api-1.0.0:list_threads' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
-    const url = listThreadsUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
-
-    try {
-        const threadsResponse = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-            }
-        });
-        const threadsData = await threadsResponse.json();
-
-        const threads = threadsData['threads'];
-        if (threads.length === 0) {
-            document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>No threads yet.</strong>`;
-            return;
-        }
-
-        let sharedThreads = 0;
-        let testThreads = 0;
-        const threadSections = {};
-
-        threads.forEach(thread => {
-            const shareName = thread.share || 'Test Threads';
-            threadSections[shareName] = threadSections[shareName] || [];
-            threadSections[shareName].push(thread);
-
-            if (thread.share) {
-                sharedThreads++;
-            } else {
-                testThreads++;
-            }
-        });
-
-        const firstDate = new Date(threads[0].created_at).toLocaleString();
-        const lastDate = new Date(threads[threads.length - 1].created_at).toLocaleString();
-
-        const summary = `<p>${sharedThreads} shared and ${testThreads} test threads run between ${firstDate} & ${lastDate}</p>`;
-
-        const accordionId = `accordion-${assistantId}`;
-        let accordionHtml = `<div class="accordion" id="${accordionId}">`;
-
-        Object.keys(threadSections).forEach((shareName, index) => {
-            const threads = threadSections[shareName];
-            const sectionId = `collapse-${assistantId}-${index}`;
-            const progressId = `progress-${assistantId}-${index}`;
-            const tableId = `table-${assistantId}-${index}`;
-
-            accordionHtml += `
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${sectionId}" aria-expanded="false" aria-controls="${sectionId}" disabled>
-                            <div class="d-flex w-100 justify-content-between align-items-center">
-                                <span>${shareName} (${threads.length} threads)</span>
-                                <div class="progress w-50 me-3">
-                                    <div id="${progressId}" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                            </div>
-                        </button>
-                    </h2>
-                    <div id="${sectionId}" class="accordion-collapse collapse" aria-labelledby="heading-${index}" data-bs-parent="#${accordionId}">
-                        <div class="accordion-body">
-                            <table id="${tableId}" class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Date</th>
-                                        <th>Runs</th>
-                                        <th>Tokens Used</th>
-                                        <th>Tools Used</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>`;
-
-            fetchThreadRuns(threads, progressId, tableId, sectionId);
-        });
-
-        accordionHtml += `</div>`;
-
-        document.getElementById(`stats-${assistantId}`).innerHTML = summary + accordionHtml;
-
-    } catch (error) {
-        console.error(`Error fetching token usage stats for assistant ${assistantId}:`, error);
-        document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>Error loading stats.</strong>`;
-    }
-}
-
-async function fetchThreadRuns(threads, progressId, tableId, sectionId) {
-    let completedThreads = 0;
-    const totalThreads = threads.length;
-
-    for (const thread of threads) {
-        const listRunsUrlTemplate = "{% url 'api-1.0.0:list_runs' thread_id='THREAD_ID_PLACEHOLDER' %}";
-        const url = listRunsUrlTemplate.replace('THREAD_ID_PLACEHOLDER', thread.id);
-
+    async function fetchAssistants() {
         try {
-            const runsResponse = await fetch(url, {
+            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
                     'Content-Type': 'application/json',
                 }
             });
-            const runsData = await runsResponse.json();
 
-            const tokensTotal = runsData.runs.reduce((sum, run) => sum + run.usage.total_tokens, 0);
-            const tokensPrompt = runsData.runs.reduce((sum, run) => sum + run.usage.prompt_tokens, 0);
-            const tokensCompletion = runsData.runs.reduce((sum, run) => sum + run.usage.completion_tokens, 0);
-            const toolsUsed = runsData.runs.reduce((tools, run) => {
-                run.tools.forEach(tool => {
-                    tools[tool.type] = (tools[tool.type] || 0) + 1;
-                });
-                return tools;
-            }, {});
+            const assistantsData = await assistantsResponse.json();
+            
+            console.log('assistants:', assistantsData);
 
-            const toolsUsedString = Object.entries(toolsUsed)
-                .map(([tool, count]) => `${tool} (${count})`)
-                .join(', ');
+            populateTabsAndContent(assistantsData.assistants);
 
-            const cancelledRuns = runsData.runs.filter(run => run.cancelled_at !== null).length;
-            const failedRuns = runsData.runs.filter(run => run.failed_at !== null).length;
-
-            let runsSummary = `${runsData.runs.length}`;
-            if (cancelledRuns > 0 || failedRuns > 0) {
-                const details = [];
-                if (cancelledRuns > 0) details.push(`${cancelledRuns} cancelled`);
-                if (failedRuns > 0) details.push(`${failedRuns} failed`);
-                runsSummary += ` (${details.join(', ')})`;
-            }
-
-            let tokensSummary = `${tokensTotal}`;
-            if (tokensTotal > 0) {
-                tokensSummary += ` (${tokensPrompt} prompt, ${tokensCompletion} completion)`;
-            }
-
-            const threadRow = `<tr>
-                <td>...${thread.id.slice(-5)}</td>
-                <td>${new Date(thread.created_at).toLocaleString()}</td>
-                <td>${runsSummary}</td>
-                <td>${tokensSummary}</td>
-                <td>${toolsUsedString}</td>
-            </tr>`;
-
-            document.querySelector(`#${tableId} tbody`).innerHTML += threadRow;
         } catch (error) {
-            console.error(`Error fetching runs for thread ${thread.id}:`, error);
+            console.error('Error fetching assistants:', error);
         } finally {
-            completedThreads++;
-            const progress = (completedThreads / totalThreads) * 100;
-            const progressBar = document.getElementById(progressId);
-            progressBar.style.width = `${progress}%`;
-            progressBar.setAttribute('aria-valuenow', progress);
+            toggleLoading('assistants', false);
+        }
+    }
 
-            if (progress === 100) {
-                document.querySelector(`[data-bs-target="#${sectionId}"]`).removeAttribute('disabled');
+    function populateTabsAndContent(assistants) {
+        const tabsContainer = document.getElementById('assistantTabs');
+        const contentContainer = document.getElementById('assistantContent');
+
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        if (!assistants || assistants.length === 0) {
+            document.getElementById('no-assistants').classList.remove('d-none');
+            return;
+        }
+
+        assistants.forEach((assistant, index) => {
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            const tabLink = document.createElement('a');
+            tabLink.className = `nav-link ${index === 0 ? 'active' : ''}`;
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#assistant-${assistant.id}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `assistant-${assistant.id}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.textContent = assistant.name || 'Untitled Assistant';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `assistant-${assistant.id}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `assistant-${assistant.id}-tab`);
+
+            contentPane.innerHTML = `
+                <h4>${assistant.name || 'Untitled Assistant'}</h4>
+                <p><strong>Model:</strong> ${assistant.model}</p>
+                <p><strong>Tools:</strong> ${assistant.tools.map(tool => tool.type).join(', ') || 'None'}</p>
+                <div id="stats-${assistant.id}"></div>
+            `;
+
+            contentContainer.appendChild(contentPane);
+
+            fetchTokenUsageStats(assistant.id);
+        });
+    }
+
+    /*
+     * Fetches threads for the assistant, groups them into:
+     *   - Test threads (no `share`), grouped by thread.user.username or 'anonymous'
+     *   - Shared threads (has `share`), grouped by share + share_user
+     * 
+     * Then builds the HTML with two sections:
+     *   1) Test Threads section + accordion
+     *   2) Shared Threads section + accordion
+     */
+    async function fetchTokenUsageStats(assistantId) {
+        const listThreadsUrlTemplate = "{% url 'api-1.0.0:list_threads' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
+        const url = listThreadsUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+
+        try {
+            const threadsResponse = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+            const threadsData = await threadsResponse.json();
+            
+            console.log('threadsData', threadsData);
+
+            const threads = threadsData['threads'];
+            if (threads.length === 0) {
+                document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>No threads yet.</strong>`;
+                return;
+            }
+
+            // Separate test vs shared
+            const testThreads = [];
+            const sharedThreads = [];
+
+            threads.forEach(t => {
+                if (t.share) {
+                    // has a share => shared thread
+                    sharedThreads.push(t);
+                } else {
+                    // no share => test thread
+                    testThreads.push(t);
+                }
+            });
+
+            // Sort testThreads by date
+            testThreads.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            // Sort sharedThreads by date
+            sharedThreads.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+            let htmlOutput = '';
+            
+            //  1) TEST THREADS SECTION
+
+            htmlOutput += `<h5>Test threads:</h5>`;
+            if (testThreads.length > 0) {
+                const firstTestDate = new Date(testThreads[0].created_at).toLocaleString();
+                const lastTestDate = new Date(testThreads[testThreads.length - 1].created_at).toLocaleString();
+                htmlOutput += `<p>${testThreads.length} test threads run between ${firstTestDate} & ${lastTestDate}</p>`;
+
+                // Group test threads by user
+                const testThreadGroupsByUser = {};
+                testThreads.forEach(thread => {
+                    const userName = thread.user && thread.user.username 
+                                     ? thread.user.username 
+                                     : 'anonymous';
+                    if (!testThreadGroupsByUser[userName]) {
+                        testThreadGroupsByUser[userName] = [];
+                    }
+                    testThreadGroupsByUser[userName].push(thread);
+                });
+
+                const testAccordionId = `test-accordion-${assistantId}`;
+                htmlOutput += `<div class="accordion mb-4" id="${testAccordionId}">`;
+
+                let userIndex = 0;
+                for (const [userName, groupThreads] of Object.entries(testThreadGroupsByUser)) {
+                    const sectionId = `collapse-test-${assistantId}-${userIndex}`;
+                    const progressId = `progress-test-${assistantId}-${userIndex}`;
+                    const tableId = `table-test-${assistantId}-${userIndex}`;
+
+                    htmlOutput += `
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-test-${assistantId}-${userIndex}">
+                            <button class="accordion-button collapsed" type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#${sectionId}"
+                                    aria-expanded="false" 
+                                    aria-controls="${sectionId}"
+                                    disabled>
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <span>Test threads by <strong>${userName}</strong> (${groupThreads.length} threads)</span>
+                                    <div class="progress w-50 me-3">
+                                        <div id="${progressId}" class="progress-bar" role="progressbar" 
+                                             style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="${sectionId}" class="accordion-collapse collapse" 
+                             aria-labelledby="heading-test-${assistantId}-${userIndex}"
+                             data-bs-parent="#${testAccordionId}">
+                            <div class="accordion-body">
+                                <table id="${tableId}" class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Date</th>
+                                            <th>Runs</th>
+                                            <th>Tokens Used</th>
+                                            <th>Tools Used</th>
+                                            <th>User</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+
+                    // Fetch runs for these threads
+                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId);
+                    userIndex++;
+                }
+
+                htmlOutput += `</div>`; // close test-accordion
+            } else {
+                htmlOutput += `<p>No test threads.</p>`;
+            }
+            
+            //  2) SHARED THREADS SECTION
+
+            htmlOutput += `<h5>Shared threads:</h5>`;
+            if (sharedThreads.length > 0) {
+                const firstSharedDate = new Date(sharedThreads[0].created_at).toLocaleString();
+                const lastSharedDate = new Date(sharedThreads[sharedThreads.length - 1].created_at).toLocaleString();
+                htmlOutput += `<p>${sharedThreads.length} shared threads run between ${firstSharedDate} & ${lastSharedDate}</p>`;
+
+                // Group shared threads by "share + share_user"
+                const sharedThreadGroups = {};
+                sharedThreads.forEach(thread => {
+                    // Combine share + share_user for a unique key
+                    const key = `${thread.share}__${thread.share_user}`;
+                    if (!sharedThreadGroups[key]) {
+                        sharedThreadGroups[key] = {
+                            share: thread.share,
+                            shareUser: thread.share_user,
+                            threads: []
+                        };
+                    }
+                    sharedThreadGroups[key].threads.push(thread);
+                });
+
+                const sharedAccordionId = `shared-accordion-${assistantId}`;
+                htmlOutput += `<div class="accordion mb-4" id="${sharedAccordionId}">`;
+
+                let shareIndex = 0;
+                for (const groupKey of Object.keys(sharedThreadGroups)) {
+                    const { share, shareUser, threads: groupThreads } = sharedThreadGroups[groupKey];
+                    const sectionId = `collapse-shared-${assistantId}-${shareIndex}`;
+                    const progressId = `progress-shared-${assistantId}-${shareIndex}`;
+                    const tableId = `table-shared-${assistantId}-${shareIndex}`;
+
+                    htmlOutput += `
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-shared-${assistantId}-${shareIndex}">
+                            <button class="accordion-button collapsed" type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#${sectionId}"
+                                    aria-expanded="false"
+                                    aria-controls="${sectionId}"
+                                    disabled>
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <span>Shared: <strong>${share}</strong> by <strong>${shareUser}</strong> (${groupThreads.length} threads)</span>
+                                    <div class="progress w-50 me-3">
+                                        <div id="${progressId}" class="progress-bar" role="progressbar"
+                                             style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="${sectionId}" class="accordion-collapse collapse"
+                             aria-labelledby="heading-shared-${assistantId}-${shareIndex}"
+                             data-bs-parent="#${sharedAccordionId}">
+                            <div class="accordion-body">
+                                <table id="${tableId}" class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Date</th>
+                                            <th>Runs</th>
+                                            <th>Tokens Used</th>
+                                            <th>Tools Used</th>
+                                            <th>User</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+
+                    // Fetch runs for these threads
+                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId);
+                    shareIndex++;
+                }
+
+                htmlOutput += `</div>`; // close shared-accordion
+            } else {
+                htmlOutput += `<p>No shared threads.</p>`;
+            }
+
+            // Finally, set HTML
+            document.getElementById(`stats-${assistantId}`).innerHTML = htmlOutput;
+        } catch (error) {
+            console.error(`Error fetching token usage stats for assistant ${assistantId}:`, error);
+            document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>Error loading stats.</strong>`;
+        }
+    }
+    
+    async function fetchThreadRuns(threads, progressId, tableId, sectionId) {
+        let completedThreads = 0;
+        const totalThreads = threads.length;
+
+        for (const thread of threads) {
+            const listRunsUrlTemplate = "{% url 'api-1.0.0:list_runs' thread_id='THREAD_ID_PLACEHOLDER' %}";
+            const url = listRunsUrlTemplate.replace('THREAD_ID_PLACEHOLDER', thread.id);
+
+            try {
+                const runsResponse = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const runsData = await runsResponse.json();
+
+                const tokensTotal = runsData.runs.reduce((sum, run) => sum + run.usage.total_tokens, 0);
+                const tokensPrompt = runsData.runs.reduce((sum, run) => sum + run.usage.prompt_tokens, 0);
+                const tokensCompletion = runsData.runs.reduce((sum, run) => sum + run.usage.completion_tokens, 0);
+                const toolsUsed = runsData.runs.reduce((tools, run) => {
+                    run.tools.forEach(tool => {
+                        tools[tool.type] = (tools[tool.type] || 0) + 1;
+                    });
+                    return tools;
+                }, {});
+
+                const toolsUsedString = Object.entries(toolsUsed)
+                    .map(([tool, count]) => `${tool} (${count})`)
+                    .join(', ');
+
+                const cancelledRuns = runsData.runs.filter(run => run.cancelled_at !== null).length;
+                const failedRuns = runsData.runs.filter(run => run.failed_at !== null).length;
+
+                let runsSummary = `${runsData.runs.length}`;
+                if (cancelledRuns > 0 || failedRuns > 0) {
+                    const details = [];
+                    if (cancelledRuns > 0) details.push(`${cancelledRuns} cancelled`);
+                    if (failedRuns > 0) details.push(`${failedRuns} failed`);
+                    runsSummary += ` (${details.join(', ')})`;
+                }
+
+                let tokensSummary = `${tokensTotal}`;
+                if (tokensTotal > 0) {
+                    tokensSummary += ` (${tokensPrompt} prompt, ${tokensCompletion} completion)`;
+                }
+
+                // Add a "User" column — thread.user.username or 'anonymous'
+                const userName = (thread.user && thread.user.username) ? thread.user.username : 'anonymous';
+
+                const threadRow = `<tr>
+                    <td>...${thread.id.slice(-5)}</td>
+                    <td>${new Date(thread.created_at).toLocaleString()}</td>
+                    <td>${runsSummary}</td>
+                    <td>${tokensSummary}</td>
+                    <td>${toolsUsedString}</td>
+                    <td>${userName}</td>
+                </tr>`;
+
+                document.querySelector(`#${tableId} tbody`).innerHTML += threadRow;
+            } catch (error) {
+                console.error(`Error fetching runs for thread ${thread.id}:`, error);
+            } finally {
+                completedThreads++;
+                const progress = (completedThreads / totalThreads) * 100;
+                const progressBar = document.getElementById(progressId);
+                progressBar.style.width = `${progress}%`;
+                progressBar.setAttribute('aria-valuenow', progress);
+
+                // Enable expand button once all threads in this group are loaded
+                if (progress === 100) {
+                    document.querySelector(`[data-bs-target="#${sectionId}"]`).removeAttribute('disabled');
+                }
             }
         }
     }
-}
 
-/* Initialize Page */
+    /* Initialize Page */
 
-async function initializePage() {
-    toggleLoading('assistants', true);
-    fetchAssistants();
-}
+    async function initializePage() {
+        toggleLoading('assistants', true);
+        fetchAssistants();
+    }
 
-initializePage();
+    initializePage();
 
 </script>
 

@@ -34,6 +34,12 @@ class AssistantSchema(Schema):
     _validate_metadata = field_validator('metadata')(validate_metadata)
 
 
+class AssistantSharedLink(Schema):
+    assistant_id: str
+    name: Optional[str] = None
+    token: Optional[str] = None
+
+
 class VectorStoreSchema(Schema):
     name: str
     expiration_days: Optional[int] = None
@@ -59,6 +65,7 @@ class FileUploadSchema(Schema):
     @field_validator("vector_store_ids",  mode="before")
     def ensure_list(cls, value):
         return value or []
+
 
 class ThreadSchema(Schema):
     title: Optional[str] = None
