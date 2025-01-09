@@ -248,6 +248,7 @@ async def fetch_image_binary(request, file_id):
     return image_binary
 
 
+@login_required
 def thread_detail(request, project_uuid):
     if request.user.is_staff:
         selected_project = get_object_or_404(Project, uuid=project_uuid)
@@ -257,6 +258,7 @@ def thread_detail(request, project_uuid):
     return render(request, "chat/chat.html", {
         'assistant_id': request.GET.get('a'),
         'selected_project': selected_project,
+        'is_shared_thread': False,
     })
 
 
