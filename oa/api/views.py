@@ -267,19 +267,21 @@ async def list_threads(request, assistant_id):
         shared_link = await sync_to_async(lambda: t.shared_link)()
         user = await sync_to_async(lambda: t.user)()
 
+        shared_link_user = None
+        if shared_link:
+            shared_link_user = await sync_to_async(lambda: shared_link.user)()
+
         user_data = None
         if user:
             user_data = {
-                'id': user.id,
                 'username': user.username,
-                'email': user.email,
-                'is_staff': user.is_staff,
             }
 
         return {
             'id': t.openai_id,
             'created_at': t.created_at,
             'share': str(shared_link) if shared_link else None,
+            'share_user': str(shared_link_user.username) if shared_link_user else None,
             'user': user_data,
         }
 
