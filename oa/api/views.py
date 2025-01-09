@@ -265,14 +265,27 @@ async def list_threads(request, assistant_id):
 
     async def get_thread_data(t):
         shared_link = await sync_to_async(lambda: t.shared_link)()
+        user = await sync_to_async(lambda: t.user)()
+
+        user_data = None
+        if user:
+            user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_staff': user.is_staff,
+            }
+
         return {
             'id': t.openai_id,
             'created_at': t.created_at,
             'share': str(shared_link) if shared_link else None,
+            'user': user_data,
         }
 
     threads_data = [await get_thread_data(t) async for t in threads]
     return JsonResponse({'threads': threads_data})
+
 
 # Vector Stores
 
