@@ -25,8 +25,6 @@ urlpatterns = [
     path('shared/<uuid:shared_token>/', main_views.shared_thread_detail, name='shared_thread_detail'),
 
     path('db_threads/', main_views.create_db_thread, name='create_db_thread'),
-
-    path('files/image/<str:file_id>/', main_views.serve_image_file, name='serve_image_file'),
 ]
 
 admin.site.index_title = settings.SITE_NAME

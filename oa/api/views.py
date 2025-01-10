@@ -6,13 +6,13 @@ import os
 import httpx
 from asgiref.sync import sync_to_async
 from django.urls import reverse
-from ninja import NinjaAPI, File, Form, Schema
+from ninja import NinjaAPI, File, Form
 from ninja.errors import AuthenticationError
 from ninja.security import HttpBearer
 from ninja.files import UploadedFile
 from typing import List
 from openai import AsyncOpenAI, OpenAIError
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
@@ -780,6 +780,19 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
     response['Cache-Control'] = 'no-cache'
     response['X-Accel-Buffering'] = 'no'  # For Nginx
     return response
+
+
+@api.get("files/image/{file_id}", auth=BearerAuth())
+async def serve_image_file(request, file_id: str):
+    try:
+        content_response = await request.auth['client'].files.content(file_id)
+        image_binary = content_response.read()
+        return HttpResponse(image_binary, content_type='image/png')
+    except APIError as e:
+        return JsonResponse({"error": e.message}, status=e.status)
+    except OpenAIError as e:
+        logger.error(f"Error fetching image file: {e}")
+        return HttpResponseNotFound('Image not found')
 
 
 @api.get("/thread/{thread_id}/messages", auth=BearerAuth())

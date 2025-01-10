@@ -129,7 +129,10 @@ class EventHandler(AsyncAssistantEventHandler):
         })
 
     async def on_image_file_done(self, image_file: ImageFile) -> None:
-        image_url = reverse('serve_image_file', args=[image_file.file_id])
+        image_url = reverse('api-1.0.0:serve_image_file', kwargs={
+            'file_id': image_file.file_id
+        })
+
         self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
 
         # No annotations for images

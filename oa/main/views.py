@@ -1,20 +1,16 @@
 import json
 import logging
 
-from asgiref.sync import async_to_sync
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django import forms
-from django.db.models import Count, Min, Max, Q
-from django.http import JsonResponse, HttpResponse, HttpResponseNotFound
+from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import TemplateView
-from openai import OpenAIError
 
 from .models import Project, SharedLink, Thread
 from .utils import format_time
-from ..api.utils import APIError, aget_openai_client
 from ..tools import FUNCTION_DEFINITIONS
 
 logger = logging.getLogger(__name__)
@@ -90,6 +86,34 @@ def analytics(request, project_uuid):
 
 # Threads
 
+@login_required
+def thread_detail(request, project_uuid):
+    if request.user.is_staff:
+        selected_project = get_object_or_404(Project, uuid=project_uuid)
+    else:
+        selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
+
+    return render(request, "chat/chat.html", {
+        'assistant_id': request.GET.get('a'),
+        'selected_project': selected_project,
+        'is_shared_thread': False,
+    })
+
+
+def shared_thread_detail(request, shared_token):
+    shared_link = get_object_or_404(SharedLink, token=shared_token)
+    assistant_id = shared_link.assistant_id
+
+    # Initial context
+    context = {
+        'assistant_id': assistant_id,
+        'shared_token': shared_token,
+        'is_shared_thread': True,
+    }
+
+    return render(request, 'chat/chat.html', context)
+
+
 def create_db_thread(request):
     try:
         data_str = request.body.decode('utf-8')
@@ -139,51 +163,3 @@ def create_db_thread(request):
         "shared_link_token": str(thread.shared_link.token) if thread.shared_link else None,
         "user": user_id or None
     }, status=201)
-
-
-# Chat
-
-def serve_image_file(request, file_id):
-    try:
-        image_binary = async_to_sync(fetch_image_binary)(request, file_id)
-        return HttpResponse(image_binary, content_type='image/png')
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-    except OpenAIError as e:
-        logger.error(f"Error fetching image file: {e}")
-        return HttpResponseNotFound('Image not found')
-
-
-async def fetch_image_binary(request, file_id):
-    client = await aget_openai_client(request)
-    content_response = await client.files.content(file_id)
-    image_binary = content_response.read()
-    return image_binary
-
-
-@login_required
-def thread_detail(request, project_uuid):
-    if request.user.is_staff:
-        selected_project = get_object_or_404(Project, uuid=project_uuid)
-    else:
-        selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
-
-    return render(request, "chat/chat.html", {
-        'assistant_id': request.GET.get('a'),
-        'selected_project': selected_project,
-        'is_shared_thread': False,
-    })
-
-
-def shared_thread_detail(request, shared_token):
-    shared_link = get_object_or_404(SharedLink, token=shared_token)
-    assistant_id = shared_link.assistant_id
-
-    # Initial context
-    context = {
-        'assistant_id': assistant_id,
-        'shared_token': shared_token,
-        'is_shared_thread': True,
-    }
-
-    return render(request, 'chat/chat.html', context)
