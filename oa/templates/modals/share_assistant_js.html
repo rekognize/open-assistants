@@ -42,19 +42,21 @@ document.getElementById('shareAssistantModal').addEventListener('show.bs.modal',
 
 // Function to fetch existing shared links
 function fetchSharedLinks(assistantId) {
-    fetch(`/a/share/${assistantId}/?selected_project_uuid=${API_KEY}`, {
+    const url = "{% url 'api-1.0.0:list_shared_links' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}".replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+    fetch(url, {
         method: 'GET',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_KEY}`
+        },
     })
     .then(response => response.json())
     .then(data => {
         const linksList = document.getElementById('shared-links-list');
-        if (data.links && data.links.length > 0) {
+        if (data.shared_links && data.shared_links.length > 0) {
             linksList.innerHTML = '';
 
-            data.links.forEach(link => {
+            data.shared_links.forEach(link => {
                 const linkItem = createLinkItem(link);
                 linksList.appendChild(linkItem);
             });
@@ -94,9 +96,12 @@ function createLinkItem(link) {
                 <input type="text" class="form-control form-control-sm link-name-field d-none ms-2" style="min-width:100px; flex:1;" value="${link.name || ''}" maxlength="100">
             </div>
             <div class="col-auto">
+                <small class="text-secondary">${link.user}</small>
+            </div>
+            <div class="col-auto">
                 <small class="text-secondary">${formattedDate}</small>
             </div>
-            <div class="col-auto" style="width:400px;">
+            <div class="col-auto" style="width:350px;">
                 <div class="input-group">
                     <input class="form-control" type="text" value="${link.url}" readonly>
                 </div>
@@ -130,17 +135,19 @@ document.getElementById('create-shared-link').addEventListener('click', function
     createButton.disabled = true;
     createButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...`;
 
-    fetch(`/a/share/${currentAssistantId}/?selected_project_uuid=${API_KEY}`, {
+    fetch('{% url "api-1.0.0:retrieve_or_create_shared_link" %}', {
         method: 'POST',
         headers: {
             'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({assistant_id:currentAssistantId})
     })
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            const link = data.link;
+            const link = data.shared_link;
             const linksList = document.getElementById('shared-links-list');
 
             // Remove 'No shared links available.' message if present
@@ -197,13 +204,15 @@ document.getElementById('shared-links-list').addEventListener('click', function 
 document.getElementById('confirm-delete-shared-link').addEventListener('click', function () {
     const deleteModal = document.getElementById('deleteSharedLinkConfirmationModal');
     const token = deleteModal.getAttribute('data-token');
+    const url = "{% url 'api-1.0.0:delete_shared_link' link_token='LINK_TOKEN_PLACEHOLDER' %}".replace('LINK_TOKEN_PLACEHOLDER', token);
 
-    fetch(`/a/share/delete/${token}/`, {
-        method: 'POST',
+    fetch(url, {
+        method: 'DELETE',
         headers: {
             'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_KEY}`
+        },
     })
     .then(response => response.json())
     .then(data => {
@@ -226,8 +235,6 @@ document.getElementById('confirm-delete-shared-link').addEventListener('click', 
             modal.hide();
 
             showToast('Success', data.message, 'success');
-        } else if (data.status === 'info') {
-            showToast('Info', data.message, 'info');
         } else {
             showToast('Error', data.message || 'An error occurred while deleting the link!', 'danger');
         }
@@ -303,19 +310,23 @@ function toggleSaveButton(linkItem) {
 
 function saveLinkName(linkItem) {
     const nameField = linkItem.querySelector('.link-name-field');
-    const token = linkItem.getAttribute('data-token');
+    const link_token = linkItem.getAttribute('data-token');
     const newName = nameField.value.trim();
 
-    const formData = new FormData();
-    formData.append('name', newName);
-    formData.append('csrfmiddlewaretoken', csrftoken);
+    const formData = {
+        name: newName,
+        assistant_id: currentAssistantId,
+        token: link_token
+    };
 
-    fetch(`/a/share/update/${token}/`, {
+    fetch('{% url "api-1.0.0:update_shared_link" %}', {
         method: 'POST',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_KEY}`
         },
-        body: formData
+        body: JSON.stringify(formData)
     })
     .then(response => response.json())
     .then(data => {
@@ -347,7 +358,7 @@ function saveLinkName(linkItem) {
                 </button>
             `;
 
-            showToast('Success', 'Link name updated successfully.', 'success');
+            showToast('Success', data.message || 'Link name updated successfully.', 'success');
         } else {
             showToast('Error', data.message || 'Failed to update link name.', 'danger');
         }
