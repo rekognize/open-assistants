@@ -1,5 +1,5 @@
-from oa.main.models import Project
 from django.conf import settings
+from .main.models import Project
 
 
 def user_projects(request):
