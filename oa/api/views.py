@@ -695,7 +695,7 @@ async def cancel_run(request, thread_id, run_id):
 async def stream_responses(request, assistant_id: str, thread_id: str):
     async def event_stream():
         shared_data = []
-        event_handler = EventHandler(shared_data=shared_data)
+        event_handler = EventHandler(request, shared_data=shared_data)
         try:
             async with request.auth['client'].beta.threads.runs.stream(
                 thread_id=thread_id,
@@ -780,19 +780,6 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
     response['Cache-Control'] = 'no-cache'
     response['X-Accel-Buffering'] = 'no'  # For Nginx
     return response
-
-
-@api.get("files/image/{file_id}", auth=BearerAuth())
-async def serve_image_file(request, file_id: str):
-    try:
-        content_response = await request.auth['client'].files.content(file_id)
-        image_binary = content_response.read()
-        return HttpResponse(image_binary, content_type='image/png')
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-    except OpenAIError as e:
-        logger.error(f"Error fetching image file: {e}")
-        return HttpResponseNotFound('Image not found')
 
 
 @api.get("/thread/{thread_id}/messages", auth=BearerAuth())

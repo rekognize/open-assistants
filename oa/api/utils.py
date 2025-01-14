@@ -1,8 +1,12 @@
+import base64
+import logging
 from typing import Any
-from django.urls import reverse
 
 from openai import AsyncAssistantEventHandler
 from openai.types.beta.threads import Text, TextDelta, ImageFile
+
+
+logger = logging.getLogger(__name__)
 
 
 class APIError(Exception):
@@ -29,10 +33,11 @@ def serialize_to_dict(obj: Any) -> Any:
 
 
 class EventHandler(AsyncAssistantEventHandler):
-    def __init__(self, shared_data):
+    def __init__(self, request, shared_data):
         super().__init__()
+        self.request = request
         self.current_message = ""
-        self.shared_data = shared_data  # Use shared_data instead of response_data
+        self.shared_data = shared_data
         self.stream_done = False
         self.current_annotations = []
 
@@ -76,13 +81,18 @@ class EventHandler(AsyncAssistantEventHandler):
         })
 
     async def on_image_file_done(self, image_file: ImageFile) -> None:
-        image_url = reverse('api-1.0.0:serve_image_file', kwargs={
-            'file_id': image_file.file_id
-        })
+        try:
+            content_response = await self.request.auth['client'].files.content(image_file.file_id)
+            image_binary = content_response.read()
+            image_base64 = base64.b64encode(image_binary).decode('utf-8')
+            image_data = f"data:image/png;base64,{image_base64}"
 
-        self.current_message += f'<p><img src="{image_url}" style="max-width: 100%;"></p>'
+            self.current_message += f'<p><img src="{image_data}" style="max-width: 100%;"></p>'
+        except APIError as e:
+            logger.warning(f"Error fetching image file with id {image_file.file_id}: {e}")
+            self.current_message += f"<p>(Error fetching image file)</p>"
 
-        # No annotations for images
+        # Send an SSE event that includes the updated current_message
         self.shared_data.append({
             "type": "image_file",
             "text": self.current_message,
