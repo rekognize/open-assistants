@@ -20,6 +20,47 @@ function getURLParameter(name) {
     return new URLSearchParams(window.location.search).get(name);
 }
 
+async function downloadFile(fileUrl) {
+    try {
+        const response = await fetch(fileUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`
+            }
+        });
+        if (!response.ok) {
+            showToast("Failed!", "Failed to download!", "danger");
+            console.error('Failed to download!', response);
+        }
+
+        // Convert response to blob for download
+        const blob = await response.blob();
+
+        // Extract filename from Content-Disposition header if present
+        let filename = "downloaded_file";
+        const disposition = response.headers.get("Content-Disposition");
+        if (disposition && disposition.includes("filename=")) {
+            const match = /filename="([^"]*)"/.exec(disposition);
+            if (match && match[1]) {
+                filename = match[1];
+            }
+        }
+
+        // Create a temporary <a> to download the blob
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+        showToast("Failed!", "Download error!", "danger");
+        console.error("Download error:", error);
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async function () {
     // Call initializePage and wait for it to complete
     await initializePage();
@@ -723,10 +764,13 @@ document.addEventListener("DOMContentLoaded", async function () {
                 content = content.replace(annotation.text, replacementText);
             } else if (annotation.file_path) {
                 const fileId = annotation.file_path.file_id;
-                const downloadUrlTemplate = "{% url 'api-1.0.0:download_file' file_id='FILE_ID' %}";
-                const downloadUrl = downloadUrlTemplate.replace('ASST_ID_PLACEHOLDER', fileId);
+                
+                const downloadUrlTemplate = "{% url 'api-1.0.0:download_file_trigger' file_id='FILE_ID' %}";
+                const triggeredDownloadUrl = downloadUrlTemplate.replace('FILE_ID', fileId);
 
-                content = content.replace(annotation.text, downloadUrl);
+                const linkHTML = `<a href="#" onclick="downloadFile('${triggeredDownloadUrl}')">Download</a>`;
+
+                content = content.replace(annotation.text, linkHTML);
             }
         }
         return content;

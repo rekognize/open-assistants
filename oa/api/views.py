@@ -919,6 +919,11 @@ async def get_thread_files(request, thread_id):
     return JsonResponse({'success': True, 'files': files})
 
 
+@api.get("/download-trigger/{file_id}", auth=BearerAuth())
+async def download_file_trigger(request, file_id: str):
+    return await download_file(request, file_id)
+
+
 @api.get("/download/{file_id}", auth=BearerAuth())
 async def download_file(request, file_id: str):
     try:
@@ -927,7 +932,7 @@ async def download_file(request, file_id: str):
 
         # Retrieve file content
         file_content_response = await request.auth['client'].files.content(file_id)
-        file_content = await file_content_response.read()  # Read the content as bytes
+        file_content = file_content_response.read()  # Read the content as bytes
 
         # Extract the filename from the full path
         filename = os.path.basename(file_info.filename)
