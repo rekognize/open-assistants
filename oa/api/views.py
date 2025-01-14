@@ -695,7 +695,7 @@ async def cancel_run(request, thread_id, run_id):
 async def stream_responses(request, assistant_id: str, thread_id: str):
     async def event_stream():
         shared_data = []
-        event_handler = EventHandler(request, shared_data=shared_data)
+        event_handler = EventHandler(request=request, shared_data=shared_data)
         try:
             async with request.auth['client'].beta.threads.runs.stream(
                 thread_id=thread_id,
@@ -738,7 +738,7 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                                 tool_outputs.append({"tool_call_id": tool_call_id, "output": output_json})
 
                             # Create a new EventHandler instance for the submit_tool_outputs_stream
-                            tool_output_event_handler = EventHandler(shared_data=shared_data)
+                            tool_output_event_handler = EventHandler(request=request, shared_data=shared_data)
 
                             # Submit tool outputs
                             async with request.auth['client'].beta.threads.runs.submit_tool_outputs_stream(
