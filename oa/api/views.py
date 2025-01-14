@@ -695,7 +695,7 @@ async def cancel_run(request, thread_id, run_id):
 async def stream_responses(request, assistant_id: str, thread_id: str):
     async def event_stream():
         shared_data = []
-        event_handler = EventHandler(shared_data=shared_data)
+        event_handler = EventHandler(request, shared_data=shared_data)
         try:
             async with request.auth['client'].beta.threads.runs.stream(
                 thread_id=thread_id,
@@ -782,19 +782,6 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
     return response
 
 
-@api.get("files/image/{file_id}", auth=BearerAuth())
-async def serve_image_file(request, file_id: str):
-    try:
-        content_response = await request.auth['client'].files.content(file_id)
-        image_binary = content_response.read()
-        return HttpResponse(image_binary, content_type='image/png')
-    except APIError as e:
-        return JsonResponse({"error": e.message}, status=e.status)
-    except OpenAIError as e:
-        logger.error(f"Error fetching image file: {e}")
-        return HttpResponseNotFound('Image not found')
-
-
 @api.get("/thread/{thread_id}/messages", auth=BearerAuth())
 async def get_thread_messages(request, thread_id):
     try:
@@ -830,12 +817,15 @@ async def get_thread_messages(request, thread_id):
                             # Fetch file path
                             if file_path := getattr(annotation, 'file_path', None):
                                 file_path_file_id = getattr(file_path, 'file_id', None)
-                                download_link = reverse('api-1.0.0:download_file', kwargs={
-                                    'file_id': file_path_file_id
-                                })
 
-                                # Replace the annotation text with the download link
-                                text_content = text_content.replace(annotation.text, download_link)
+                                download_link = reverse(
+                                    'api-1.0.0:download_file_trigger',
+                                    kwargs={'file_id': file_path_file_id}
+                                )
+
+                                html_snippet = f'<a href="#" onclick="downloadFile(\'{download_link}\')"><i class="bi bi-cloud-download"></i></a>'
+
+                                text_content = text_content.replace(annotation.text, html_snippet)
 
                         content += f"<p>{text_content}</p>"
 
@@ -919,6 +909,11 @@ async def get_thread_files(request, thread_id):
     return JsonResponse({'success': True, 'files': files})
 
 
+@api.get("/download-trigger/{file_id}", auth=BearerAuth())
+async def download_file_trigger(request, file_id: str):
+    return await download_file(request, file_id)
+
+
 @api.get("/download/{file_id}", auth=BearerAuth())
 async def download_file(request, file_id: str):
     try:
@@ -927,7 +922,7 @@ async def download_file(request, file_id: str):
 
         # Retrieve file content
         file_content_response = await request.auth['client'].files.content(file_id)
-        file_content = await file_content_response.read()  # Read the content as bytes
+        file_content = file_content_response.read()  # Read the content as bytes
 
         # Extract the filename from the full path
         filename = os.path.basename(file_info.filename)
