@@ -830,12 +830,15 @@ async def get_thread_messages(request, thread_id):
                             # Fetch file path
                             if file_path := getattr(annotation, 'file_path', None):
                                 file_path_file_id = getattr(file_path, 'file_id', None)
-                                download_link = reverse('api-1.0.0:download_file', kwargs={
-                                    'file_id': file_path_file_id
-                                })
 
-                                # Replace the annotation text with the download link
-                                text_content = text_content.replace(annotation.text, download_link)
+                                download_link = reverse(
+                                    'api-1.0.0:download_file_trigger',
+                                    kwargs={'file_id': file_path_file_id}
+                                )
+
+                                html_snippet = f'<a href="#" onclick="downloadFile(\'{download_link}\')"><i class="bi bi-cloud-download"></i></a>'
+
+                                text_content = text_content.replace(annotation.text, html_snippet)
 
                         content += f"<p>{text_content}</p>"
 

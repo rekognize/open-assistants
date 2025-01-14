@@ -781,7 +781,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const downloadUrlTemplate = "{% url 'api-1.0.0:download_file_trigger' file_id='FILE_ID' %}";
                 const triggeredDownloadUrl = downloadUrlTemplate.replace('FILE_ID', fileId);
 
-                const linkHTML = `<a href="#" onclick="downloadFile('${triggeredDownloadUrl}')">Download</a>`;
+                const linkHTML = `<a href="#" onclick="downloadFile('${triggeredDownloadUrl}')"><i class="bi bi-cloud-download"></i></a>`;
 
                 content = content.replace(annotation.text, linkHTML);
             }
