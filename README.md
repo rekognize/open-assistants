@@ -67,17 +67,18 @@ To customize the site's branding, you can define the site name:
 SITE_NAME="Open Assistants"
 ```
 
-4. Apply database migrations:
+### 4. Apply database migrations:
 ```bash
 python manage.py migrate
 ```
 
-5. Start the development server with an ASGI server (e.g., Uvicorn):
+### 5. Start the development server with an ASGI server (e.g., Uvicorn):
 ```bash
 uvicorn open_assistants.asgi:application --reload
 ```
 
-6. Access the app in your browser at http://127.0.0.1:8000.
+### 6. Access the app in your browser
+Visit `http://localhost:8000` or `http://127.0.0.1:8000`.
 
 
 ## Contributing
