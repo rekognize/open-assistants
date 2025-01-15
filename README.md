@@ -19,22 +19,20 @@ The platform allows users to test their assistants, manage vector stores and fil
 - **Database**: PostgreSQL (default)
 - **AI Integration**: OpenAI API (integrations with other backends are planned)
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - Python 3.10 or newer
 - Django 4.2 or newer
 - ASGI server (e.g., Uvicorn or Daphne) [optional but recommended]
 
-### Installation
+## Installation
 
-1. Clone the repository:
+### 1. Clone the repository:
 ```bash
 git clone https://github.com/rekognize/open-assistants.git
 ```
 
-2. Clone the repository:
+### 2. Install the requirements:
 ```bash
 cd open-assistants
 python3 -m venv venv
@@ -42,12 +40,31 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables:
+### 3. Set up environment variables:
 
-Create a .env file in the project root with the following values:
+Create a `.env` file in the project's root directory and define the following variables:
 ```bash
-SECRET_KEY=<your-Django-secret-key>
-OPENAI_API_KEY=<your-openai-api-key>
+SECRET_KEY=<YOUR-DJANGO-SECRET-KEY>
+OPENAI_API_KEY=<YOUR-OPENAI-API-KEY>
+SITE_HOST=<YOUR-DOMAIN-NAME>
+```
+
+#### Local Development
+For local development, set `IS_LOCAL` to `True` to handle static files using the WhiteNoise module:
+```bash
+IS_LOCAL=True
+```
+
+#### Multiple Branch Deployments
+If deploying from multiple branches (e.g., `main`, `stage`, `dev`), set the `BRANCH_NAME` in the `.env` file for the current instance. This helps manage static file buckets independently for each branch:
+```bash
+BRANCH_NAME=<BRANCH-NAME-OF-THIS-INSTANCE>
+```
+
+#### Optional Customization
+To customize the site's branding, you can define the site name:
+```bash
+SITE_NAME="Open Assistants"
 ```
 
 4. Apply database migrations:
