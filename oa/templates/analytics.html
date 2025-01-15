@@ -426,31 +426,109 @@
                 });
                 const runsData = await runsResponse.json();
 
+                // Calculate token usage
                 const tokensTotal = runsData.runs.reduce((sum, run) => sum + run.usage.total_tokens, 0);
                 const tokensPrompt = runsData.runs.reduce((sum, run) => sum + run.usage.prompt_tokens, 0);
                 const tokensCompletion = runsData.runs.reduce((sum, run) => sum + run.usage.completion_tokens, 0);
+
+                // Calculate tool usage
                 const toolsUsed = runsData.runs.reduce((tools, run) => {
                     run.tools.forEach(tool => {
                         tools[tool.type] = (tools[tool.type] || 0) + 1;
                     });
                     return tools;
                 }, {});
-
                 const toolsUsedString = Object.entries(toolsUsed)
                     .map(([tool, count]) => `${tool} (${count})`)
                     .join(', ');
 
-                const cancelledRuns = runsData.runs.filter(run => run.cancelled_at !== null).length;
-                const failedRuns = runsData.runs.filter(run => run.failed_at !== null).length;
+                // Runs count
+                const totalRunsCount = runsData.runs.length;
 
-                let runsSummary = `${runsData.runs.length}`;
-                if (cancelledRuns > 0 || failedRuns > 0) {
-                    const details = [];
-                    if (cancelledRuns > 0) details.push(`${cancelledRuns} cancelled`);
-                    if (failedRuns > 0) details.push(`${failedRuns} failed`);
-                    runsSummary += ` (${details.join(', ')})`;
+                // Identify special runs
+                const incompleteRuns = runsData.runs.filter(run => run.status === 'incomplete');
+                const failedRuns = runsData.runs.filter(run => run.failed_at !== null);
+                const cancelledRuns = runsData.runs.filter(run => run.cancelled_at !== null);
+
+                // Build popovers for incomplete runs
+                const incompleteCount = incompleteRuns.length;
+                let incompleteSpan = '';
+                if (incompleteCount > 0) {
+                    // Build the content for the popover
+                    const incompleteDetails = incompleteRuns
+                        .map(run => `- ${run.incomplete_details?.reason}`)
+                        .join('<br>');
+                    incompleteSpan = `
+                        <span
+                            class="text-decoration-underline text-danger-emphasis"
+                            data-bs-toggle="popover"
+                            data-bs-trigger="hover"
+                            data-bs-html="true"
+                            data-bs-content="${incompleteDetails}">
+                                ${incompleteCount} incomplete
+                        </span>
+                    `;
                 }
 
+                // Build popovers for failed runs
+                const failedCount = failedRuns.length;
+                let failedSpan = '';
+                if (failedCount > 0) {
+                    // Build the content for the popover
+                    const failedDetails = failedRuns
+                        .map(run => {
+                            const code = run.last_error?.code ?? 'unknown_code';
+                            const message = run.last_error?.message ?? 'No message';
+                            return `- ${code}: ${message}`;
+                        })
+                        .join('<br>');
+                    failedSpan = `
+                        <span
+                            class="text-decoration-underline text-danger"
+                            data-bs-toggle="popover"
+                            data-bs-trigger="hover"
+                            data-bs-html="true"
+                            data-bs-content="${failedDetails}">
+                                ${failedCount} failed
+                        </span>
+                    `;
+                }
+
+                // Build popovers for cancelled runs
+                const cancelledCount = cancelledRuns.length;
+                let cancelledSpan = '';
+                if (cancelledCount > 0) {
+                    // Build the content for the popover
+                    const cancelledDetails = cancelledRuns
+                        .map(run => `- Cancelled by user - ${formatUnixTimestamp(run.cancelled_at)}`)
+                        .join('<br>');
+                    cancelledSpan = `
+                        <span
+                            class="text-decoration-underline text-warning"
+                            data-bs-toggle="popover"
+                            data-bs-trigger="hover"
+                            data-bs-html="true"
+                            data-bs-content="${cancelledDetails}">
+                                ${cancelledCount} cancelled
+                        </span>
+                    `;
+                }
+
+                // Build the runs summary "X (details...)"
+                let runsSummary = `${totalRunsCount}`;
+                const subDetails = [];
+                // Add incomplete, failed, cancelled if they exist
+                if (incompleteCount > 0) subDetails.push(incompleteSpan);
+                if (failedCount > 0) subDetails.push(failedSpan);
+                if (cancelledCount > 0) subDetails.push(cancelledSpan);
+
+                if (subDetails.length > 0) {
+                    runsSummary += ` (`;
+                    runsSummary += subDetails.join(', ');
+                    runsSummary += `)`;
+                }
+
+                // Build tokens summary "X (prompt, completion)"
                 let tokensSummary = `${tokensTotal}`;
                 if (tokensTotal > 0) {
                     tokensSummary += ` (${tokensPrompt} prompt, ${tokensCompletion} completion)`;
@@ -459,16 +537,23 @@
                 // Add a "User" column — thread.user.username or 'anonymous'
                 const userName = (thread.user && thread.user.username) ? thread.user.username : 'anonymous';
 
-                const threadRow = `<tr>
-                    <td>...${thread.id.slice(-5)}</td>
-                    <td>${new Date(thread.created_at).toLocaleString()}</td>
-                    <td>${runsSummary}</td>
-                    <td>${tokensSummary}</td>
-                    <td>${toolsUsedString}</td>
-                    <td>${userName}</td>
-                </tr>`;
+                // Build the row
+                const threadRow = `
+                    <tr>
+                        <td>...${thread.id.slice(-5)}</td>
+                        <td>${new Date(thread.created_at).toLocaleString()}</td>
+                        <td>${runsSummary}</td>
+                        <td>${tokensSummary}</td>
+                        <td>${toolsUsedString}</td>
+                        <td>${userName}</td>
+                    </tr>
+                `;
 
+                // Append row to the table body
                 document.querySelector(`#${tableId} tbody`).innerHTML += threadRow;
+
+                initializePopovers();
+
             } catch (error) {
                 console.error(`Error fetching runs for thread ${thread.id}:`, error);
             } finally {
