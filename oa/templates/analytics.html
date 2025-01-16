@@ -264,6 +264,7 @@
                     const sectionId = `collapse-test-${assistantId}-${userIndex}`;
                     const progressId = `progress-test-${assistantId}-${userIndex}`;
                     const tableId = `table-test-${assistantId}-${userIndex}`;
+                    const iconId = `icon-test-${assistantId}-${userIndex}`;
 
                     htmlOutput += `
                     <div class="accordion-item">
@@ -275,7 +276,10 @@
                                     aria-controls="${sectionId}"
                                     disabled>
                                 <div class="d-flex w-100 justify-content-between align-items-center">
-                                    <span>Test threads by <strong>${userName}</strong> (${groupThreads.length} threads)</span>
+                                    <span>
+                                        Test threads by <strong>${userName}</strong> (${groupThreads.length} threads)
+                                        <i id="${iconId}" class="bi bi-0-circle-fill text-danger d-none"></i> 
+                                    </span>
                                     <div class="progress w-50 me-3">
                                         <div id="${progressId}" class="progress-bar" role="progressbar" 
                                              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
@@ -307,7 +311,7 @@
                     `;
 
                     // Fetch runs for these threads
-                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId);
+                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId, iconId);
                     userIndex++;
                 }
 
@@ -348,6 +352,7 @@
                     const sectionId = `collapse-shared-${assistantId}-${shareIndex}`;
                     const progressId = `progress-shared-${assistantId}-${shareIndex}`;
                     const tableId = `table-shared-${assistantId}-${shareIndex}`;
+                    const iconId = `icon-shared-${assistantId}-${shareIndex}`;
 
                     htmlOutput += `
                     <div class="accordion-item">
@@ -359,7 +364,10 @@
                                     aria-controls="${sectionId}"
                                     disabled>
                                 <div class="d-flex w-100 justify-content-between align-items-center">
-                                    <span>Shared: <strong>${share}</strong> by <strong>${shareUser}</strong> (${groupThreads.length} threads)</span>
+                                    <span>
+                                        Shared: <strong>${share}</strong> by <strong>${shareUser}</strong> (${groupThreads.length} threads)
+                                        <i id="${iconId}" class="bi bi-0-circle-fill text-danger d-none"></i>
+                                    </span>
                                     <div class="progress w-50 me-3">
                                         <div id="${progressId}" class="progress-bar" role="progressbar"
                                              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
@@ -391,7 +399,7 @@
                     `;
 
                     // Fetch runs for these threads
-                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId);
+                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId, iconId);
                     shareIndex++;
                 }
 
@@ -408,8 +416,10 @@
         }
     }
 
-    async function fetchThreadRuns(threads, progressId, tableId, sectionId) {
+    async function fetchThreadRuns(threads, progressId, tableId, sectionId, iconId) {
         let completedThreads = 0;
+        let totalFailedCount = 0;
+        
         const totalThreads = threads.length;
 
         for (const thread of threads) {
@@ -490,6 +500,9 @@
                 const failedCount = failedRuns.length;
                 let failedSpan = '';
                 if (failedCount > 0) {
+                    // Increment totalFailedCount by failedCount
+                    totalFailedCount += failedCount;
+    
                     // Group by error code and count occurrences
                     const groupedErrors = failedRuns.reduce((acc, run) => {
                         const code = run.last_error?.code ?? 'unknown_code';
@@ -593,6 +606,12 @@
 
                 // Enable expand button once all threads in this group are loaded
                 if (progress === 100) {
+                    const icon = document.getElementById(iconId);
+                    if (totalFailedCount > 0) {
+                        icon.classList.remove('bi-0-circle-fill');
+                        icon.classList.add(`bi-${totalFailedCount}-circle-fill`);
+                        icon.classList.remove('d-none');  // Reveal the icon
+                    }
                     document.querySelector(`[data-bs-target="#${sectionId}"]`).removeAttribute('disabled');
                 }
             }
