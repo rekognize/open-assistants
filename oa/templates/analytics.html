@@ -460,12 +460,20 @@
                 const incompleteCount = incompleteRuns.length;
                 let incompleteSpan = '';
                 if (incompleteCount > 0) {
-                    const incompleteList = incompleteRuns.map(run => {
+                    // Group by reason and count occurrences
+                    const groupedReasons = incompleteRuns.reduce((acc, run) => {
                         const reason = run.incomplete_details?.reason ?? 'No details';
-                        return `<li>${reason}</li>`;
+                        acc[reason] = (acc[reason] || 0) + 1; // Increment the count for this reason
+                        return acc;
+                    }, {});
+                
+                    // Prepare the aggregated list for the popover
+                    const incompleteList = Object.entries(groupedReasons).map(([reason, count]) => {
+                        return `<li>${count} ${reason}</li>`;
                     });
+                
                     const incompleteHTML = buildPopoverContent(incompleteList);
-
+                
                     incompleteSpan = `
                         <span
                             class="text-decoration-underline text-danger-emphasis"
@@ -482,14 +490,28 @@
                 const failedCount = failedRuns.length;
                 let failedSpan = '';
                 if (failedCount > 0) {
-                    const failedList = failedRuns.map(run => {
+                    // Group by error code and count occurrences
+                    const groupedErrors = failedRuns.reduce((acc, run) => {
                         const code = run.last_error?.code ?? 'unknown_code';
                         const message = run.last_error?.message ?? 'No message';
-                        const failedDate = `<span class="small text-muted">${formatUnixTimestamp(run.failed_at)}</span>`;
-                        return `<li>${code}: ${message} - ${failedDate}</li>`;
+                
+                        if (!acc[code]) {
+                            acc[code] = { count: 0, messages: new Set() };
+                        }
+                
+                        acc[code].count += 1; // Increment the count for this code
+                        acc[code].messages.add(message); // Add the unique message
+                        return acc;
+                    }, {});
+                
+                    // Prepare the aggregated list for the popover
+                    const failedList = Object.entries(groupedErrors).map(([code, data]) => {
+                        const aggregatedMessages = Array.from(data.messages).join('; ');
+                        return `<li>${data.count} ${code}: ${aggregatedMessages}</li>`;
                     });
+                
                     const failedHTML = buildPopoverContent(failedList);
-
+                
                     failedSpan = `
                         <span
                             class="text-decoration-underline text-danger"
@@ -506,12 +528,8 @@
                 const cancelledCount = cancelledRuns.length;
                 let cancelledSpan = '';
                 if (cancelledCount > 0) {
-                    const cancelledList = cancelledRuns.map(run => {
-                        const cancelledDate = `<span class="small text-muted">${formatUnixTimestamp(run.cancelled_at)}</span>`;
-                        return `<li>Cancelled - ${cancelledDate}</li>`;
-                    });
-                    const cancelledHTML = buildPopoverContent(cancelledList);
-
+                    const cancelledHTML = `<span>${cancelledCount} cancelled by user</span>`;
+                
                     cancelledSpan = `
                         <span
                             class="text-decoration-underline text-warning"
