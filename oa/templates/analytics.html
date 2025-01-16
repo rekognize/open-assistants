@@ -407,7 +407,7 @@
             document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>Error loading stats.</strong>`;
         }
     }
-    
+
     async function fetchThreadRuns(threads, progressId, tableId, sectionId) {
         let completedThreads = 0;
         const totalThreads = threads.length;
@@ -450,66 +450,76 @@
                 const failedRuns = runsData.runs.filter(run => run.failed_at !== null);
                 const cancelledRuns = runsData.runs.filter(run => run.cancelled_at !== null);
 
-                // Build popovers for incomplete runs
+                function buildPopoverContent(listItems) {
+                    const html = `<ul class="mb-0">${listItems.join('')}</ul>`;
+                    // Escape double quotes so the string won't break the data-bs-content attribute
+                    return html.replace(/"/g, '&quot;');
+                }
+
+                // Build popover for incomplete runs
                 const incompleteCount = incompleteRuns.length;
                 let incompleteSpan = '';
                 if (incompleteCount > 0) {
-                    // Build the content for the popover
-                    const incompleteDetails = incompleteRuns
-                        .map(run => `- ${run.incomplete_details?.reason}`)
-                        .join('<br>');
+                    const incompleteList = incompleteRuns.map(run => {
+                        const reason = run.incomplete_details?.reason ?? 'No details';
+                        return `<li>${reason}</li>`;
+                    });
+                    const incompleteHTML = buildPopoverContent(incompleteList);
+
                     incompleteSpan = `
                         <span
                             class="text-decoration-underline text-danger-emphasis"
                             data-bs-toggle="popover"
                             data-bs-trigger="hover"
                             data-bs-html="true"
-                            data-bs-content="${incompleteDetails}">
-                                ${incompleteCount} incomplete
+                            data-bs-content="${incompleteHTML}">
+                            ${incompleteCount} incomplete
                         </span>
                     `;
                 }
 
-                // Build popovers for failed runs
+                // Build popover for failed runs
                 const failedCount = failedRuns.length;
                 let failedSpan = '';
                 if (failedCount > 0) {
-                    // Build the content for the popover
-                    const failedDetails = failedRuns
-                        .map(run => {
-                            const code = run.last_error?.code ?? 'unknown_code';
-                            const message = run.last_error?.message ?? 'No message';
-                            return `- ${code}: ${message}`;
-                        })
-                        .join('<br>');
+                    const failedList = failedRuns.map(run => {
+                        const code = run.last_error?.code ?? 'unknown_code';
+                        const message = run.last_error?.message ?? 'No message';
+                        const failedDate = `<span class="small text-muted">${formatUnixTimestamp(run.failed_at)}</span>`;
+                        return `<li>${code}: ${message} - ${failedDate}</li>`;
+                    });
+                    const failedHTML = buildPopoverContent(failedList);
+
                     failedSpan = `
                         <span
                             class="text-decoration-underline text-danger"
                             data-bs-toggle="popover"
                             data-bs-trigger="hover"
                             data-bs-html="true"
-                            data-bs-content="${failedDetails}">
-                                ${failedCount} failed
+                            data-bs-content="${failedHTML}">
+                            ${failedCount} failed
                         </span>
                     `;
                 }
 
-                // Build popovers for cancelled runs
+                // Build popover for cancelled runs
                 const cancelledCount = cancelledRuns.length;
                 let cancelledSpan = '';
                 if (cancelledCount > 0) {
-                    // Build the content for the popover
-                    const cancelledDetails = cancelledRuns
-                        .map(run => `- Cancelled by user - ${formatUnixTimestamp(run.cancelled_at)}`)
-                        .join('<br>');
+                    const cancelledList = cancelledRuns.map(run => {
+                        const cancelledDate = `<span class="small text-muted">${formatUnixTimestamp(run.cancelled_at)}</span>`;
+                        return `<li>Cancelled - ${cancelledDate}</li>`;
+                    });
+                    const cancelledHTML = buildPopoverContent(cancelledList);
+
                     cancelledSpan = `
                         <span
                             class="text-decoration-underline text-warning"
                             data-bs-toggle="popover"
                             data-bs-trigger="hover"
                             data-bs-html="true"
-                            data-bs-content="${cancelledDetails}">
-                                ${cancelledCount} cancelled
+                            data-bs-content="${cancelledHTML}">
+                            ${cancelledCount} cancelled
                         </span>
                     `;
                 }
@@ -534,10 +544,10 @@
                     tokensSummary += ` (${tokensPrompt} prompt, ${tokensCompletion} completion)`;
                 }
 
-                // Add a "User" column — thread.user.username or 'anonymous'
+                // Determine user name
                 const userName = (thread.user && thread.user.username) ? thread.user.username : 'anonymous';
 
-                // Build the row
+                // Build row
                 const threadRow = `
                     <tr>
                         <td>...${thread.id.slice(-5)}</td>
