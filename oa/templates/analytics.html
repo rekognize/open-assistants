@@ -485,15 +485,13 @@
                 
                     const incompleteHTML = buildPopoverContent(incompleteList);
                 
-                    incompleteSpan = `
-                        <span
-                            class="text-decoration-underline text-danger-emphasis"
-                            data-bs-toggle="popover"
-                            data-bs-trigger="hover"
-                            data-bs-html="true"
-                            data-bs-content="${incompleteHTML}"
-                        >${incompleteCount} incomplete</span>
-                    `;
+                    incompleteSpan = `<span
+                        class="text-decoration-underline text-danger-emphasis"
+                        data-bs-toggle="popover"
+                        data-bs-trigger="hover"
+                        data-bs-html="true"
+                        data-bs-content="${incompleteHTML}"
+                        >${incompleteCount} incomplete</span>`;
                 }
 
                 // Build popover for failed runs
@@ -522,15 +520,13 @@
                 
                     const failedHTML = buildPopoverContent(failedList);
                 
-                    failedSpan = `
-                        <span
-                            class="text-decoration-underline text-danger"
-                            data-bs-toggle="popover"
-                            data-bs-trigger="hover"
-                            data-bs-html="true"
-                            data-bs-content="${failedHTML}"
-                        >${failedCount} failed</span>
-                    `;
+                    failedSpan = `<span
+                        class="text-decoration-underline text-danger"
+                        data-bs-toggle="popover"
+                        data-bs-trigger="hover"
+                        data-bs-html="true"
+                        data-bs-content="${failedHTML}"
+                        >${failedCount} failed</span>`;
                 }
 
                 // Build popover for cancelled runs
@@ -539,15 +535,13 @@
                 if (cancelledCount > 0) {
                     const cancelledHTML = `<span>${cancelledCount} cancelled by user</span>`;
                 
-                    cancelledSpan = `
-                        <span
-                            class="text-decoration-underline text-warning"
-                            data-bs-toggle="popover"
-                            data-bs-trigger="hover"
-                            data-bs-html="true"
-                            data-bs-content="${cancelledHTML}"
-                        >${cancelledCount} cancelled</span>
-                    `;
+                    cancelledSpan = `<span
+                        class="text-decoration-underline text-warning"
+                        data-bs-toggle="popover"
+                        data-bs-trigger="hover"
+                        data-bs-html="true"
+                        data-bs-content="${cancelledHTML}"
+                        >${cancelledCount} cancelled</span>`;
                 }
 
                 // Build the runs summary "X (details...)"
