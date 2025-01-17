@@ -506,21 +506,18 @@
                     // Group by error code and count occurrences
                     const groupedErrors = failedRuns.reduce((acc, run) => {
                         const code = run.last_error?.code ?? 'unknown_code';
-                        const message = run.last_error?.message ?? 'No message';
                 
                         if (!acc[code]) {
-                            acc[code] = { count: 0, messages: new Set() };
+                            acc[code] = 0;
                         }
                 
-                        acc[code].count += 1; // Increment the count for this code
-                        acc[code].messages.add(message); // Add the unique message
+                        acc[code] += 1; // Increment the count for this code
                         return acc;
                     }, {});
                 
                     // Prepare the aggregated list for the popover
-                    const failedList = Object.entries(groupedErrors).map(([code, data]) => {
-                        const aggregatedMessages = Array.from(data.messages).join('; ');
-                        return `<li>${data.count} ${code}: ${aggregatedMessages}</li>`;
+                    const failedList = Object.entries(groupedErrors).map(([code, count]) => {
+                        return `<li>${count} ${code}</li>`;
                     });
                 
                     const failedHTML = buildPopoverContent(failedList);
