@@ -241,8 +241,8 @@
 
             htmlOutput += `<h5>Test threads:</h5>`;
             if (testThreads.length > 0) {
-                const firstTestDate = formatDbDate(testThreads[0].created_at);
-                const lastTestDate = formatDbDate(testThreads[testThreads.length - 1].created_at);
+                const lastTestDate = formatDbDate(testThreads[0].created_at);
+                const firstTestDate = formatDbDate(testThreads[testThreads.length - 1].created_at);
                 htmlOutput += `<p>${testThreads.length} test threads run between ${firstTestDate} & ${lastTestDate}</p>`;
 
                 // Group test threads by user
@@ -325,8 +325,8 @@
 
             htmlOutput += `<h5>Shared threads:</h5>`;
             if (sharedThreads.length > 0) {
-                const firstSharedDate = formatDbDate(sharedThreads[0].created_at);
-                const lastSharedDate = formatDbDate(sharedThreads[sharedThreads.length - 1].created_at);
+                const lastSharedDate = formatDbDate(sharedThreads[0].created_at);
+                const firstSharedDate = formatDbDate(sharedThreads[sharedThreads.length - 1].created_at);
                 htmlOutput += `<p>${sharedThreads.length} shared threads run between ${firstSharedDate} & ${lastSharedDate}</p>`;
 
                 // Group shared threads by "share + share_user"
