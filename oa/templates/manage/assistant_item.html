@@ -98,7 +98,18 @@
                         <!-- Function checkboxes will be inserted here -->
                     </div>
 
-                    <h6 class="card-title text-secondary">Metadata</h6>
+                    <!-- Metadata Fields -->
+                    <h6 class="card-title text-secondary">
+                        Metadata
+                        <i class="bi bi-exclamation-triangle-fill text-warning float-end"
+                            data-bs-toggle="popover" data-bs-trigger="focus" data-bs-content="Ensure metadata is correctly configured."
+                        ></i>
+                        <button type="button"
+                            class="btn btn-sm btn-outline-secondary ms-2"
+                            style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .2rem; --bs-btn-font-size: .75rem;"
+                            onclick="openJsonModal('${assistant.id}')"
+                        >JSON</button>
+                    </h6>
 
                     <!-- Metadata Fields -->
                     <div class="metadata-fields" id="metadata-fields-${assistant.id}">

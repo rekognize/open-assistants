@@ -54,12 +54,13 @@
                         <!-- Function checkboxes will be inserted here -->
                     </div>
 
-                    <h6 class="card-title text-secondary">Metadata</h6>
-
                     <!-- Metadata Fields -->
-                    <div class="metadata-fields" id="metadata-fields-${tempId}">
-                        <!-- Parameter entries will be added here dynamically -->
-                    </div>
+                    <h6 class="card-title text-secondary">
+                        Metadata
+                        <i class="bi bi-exclamation-triangle text-warning" tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-content="Due to the way OpenAI handles metadata, it is not possible to remove a key, once it is set."></i>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="openJsonModal('${tempId}')">JSON</button>
+                    </h6>
+
                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMetadataField('${tempId}')">
                         Add parameter
                     </button>
