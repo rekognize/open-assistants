@@ -229,10 +229,11 @@
                 }
             });
 
-            // Sort testThreads by date
-            testThreads.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            // Sort sharedThreads by date
-            sharedThreads.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            // Sort testThreads by date in reverse order
+            testThreads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            // Sort sharedThreads by date in reverse order
+            sharedThreads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
             let htmlOutput = '';
             
@@ -240,8 +241,8 @@
 
             htmlOutput += `<h5>Test threads:</h5>`;
             if (testThreads.length > 0) {
-                const firstTestDate = new Date(testThreads[0].created_at).toLocaleString();
-                const lastTestDate = new Date(testThreads[testThreads.length - 1].created_at).toLocaleString();
+                const firstTestDate = formatDbDate(testThreads[0].created_at);
+                const lastTestDate = formatDbDate(testThreads[testThreads.length - 1].created_at);
                 htmlOutput += `<p>${testThreads.length} test threads run between ${firstTestDate} & ${lastTestDate}</p>`;
 
                 // Group test threads by user
@@ -324,8 +325,8 @@
 
             htmlOutput += `<h5>Shared threads:</h5>`;
             if (sharedThreads.length > 0) {
-                const firstSharedDate = new Date(sharedThreads[0].created_at).toLocaleString();
-                const lastSharedDate = new Date(sharedThreads[sharedThreads.length - 1].created_at).toLocaleString();
+                const firstSharedDate = formatDbDate(sharedThreads[0].created_at);
+                const lastSharedDate = formatDbDate(sharedThreads[sharedThreads.length - 1].created_at);
                 htmlOutput += `<p>${sharedThreads.length} shared threads run between ${firstSharedDate} & ${lastSharedDate}</p>`;
 
                 // Group shared threads by "share + share_user"
@@ -579,7 +580,7 @@
                 const threadRow = `
                     <tr>
                         <td>...${thread.id.slice(-5)}</td>
-                        <td>${new Date(thread.created_at).toLocaleString()}</td>
+                        <td>${formatDbDate(thread.created_at)}</td>
                         <td>${runsSummary}</td>
                         <td>${tokensSummary}</td>
                         <td>${toolsUsedString}</td>
