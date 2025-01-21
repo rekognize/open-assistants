@@ -6,19 +6,19 @@ import os
 import httpx
 from asgiref.sync import sync_to_async
 from django.urls import reverse
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from ninja import NinjaAPI, File, Form
 from ninja.errors import AuthenticationError
 from ninja.security import HttpBearer
 from ninja.files import UploadedFile
 from typing import List
 from openai import AsyncOpenAI, OpenAIError
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
+from ..tools.models import Tool, Parameter
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
-from ..tools import FUNCTION_IMPLEMENTATIONS
 
 
 api = NinjaAPI()
@@ -713,29 +713,11 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                             tool_outputs = []
 
                             for tool_call in tool_calls:
-                                tool_call_id = tool_call.id
-                                function_name = tool_call.function.name
-                                function_args_json = tool_call.function.arguments
-                                function_args = json.loads(function_args_json)
-
                                 # Execute the function and get the output
-                                if function_name in FUNCTION_IMPLEMENTATIONS:
-                                    function_class = FUNCTION_IMPLEMENTATIONS[function_name]
-                                    try:
-                                        # Instantiate the class with the arguments
-                                        function_instance = function_class(**function_args)
-                                        # If 'main' is synchronous, run it in a thread
-                                        output = await asyncio.to_thread(function_instance.main)
-                                        # Ensure the output is JSON-serializable
-                                        output_json = json.dumps(output)
-                                    except Exception as e:
-                                        output = f"Error executing function {function_name}: {str(e)}"
-                                        output_json = json.dumps({"error": output})
-                                else:
-                                    output = f"Function {function_name} not found"
-                                    output_json = json.dumps({"error": output})
-
-                                tool_outputs.append({"tool_call_id": tool_call_id, "output": output_json})
+                                tool = Tool.objects.filter(name=tool_call.function.name).first()
+                                if tool:
+                                    r = tool.execute(json.loads(tool_call.function.arguments))
+                                tool_outputs.append({"tool_call_id": tool_call.id, "output": json.dumps(r.json())})
 
                             # Create a new EventHandler instance for the submit_tool_outputs_stream
                             tool_output_event_handler = EventHandler(request=request, shared_data=shared_data)
