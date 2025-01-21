@@ -1,0 +1,5 @@
+INFO 2024-09-29 13:22:25,120 autoreload Watching for file changes with StatReloader
+INFO 2024-09-29 13:30:32,732 autoreload Watching for file changes with StatReloader
+INFO 2024-09-29 13:31:56,749 autoreload Watching for file changes with StatReloader
+INFO 2024-09-29 13:33:16,235 autoreload /Users/onurmatik/Projects/OpenAssistants/open-assistants/oa/settings/base.py changed, reloading.
+INFO 2024-09-29 13:33:16,502 autoreload Watching for file changes with StatReloader
