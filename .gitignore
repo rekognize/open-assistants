@@ -11,3 +11,5 @@ settings_local.py
 /env/*
 /venv/*
 /staticfiles/*
+
+debug.log
