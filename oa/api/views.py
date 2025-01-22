@@ -716,7 +716,7 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                                 # Execute the function and get the output
                                 function = Function.objects.filter(name=tool_call.function.name).first()
                                 if function:
-                                    r = function.execute(json.loads(tool_call.function.arguments))
+                                    r = await function.execute(json.loads(tool_call.function.arguments))
                                 tool_outputs.append({"tool_call_id": tool_call.id, "output": json.dumps(r.json())})
 
                             # Create a new EventHandler instance for the submit_tool_outputs_stream
