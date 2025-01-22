@@ -7,7 +7,7 @@ class Function(models.Model):
     description = models.TextField()
 
     # API endpoint definition
-    endpoint = models.URLField()
+    endpoint = models.URLField(blank=True, null=True)
     method = models.CharField(
         max_length=10, default='GET',
         choices=[(m, m) for m in ['GET', 'POST', 'PUT', 'DELETE']],
@@ -39,6 +39,11 @@ class Function(models.Model):
         if self.bearer_token:
             headers["Authorization"] = f"Bearer {self.bearer_token}"
 
+        # Determine the endpoint (allowing URL override as a parameter)
+        url = kwargs.pop('url', self.endpoint)
+        if not url:
+            raise ValueError("No endpoint URL provided.")
+
         try:
             if self.method == 'GET':
                 response = requests.get(self.endpoint, headers=headers, params=kwargs)
@@ -47,7 +52,7 @@ class Function(models.Model):
                     method=self.method,
                     url=self.endpoint,
                     headers=headers,
-                    json=kwargs
+                    json=kwargs,
                 )
 
             response.raise_for_status()  # Raise an error for HTTP error responses
@@ -55,6 +60,7 @@ class Function(models.Model):
             # Handle non-JSON content (e.g., images, HTML)
             if 'application/json' in response.headers.get('Content-Type', ''):
                 return response.json()
+
             return response.content
 
         except requests.exceptions.RequestException as e:
@@ -65,9 +71,11 @@ class Parameter(models.Model):
     function = models.ForeignKey(Function, on_delete=models.CASCADE, related_name="parameters")
     name = models.CharField(max_length=100)
     type = models.CharField(max_length=1, choices=(
-        ('s', 'string'),
-        ('i', 'integer'),
         ('o', 'object'),
+        ('s', 'string'),
+        ('n', 'number'),
+        ('b', 'boolean'),
+        ('-', 'null'),
     ))
     description = models.TextField()
     required = models.BooleanField(default=False)
