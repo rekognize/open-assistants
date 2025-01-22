@@ -2,14 +2,17 @@ import requests
 from django.db import models
 
 
-class Tool(models.Model):
+class Function(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
 
     # API endpoint definition
     endpoint = models.URLField()
-    method = models.CharField(max_length=10, choices=(((m, m) for m in ['GET', 'POST', 'PUT', 'DELETE'])))
-    bearer_token = models.CharField(max_length=100, blank=True, null=True)
+    method = models.CharField(
+        max_length=10, default='GET',
+        choices=[(m, m) for m in ['GET', 'POST', 'PUT', 'DELETE']],
+    )
+    bearer_token = models.CharField(max_length=200, blank=True, null=True)
 
     def get_description(self):
         json_description = {
@@ -22,7 +25,7 @@ class Tool(models.Model):
                 "required": []
             }
         }
-        for parameter in self.parameter_set.all():
+        for parameter in self.parameters.all():
             json_description["parameters"]["properties"][parameter.name] = {
                 "type": parameter.get_type_display(),
                 "description": parameter.description
@@ -48,13 +51,18 @@ class Tool(models.Model):
                 )
 
             response.raise_for_status()  # Raise an error for HTTP error responses
-            return response.json()
+
+            # Handle non-JSON content (e.g., images, HTML)
+            if 'application/json' in response.headers.get('Content-Type', ''):
+                return response.json()
+            return response.content
+
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"API request failed: {e}")
+            raise RuntimeError(f"Request failed: {e}")
 
 
 class Parameter(models.Model):
-    tool = models.ForeignKey(Tool, on_delete=models.CASCADE)
+    function = models.ForeignKey(Function, on_delete=models.CASCADE, related_name="parameters")
     name = models.CharField(max_length=100)
     type = models.CharField(max_length=1, choices=(
         ('s', 'string'),
@@ -65,4 +73,4 @@ class Parameter(models.Model):
     required = models.BooleanField(default=False)
 
     def __str__(self):
-        return f'{self.tool.name}::{self.name}'
+        return f'{self.function.name}::{self.name}'

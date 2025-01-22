@@ -16,7 +16,7 @@ from openai import AsyncOpenAI, OpenAIError
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
-from ..tools.models import Tool, Parameter
+from ..function_calls.models import Function, Parameter
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
 
@@ -714,9 +714,9 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
 
                             for tool_call in tool_calls:
                                 # Execute the function and get the output
-                                tool = Tool.objects.filter(name=tool_call.function.name).first()
-                                if tool:
-                                    r = tool.execute(json.loads(tool_call.function.arguments))
+                                function = Function.objects.filter(name=tool_call.function.name).first()
+                                if function:
+                                    r = function.execute(json.loads(tool_call.function.arguments))
                                 tool_outputs.append({"tool_call_id": tool_call.id, "output": json.dumps(r.json())})
 
                             # Create a new EventHandler instance for the submit_tool_outputs_stream
