@@ -1,4 +1,5 @@
 import requests
+import httpx
 from django.db import models
 from django.utils.text import slugify
 
@@ -25,26 +26,28 @@ class Function(models.Model):
         super().save(*args, **kwargs)
 
     def get_definition(self):
-        json_description = {
+        properties, required = {}, []
+        for parameter in self.parameters.all():
+            properties[parameter.name] = {
+                "type": parameter.get_type_display(),
+                "description": parameter.description
+            }
+            if parameter.required:
+                required.append(parameter.name)
+
+        return {
             "name": self.slug,
             "description": self.description,
             "strict": True,
             "parameters": {
                 "type": "object",
-                "properties": {},
-                "required": []
-            }
+                "properties": properties,
+                "required": required,
+                "additionalProperties": False
+            },
         }
-        for parameter in self.parameters.all():
-            json_description["parameters"]["properties"][parameter.name] = {
-                "type": parameter.get_type_display(),
-                "description": parameter.description
-            }
-            if parameter.required:
-                json_description["parameters"]["required"].append(parameter.name)
-        return json_description
 
-    def execute(self, **kwargs):
+    async def execute(self, **kwargs):
         headers = {}
         if self.bearer_token:
             headers["Authorization"] = f"Bearer {self.bearer_token}"
@@ -54,27 +57,28 @@ class Function(models.Model):
         if not url:
             raise ValueError("No endpoint URL provided.")
 
-        try:
-            if self.method == 'GET':
-                response = requests.get(self.endpoint, headers=headers, params=kwargs)
-            else:  # POST, PUT, DELETE
-                response = requests.request(
-                    method=self.method,
-                    url=self.endpoint,
-                    headers=headers,
-                    json=kwargs,
-                )
+        async with httpx.AsyncClient() as client:
+            try:
+                if self.method == 'GET':
+                    response = await client.get(url, headers=headers, params=kwargs)
+                else:  # POST, PUT, DELETE
+                    response = await client.request(
+                        method=self.method,
+                        url=self.endpoint,
+                        headers=headers,
+                        json=kwargs,
+                    )
 
-            response.raise_for_status()  # Raise an error for HTTP error responses
+                response.raise_for_status()  # Raise an error for HTTP error responses
 
-            # Handle non-JSON content (e.g., images, HTML)
-            if 'application/json' in response.headers.get('Content-Type', ''):
-                return response.json()
+                # Handle non-JSON content (e.g., images, HTML)
+                if 'application/json' in response.headers.get('Content-Type', ''):
+                    return response.json()
 
-            return response.content
+                return response.content
 
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Request failed: {e}")
+            except httpx.RequestError as e:
+                raise RuntimeError(f"Request failed: {e}")
 
 
 class Parameter(models.Model):
