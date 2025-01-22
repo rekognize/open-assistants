@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Tool, Parameter
+from .models import Function, Parameter
 
 
 class ParameterInline(admin.TabularInline):
@@ -7,8 +7,8 @@ class ParameterInline(admin.TabularInline):
     extra = 1  # Number of empty forms displayed
 
 
-@admin.register(Tool)
-class ToolAdmin(admin.ModelAdmin):
+@admin.register(Function)
+class FunctionAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name', 'description')
     inlines = [ParameterInline]
@@ -16,6 +16,6 @@ class ToolAdmin(admin.ModelAdmin):
 
 @admin.register(Parameter)
 class ParameterAdmin(admin.ModelAdmin):
-    list_display = ('tool', 'name', 'type', 'description', 'required')
-    list_filter = ('tool', 'type', 'required')
+    list_display = ('function', 'name', 'type', 'description', 'required')
+    list_filter = ('function', 'type', 'required')
     search_fields = ('name', 'description')

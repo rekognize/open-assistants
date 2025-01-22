@@ -34,7 +34,7 @@ INSTALLED_APPS = [
     'widget_tweaks',
 
     'oa.main',
-    'oa.tools',
+    'oa.function_calls',
 ]
 
 MIDDLEWARE = [
