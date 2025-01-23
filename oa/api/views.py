@@ -713,16 +713,42 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                             tool_outputs = []
 
                             for tool_call in tool_calls:
-                                # Execute the function and get the output
-                                function = Function.objects.filter(name=tool_call.function.name).first()
-                                if function:
-                                    r = await function.execute(json.loads(tool_call.function.arguments))
-                                tool_outputs.append({"tool_call_id": tool_call.id, "output": json.dumps(r.json())})
+                                function = await sync_to_async(
+                                    Function.objects.filter(slug=tool_call.function.name).first
+                                )()
 
-                            # Create a new EventHandler instance for the submit_tool_outputs_stream
-                            tool_output_event_handler = EventHandler(request=request, shared_data=shared_data)
+                                if not function:
+                                    tool_outputs.append({
+                                        "tool_call_id": tool_call.id,
+                                        "output": json.dumps(
+                                            {"error": f"No function found with slug '{tool_call.function.name}'"}
+                                        ),
+                                    })
+                                    continue
 
-                            # Submit tool outputs
+                                args_dict = json.loads(tool_call.function.arguments or "{}")
+
+                                try:
+                                    result = await function.execute(**args_dict)
+
+                                    if isinstance(result, dict):
+                                        output_str = json.dumps(result)
+                                    elif isinstance(result, bytes):
+                                        output_str = result.decode("utf-8", errors="replace")
+                                    else:
+                                        output_str = str(result)
+
+                                except Exception as e:
+                                    output_str = json.dumps({"error": str(e)})
+
+                                tool_outputs.append({
+                                    "tool_call_id": tool_call.id,
+                                    "output": output_str
+                                })
+
+                            tool_output_event_handler = EventHandler(
+                                request=request, shared_data=shared_data
+                            )
                             async with request.auth['client'].beta.threads.runs.submit_tool_outputs_stream(
                                 thread_id=thread_id,
                                 run_id=run_id,
