@@ -713,9 +713,7 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                             tool_outputs = []
 
                             for tool_call in tool_calls:
-                                function = await sync_to_async(
-                                    Function.objects.filter(slug=tool_call.function.name).first
-                                )()
+                                function = await Function.objects.filter(slug=tool_call.function.name).afirst()
 
                                 if not function:
                                     tool_outputs.append({
