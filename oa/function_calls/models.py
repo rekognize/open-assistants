@@ -1,10 +1,104 @@
-import requests
 import httpx
 from django.db import models
 from django.utils.text import slugify
+from ..main.models import Project
 
 
-class Function(models.Model):
+class AssistantCreatedFunction(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    assistant_id = models.CharField(max_length=50, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    function_name = models.CharField(max_length=100)
+    readable_name = models.CharField(max_length=100)
+    description = models.TextField()
+
+    parameters = models.JSONField()
+    code = models.TextField()
+    returns = models.JSONField()
+
+
+class CodeInterpreterScript(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    assistant_id = models.CharField(max_length=50, db_index=True)
+    thread_id = models.CharField(max_length=50, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    code = models.TextField()
+
+
+class LocalAPIFunctions(models.Model):
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, blank=True)
+    description = models.TextField()
+
+    parameters = models.JSONField()
+    code = models.TextField()
+    returns = models.JSONField()
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def get_definition(self):
+        properties, required = {}, []
+        for parameter in self.parameters.all():
+            properties[parameter.name] = {
+                "type": parameter.get_type_display(),
+                "description": parameter.description
+            }
+            if parameter.required:
+                required.append(parameter.name)
+
+        return {
+            "name": self.slug,
+            "description": self.description,
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+                "additionalProperties": False
+            },
+        }
+
+    async def execute(self, **kwargs):
+        headers = {}
+        if self.bearer_token:
+            headers["Authorization"] = f"Bearer {self.bearer_token}"
+
+        # Determine the endpoint (allowing URL override as a parameter)
+        url = kwargs.pop('url', self.endpoint)
+        if not url:
+            raise ValueError("No endpoint URL provided.")
+
+        async with httpx.AsyncClient() as client:
+            try:
+                if self.method == 'GET':
+                    response = await client.get(url, headers=headers, params=kwargs)
+                else:  # POST, PUT, DELETE
+                    response = await client.request(
+                        method=self.method,
+                        url=self.endpoint,
+                        headers=headers,
+                        json=kwargs,
+                    )
+
+                response.raise_for_status()  # Raise an error for HTTP error responses
+
+                # Handle non-JSON content (e.g., images, HTML)
+                if 'application/json' in response.headers.get('Content-Type', ''):
+                    return response.json()
+
+                return response.content
+
+            except httpx.RequestError as e:
+                raise RuntimeError(f"Request failed: {e}")
+
+
+class ExternalAPIFunction(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=100, blank=True)
     description = models.TextField()
@@ -82,10 +176,11 @@ class Function(models.Model):
 
 
 class Parameter(models.Model):
-    function = models.ForeignKey(Function, on_delete=models.CASCADE, related_name="parameters")
+    function = models.ForeignKey(ExternalAPIFunction, on_delete=models.CASCADE, related_name="parameters")
     name = models.CharField(max_length=100)
     type = models.CharField(max_length=1, choices=(
         ('o', 'object'),
+        ('a', 'array'),
         ('s', 'string'),
         ('n', 'number'),
         ('b', 'boolean'),
