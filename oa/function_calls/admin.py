@@ -1,5 +1,33 @@
 from django.contrib import admin
-from .models import LocalFunction, ExternalAPIFunction, Parameter
+from .models import (
+    CodeInterpreterScript,
+    CodeInterpreterSnippet,
+    LocalFunction,
+    ExternalAPIFunction,
+    Parameter,
+)
+
+
+class CodeInterpreterSnippetInline(admin.TabularInline):
+    model = CodeInterpreterSnippet
+    extra = 0
+
+
+@admin.register(CodeInterpreterScript)
+class CodeInterpreterScriptAdmin(admin.ModelAdmin):
+    list_display = ("project", "assistant_id", "thread_id", "run_id", "created_at")
+    list_filter = ("project", "assistant_id", "thread_id", "run_id", "created_at")
+    search_fields = ("assistant_id", "thread_id", "run_id")
+    ordering = ("-created_at",)
+    inlines = [CodeInterpreterSnippetInline]
+
+
+@admin.register(CodeInterpreterSnippet)
+class CodeInterpreterSnippetAdmin(admin.ModelAdmin):
+    list_display = ("script", "run_step_id", "tool_call_id", "snippet_index", "created_at")
+    list_filter = ("script", "run_step_id", "tool_call_id", "created_at")
+    search_fields = ("run_step_id", "tool_call_id", "code_block")
+    ordering = ("-created_at",)
 
 
 @admin.register(LocalFunction)

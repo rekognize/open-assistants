@@ -8,8 +8,18 @@ class CodeInterpreterScript(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     assistant_id = models.CharField(max_length=50, db_index=True)
     thread_id = models.CharField(max_length=50, db_index=True)
+    run_id = models.CharField(max_length=50, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    code = models.TextField()
+
+
+class CodeInterpreterSnippet(models.Model):
+    script = models.ForeignKey(CodeInterpreterScript, on_delete=models.CASCADE, related_name='snippets')
+    run_step_id = models.CharField(max_length=50, db_index=True)
+    tool_call_id = models.CharField(max_length=50, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    snippet_index = models.PositiveIntegerField(default=1)
+
+    code_block = models.TextField()
 
 
 class LocalFunction(models.Model):

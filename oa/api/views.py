@@ -16,7 +16,7 @@ from openai import AsyncOpenAI, OpenAIError
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
-from ..function_calls.models import ExternalAPIFunction
+from ..function_calls.models import ExternalAPIFunction, CodeInterpreterScript, CodeInterpreterSnippet
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
 
@@ -760,6 +760,36 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                                         yield f"data: {json.dumps(data)}\n\n"
 
                                         await asyncio.sleep(0)
+
+                    # If run step completed, check for CodeInterpreter calls
+                    if event.event == "thread.run.step.completed":
+                        step_data = event.data  # RunStep data
+
+                        if hasattr(step_data.step_details, 'tool_calls'):
+                            for tool_call in step_data.step_details.tool_calls:
+                                if tool_call.type == "code_interpreter":
+                                    run_step_id = step_data.id
+                                    tool_call_id = tool_call.id
+                                    code_input = tool_call.code_interpreter.input
+
+                                    script_obj, created = await sync_to_async(
+                                        CodeInterpreterScript.objects.get_or_create)(
+                                        project=request.auth['project'],
+                                        assistant_id=step_data.assistant_id,
+                                        thread_id=step_data.thread_id,
+                                        run_id=step_data.run_id,
+                                    )
+
+                                    existing_count = await sync_to_async(script_obj.snippets.count)()
+                                    snippet_index = existing_count + 1
+
+                                    await sync_to_async(CodeInterpreterSnippet.objects.create)(
+                                        script=script_obj,
+                                        run_step_id=run_step_id,
+                                        tool_call_id=tool_call_id,
+                                        snippet_index=snippet_index,
+                                        code_block=code_input
+                                    )
 
                     # Yield data to the client immediately
                     while shared_data:
