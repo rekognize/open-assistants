@@ -31,7 +31,7 @@ def create_function(request, data: FunctionCreateSchema):
                     "description",
                     "arguments",
                     "code",
-                    "return_schema",
+                    "return_schema"
                 ],
                 "properties": {
                     "name": {
@@ -75,11 +75,12 @@ def create_function(request, data: FunctionCreateSchema):
                                     }
                                 },
                                 "default": {
-                                    "description": "The default value of the parameter, if applicable.",
-                                    "type": ["string", "number", "boolean", "object", "array", "null"]
-                                },
+                                    "type": ["string", "number", "boolean", "object", "array", "null"],
+                                    "description": "The default value of the parameter, if applicable."
+                                }
                             },
-                            "required": ["name", "type", "description"]
+                            "required": ["name", "type", "description"],
+                            "additionalProperties": False
                         }
                     },
                     "code": {
@@ -110,19 +111,7 @@ def create_function(request, data: FunctionCreateSchema):
                                     "properties": {
                                         "type": "object",
                                         "description": "Defines properties of an object return type.",
-                                        "additionalProperties": {
-                                            "type": "object",
-                                            "properties": {
-                                                "type": {
-                                                    "type": "string",
-                                                    "enum": ["string", "number", "boolean", "object", "array"]
-                                                },
-                                                "description": {
-                                                    "type": "string",
-                                                    "description": "Description of this field."
-                                                }
-                                            }
-                                        }
+                                        "additionalProperties": False
                                     },
                                     "items": {
                                         "type": "object",
@@ -136,12 +125,15 @@ def create_function(request, data: FunctionCreateSchema):
                                                 "type": "string",
                                                 "description": "Description of array items."
                                             }
-                                        }
+                                        },
+                                        "additionalProperties": False
                                     }
-                                }
+                                },
+                                "additionalProperties": False
                             }
                         },
-                        "required": ["type", "description"]
+                        "required": ["type", "description"],
+                        "additionalProperties": False
                     }
                 },
                 "additionalProperties": False
