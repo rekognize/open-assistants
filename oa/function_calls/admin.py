@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import Function, Parameter
+from .models import LocalFunction, ExternalAPIFunction, Parameter
+
+
+@admin.register(LocalFunction)
+class LocalFunctionAdmin(admin.ModelAdmin):
+    list_display = ("name", "project", "assistant_id", "created_at")
+    list_filter = ("project", "assistant_id", "created_at")
+    search_fields = ("name", "assistant_id", "description")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at",)
 
 
 class ParameterInline(admin.TabularInline):
@@ -7,8 +16,8 @@ class ParameterInline(admin.TabularInline):
     extra = 1  # Number of empty forms displayed
 
 
-@admin.register(Function)
-class FunctionAdmin(admin.ModelAdmin):
+@admin.register(ExternalAPIFunction)
+class ExternalAPIFunctionAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name', 'description')
     inlines = [ParameterInline]

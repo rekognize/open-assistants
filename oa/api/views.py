@@ -16,7 +16,7 @@ from openai import AsyncOpenAI, OpenAIError
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
-from ..function_calls.models import Function, Parameter
+from ..function_calls.models import ExternalAPIFunction
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
 
@@ -713,7 +713,7 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                             tool_outputs = []
 
                             for tool_call in tool_calls:
-                                function = await Function.objects.filter(slug=tool_call.function.name).afirst()
+                                function = await ExternalAPIFunction.objects.filter(slug=tool_call.function.name).afirst()
 
                                 if not function:
                                     tool_outputs.append({

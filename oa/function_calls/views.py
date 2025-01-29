@@ -1,3 +1,5 @@
 from django.shortcuts import render
 
-# Create your views here.
+
+def create_function(request):
+    pass

@@ -16,7 +16,7 @@ urlpatterns = [
 
     path("api/", api.urls),
 
-    path("api/", function_calls_api.urls),
+    path("api/core/", function_calls_api.urls),
 
     path('', main_views.HomeView.as_view(), name='home'),
     path('<uuid:project_uuid>/', main_views.HomeView.as_view(), name='home'),
