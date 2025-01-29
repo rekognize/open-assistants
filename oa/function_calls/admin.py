@@ -1,9 +1,9 @@
 from django.contrib import admin
-from .models import LocalFunction, ExternalAPIFunction, Parameter
+from .models import LocalAPIFunction, ExternalAPIFunction, Parameter
 
 
-@admin.register(LocalFunction)
-class LocalFunctionAdmin(admin.ModelAdmin):
+@admin.register(LocalAPIFunction)
+class LocalAPIFunctionAdmin(admin.ModelAdmin):
     list_display = ("name", "project", "assistant_id", "created_at")
     list_filter = ("project", "assistant_id", "created_at")
     search_fields = ("name", "assistant_id", "description")

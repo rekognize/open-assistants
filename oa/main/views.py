@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import TemplateView
-from ..function_calls.models import ExternalAPIFunction, LocalFunction
+from ..function_calls.models import ExternalAPIFunction, LocalAPIFunction
 from .models import Project, SharedLink, Thread
 from .utils import format_time
 
@@ -63,7 +63,7 @@ def manage_assistants(request, project_uuid):
     else:
         selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
 
-    function_definitions = ([f.get_definition() for f in LocalFunction.objects.all()] +
+    function_definitions = ([f.get_definition() for f in LocalAPIFunction.objects.all()] +
                             [f.get_definition() for f in ExternalAPIFunction.objects.all()])
 
     return render(request, "manage.html", {

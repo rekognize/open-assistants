@@ -12,32 +12,81 @@ class CodeInterpreterScript(models.Model):
     code = models.TextField()
 
 
-class LocalFunction(models.Model):
+class LocalAPIFunction(models.Model):
     """
-    Functions executed in a sandbox locally or in Lambda containers
+    Functions called via the local API and executed in a sandbox locally or in Lambda containers
     """
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+
+    # JSON schema describing what parameters or fields are required as input
+    # e.g. {"url": {"type": "string", "description": "URL or the webpage to fetch"}, ...}
+    arguments = models.JSONField(default=dict)
+
+    # The actual Python code to run
+    # e.g. {"paragraphs": {"type": "array", "items": {"type": "string"}}}
+    code = models.TextField()
+
+    # JSON schema describing the expected output structure.
+    return_schema = models.JSONField(default=dict)
+
+    # Information on how to populate the initial context.
+    # e.g. what data sources (CSV files, URLs) or parameters are expected.
+    data_source_schema = models.JSONField(default=dict)
+
+    # Jinja2 template to render the outputs
+    template = models.TextField(blank=True, null=True)
+
+    # Metadata
+    version = models.PositiveIntegerField(default=1)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, blank=True, null=True)
     assistant_id = models.CharField(max_length=50, db_index=True, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    name = models.CharField(max_length=100)
-    description = models.TextField()
-
-    parameters = models.JSONField()  # {name: {"type": "", "description": ""}, ...}
-    code = models.TextField()
-    returns = models.JSONField(blank=True, null=True)
 
     def get_definition(self):
+        # Returns the definition in OpenAI function definition format
         return {
             "name": self.name,
             "description": self.description,
             "strict": True,
             "parameters": {
                 "type": "object",
-                "properties": self.parameters,
-                "required": list(self.parameters.keys()),
+                "properties": {
+                    param['name']: {
+                        "type": param.get('type', 'string'),
+                        "description": param.get('description', ''),
+                    } for param in self.initial_context_schema
+                },
+                "required": list(self.initial_context_schema.keys()),
                 "additionalProperties": False
             },
         }
+
+
+class LocalAPIFunctionExecution(models.Model):
+    """
+    Represents a single run of a ReusableScript, capturing the inputs, outputs,
+    and any logs or metadata around execution.
+    """
+    script = models.ForeignKey(LocalAPIFunction, on_delete=models.CASCADE, related_name='executions')
+
+    # The actual context/parameters used in this run
+    initial_context = models.JSONField(default=dict)
+
+    # The data sources used (e.g. references to file uploads, S3 paths, etc.)
+    data_source = models.JSONField(default=dict)
+
+    # The output produced by this run
+    output = models.JSONField(default=dict, null=True, blank=True)
+
+    # Execution metadata
+    success = models.BooleanField(default=False)
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Execution of {self.script.name} at {self.created_at}"
 
 
 class ExternalAPIFunction(models.Model):

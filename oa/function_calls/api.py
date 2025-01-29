@@ -3,14 +3,18 @@ from ninja import NinjaAPI
 from ninja import Schema
 from typing import List, Dict, Optional, Any
 from openai import OpenAI
-from oa.function_calls.models import LocalFunction
+from oa.function_calls.models import LocalAPIFunction
 
 
 api = NinjaAPI(urls_namespace="function_calls")
 
 
+class FunctionCreateSchema(Schema):
+    description: str
+
+
 @api.post("/create_function")
-def create_function(request, description):
+def create_function(request, data: FunctionCreateSchema):
     """
     Creates a function according to the given description
     """
@@ -23,48 +27,121 @@ def create_function(request, description):
             "parameters": {
                 "type": "object",
                 "required": [
-                    "import_statements",
-                    "function_name",
+                    "name",
+                    "description",
                     "arguments",
                     "code",
-                    "return",
+                    "return_schema",
                 ],
                 "properties": {
-                    # "requirements": {
-                    #     "type": "string",
-                    #     "description": "Contents of the requirements.txt file listing the required modules."
-                    # },
-                    "import_statements": {
-                        "type": "array",
-                        "description": "List of import statements required to make the function run",
-                        "items": {
-                            "type": "string",
-                            "description": "An import statement"
-                        }
-                    },
-                    "function_name": {
+                    "name": {
                         "type": "string",
                         "description": "The name of the function"
                     },
-                    "function_description": {
+                    "description": {
                         "type": "string",
                         "description": "The description of the function"
                     },
                     "arguments": {
                         "type": "array",
-                        "description": "The list of arguments of the function to be executed",
+                        "description": "A list of function parameters, each describing a required or optional argument.",
                         "items": {
-                            "type": "string",
-                            "description": "Name of the argument"
+                            "type": "object",
+                            "description": "Definition of the function parameter.",
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "description": "The name of the parameter"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "description": "The data type of the parameter.",
+                                    "enum": ["string", "number", "boolean", "object", "array"]
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "description": "A short description of the parameter's purpose."
+                                },
+                                "required": {
+                                    "type": "boolean",
+                                    "description": "Whether this parameter is required.",
+                                    "default": False
+                                },
+                                "enum": {
+                                    "type": "array",
+                                    "description": "List of allowed values for this parameter, if applicable.",
+                                    "items": {
+                                        "type": ["string", "number", "boolean"]
+                                    }
+                                },
+                                "default": {
+                                    "description": "The default value of the parameter, if applicable.",
+                                    "type": ["string", "number", "boolean", "object", "array", "null"]
+                                },
+                            },
+                            "required": ["name", "type", "description"]
                         }
                     },
                     "code": {
                         "type": "string",
-                        "description": "The code to be executed inside the function"
+                        "description": "The full Python script to be executed"
                     },
-                    "return": {
-                        "type": "string",
-                        "description": "The return value of the function"
+                    "return_schema": {
+                        "type": "object",
+                        "description": "Defines the structure of the function's return value.",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "The type of the output.",
+                                "enum": ["single_value", "object", "array"]
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "A short description of what the function returns."
+                            },
+                            "schema": {
+                                "type": "object",
+                                "description": "A JSON schema describing the return structure if type is 'object' or 'array'.",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["object", "array"]
+                                    },
+                                    "properties": {
+                                        "type": "object",
+                                        "description": "Defines properties of an object return type.",
+                                        "additionalProperties": {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": ["string", "number", "boolean", "object", "array"]
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "description": "Description of this field."
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "items": {
+                                        "type": "object",
+                                        "description": "Schema for each item if type is 'array'.",
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "enum": ["string", "number", "boolean", "object", "array"]
+                                            },
+                                            "description": {
+                                                "type": "string",
+                                                "description": "Description of array items."
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "required": ["type", "description"]
                     }
                 },
                 "additionalProperties": False
@@ -76,7 +153,7 @@ def create_function(request, description):
         "role": "user",
         "content": f"Create a Python function that would accomplish the given task.\n"
                    f"Available modules are: pandas, numpy, scipy, matplotlib, openai, requests\n"
-                   f"DESCRIPTION: {description}\n"
+                   f"DESCRIPTION: {data.description}\n"
     }]
 
     client = OpenAI()
@@ -90,18 +167,20 @@ def create_function(request, description):
 
     response = json.loads(completion.choices[0].message.tool_calls[0].function.arguments)
 
-    LocalFunction.objects.create(
-        name=response['function_name'],
-        description=payload.task,
-
+    LocalAPIFunction.objects.create(
+        name=response['name'],
+        description=response['description'],
+        arguments=response['arguments'],
+        code=response['code'],
+        return_schema=response['return_schema'],
     )
 
-    return payload
+    return
 
 
 @api.post("/save_function")
 def save_function(request, payload):
-    LocalFunction.objects.create(
+    LocalAPIFunction.objects.create(
         name=payload.name,
         description=payload.description,
     )
