@@ -32,6 +32,7 @@ INSTALLED_APPS = [
 
     'storages',
     'widget_tweaks',
+    'django_json_widget',
 
     'oa.main',
     'oa.function_calls',

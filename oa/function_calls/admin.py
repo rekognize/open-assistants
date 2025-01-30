@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import LocalAPIFunction, ExternalAPIFunction, Parameter
+from django.db.models import JSONField
+from django_json_widget.widgets import JSONEditorWidget
+from .models import LocalAPIFunction, ExternalAPIFunction
 
 
 @admin.register(LocalAPIFunction)
@@ -10,21 +12,17 @@ class LocalAPIFunctionAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
     readonly_fields = ("created_at",)
 
-
-class ParameterInline(admin.TabularInline):
-    model = Parameter
-    extra = 1  # Number of empty forms displayed
+    formfield_overrides = {
+        JSONField: {'widget': JSONEditorWidget},
+    }
 
 
 @admin.register(ExternalAPIFunction)
 class ExternalAPIFunctionAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name', 'description')
-    inlines = [ParameterInline]
 
+    formfield_overrides = {
+        JSONField: {'widget': JSONEditorWidget},
+    }
 
-@admin.register(Parameter)
-class ParameterAdmin(admin.ModelAdmin):
-    list_display = ('function', 'name', 'type', 'description', 'required')
-    list_filter = ('function', 'type', 'required')
-    search_fields = ('name', 'description')

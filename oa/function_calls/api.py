@@ -14,24 +14,6 @@ class FunctionCreateSchema(Schema):
     description: str
 
 
-class FunctionParameter(BaseModel):
-    name: str = Field(description="The name of the parameter")
-    type: str = Field(description="The data type of the parameter", enum=["string", "number", "boolean", "object", "array"])
-    description: str = Field(description="A short description of the parameter's purpose.")
-    required: bool = Field(description="Whether this parameter is required.")
-    enum: Optional[List[str]] = Field(description="List of allowed values for this parameter, if applicable.")
-
-
-class ExecutePythonFunctionSchema(BaseModel):
-    name: str = Field(description="The name of the function")
-    description: str = Field(description="The description of the function")
-    arguments: List[FunctionParameter] = Field(description="A list of function parameters, each describing a required or optional argument.")
-    code: str = Field(description="The full Python script to be executed")
-    return_schema: dict = Field(
-        ..., description="Defines the structure of the function's return value (can be any object)."
-    )
-
-
 @api.post("/create_function")
 def create_function(request, data: FunctionCreateSchema):
     """
@@ -103,7 +85,16 @@ def create_function(request, data: FunctionCreateSchema):
                     },
                     "return_schema": {
                         "type": "object",
-                        "description": "Defines the structure of the function's return value (can be any object).",
+                        "description": "Defines the structure of the function's return value.\n"
+                                       "It can be a single value, an object or a list of objects.\n"
+                                       "E.g. values and their representations in the schema: \n"
+                                       "{'x': 5} => {'x': {'type': 'number'}}\n"
+                                       "{'name': 'Alice', 'score': 4.5} => "
+                                       "{'name': {'type': 'string'}, 'score': {'type': 'number'}}\n"
+                                       "df.to_records() => "
+                                       "{'records': {'type': 'array', 'items': {'id': {'type': 'number'}, 'name': {'type': 'string'}, 'score': {'type': 'number'}}}\n"
+                                       "Be specific as possible. ",
+                        "minProperties": 1,
                         "additionalProperties": True
                     }
                 },
@@ -114,7 +105,8 @@ def create_function(request, data: FunctionCreateSchema):
 
     messages = [{
         "role": "user",
-        "content": f"Create a Python function that would accomplish the given task.\n"
+        "content": f"Create a Python script that would accomplish the given task.\n"
+                   f"The code should be a flat script, not a function.\n"
                    f"Available modules are: pandas, numpy, scipy, matplotlib, openai, requests\n"
                    f"DESCRIPTION: {data.description}\n"
     }]

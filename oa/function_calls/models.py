@@ -1,106 +1,22 @@
 import httpx
 from django.db import models
+from django.http import JsonResponse
 from django.utils.text import slugify
 from ..main.models import Project
 
 
-class CodeInterpreterScript(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    assistant_id = models.CharField(max_length=50, db_index=True)
-    thread_id = models.CharField(max_length=50, db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    code = models.TextField()
-
-
-class LocalAPIFunction(models.Model):
+class BaseAPIFunction(models.Model):
     """
-    Functions called via the local API and executed in a sandbox locally or in Lambda containers
+    Functions called by assistants and executed via the local or external APIs
     """
     name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, blank=True, unique=True)
     description = models.TextField(blank=True)
 
-    # JSON schema describing what parameters or fields are required as input
-    # e.g. {"url": {"type": "string", "description": "URL or the webpage to fetch"}, ...}
-    arguments = models.JSONField(default=dict)
+    # JSON schema describing the parameters as in the OpenAI function definition
+    argument_schema = models.JSONField(default=dict, blank=True)
 
-    # The actual Python code to run
-    # e.g. {"paragraphs": {"type": "array", "items": {"type": "string"}}}
-    code = models.TextField()
-
-    # JSON schema describing the expected output structure.
-    return_schema = models.JSONField(default=dict)
-
-    # Information on how to populate the initial context.
-    # e.g. what data sources (CSV files, URLs) or parameters are expected.
-    data_source_schema = models.JSONField(default=dict)
-
-    # Jinja2 template to render the outputs
-    template = models.TextField(blank=True, null=True)
-
-    # Metadata
-    version = models.PositiveIntegerField(default=1)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, blank=True, null=True)
-    assistant_id = models.CharField(max_length=50, db_index=True, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def get_definition(self):
-        # Returns the definition in OpenAI function definition format
-        return {
-            "name": self.name,
-            "description": self.description,
-            "strict": True,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    param['name']: {
-                        "type": param.get('type', 'string'),
-                        "description": param.get('description', ''),
-                    } for param in self.initial_context_schema
-                },
-                "required": list(self.initial_context_schema.keys()),
-                "additionalProperties": False
-            },
-        }
-
-
-class LocalAPIFunctionExecution(models.Model):
-    """
-    Represents a single run of a ReusableScript, capturing the inputs, outputs,
-    and any logs or metadata around execution.
-    """
-    script = models.ForeignKey(LocalAPIFunction, on_delete=models.CASCADE, related_name='executions')
-
-    # The actual context/parameters used in this run
-    initial_context = models.JSONField(default=dict)
-
-    # The data sources used (e.g. references to file uploads, S3 paths, etc.)
-    data_source = models.JSONField(default=dict)
-
-    # The output produced by this run
-    output = models.JSONField(default=dict, null=True, blank=True)
-
-    # Execution metadata
-    success = models.BooleanField(default=False)
-    error_message = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    finished_at = models.DateTimeField(null=True, blank=True)
-
-    def __str__(self):
-        return f"Execution of {self.script.name} at {self.created_at}"
-
-
-class ExternalAPIFunction(models.Model):
-    name = models.CharField(max_length=100)
-    slug = models.SlugField(max_length=100, blank=True)
-    description = models.TextField()
-
-    # API endpoint definition
-    endpoint = models.URLField(blank=True, null=True)
-    method = models.CharField(
-        max_length=10, default='GET',
-        choices=[(m, m) for m in ['GET', 'POST', 'PUT', 'DELETE']],
-    )
-    bearer_token = models.CharField(max_length=200, blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -111,26 +27,75 @@ class ExternalAPIFunction(models.Model):
         super().save(*args, **kwargs)
 
     def get_definition(self):
-        properties, required = {}, []
-        for parameter in self.parameters.all():
-            properties[parameter.name] = {
-                "type": parameter.get_type_display(),
-                "description": parameter.description
-            }
-            if parameter.required:
-                required.append(parameter.name)
-
+        # Returns the definition in OpenAI function definition format
         return {
-            "name": self.slug,
+            "name": self.name,
             "description": self.description,
-            "strict": True,
-            "parameters": {
-                "type": "object",
-                "properties": properties,
-                "required": required,
-                "additionalProperties": False
-            },
+            "parameters": self.argument_schema,
+            # "strict": True,
         }
+
+
+class LocalAPIFunction(BaseAPIFunction):
+    """
+    Functions called via the local API and executed in a sandbox locally or in Lambda containers
+    """
+
+    # The actual Python code to process the input; blank => no processing, i.e. the input parameters are returned
+    code = models.TextField(blank=True, default='')
+
+    # Extra context required by the script; e.g. API keys
+    extra_context = models.JSONField(default=dict, blank=True)
+
+    # Jinja2 template to render the outputs
+    template = models.TextField(blank=True, null=True)
+
+    # Metadata
+    version = models.PositiveIntegerField(default=1)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, blank=True, null=True)
+    assistant_id = models.CharField(max_length=50, db_index=True, blank=True, null=True)
+
+    async def execute(self, **kwargs):
+        """
+        Executes the stored Python code with the provided **kwargs and returns the final context as a JSON object.
+        """
+
+        # Setting the local environment for exec
+        local_vars = dict(kwargs=kwargs)
+
+        # Adding extra context
+        local_vars.update(self.extra_context)
+
+        # Execute the code
+        try:
+            exec(self.code, {}, local_vars)
+        except Exception as e:
+            # Handle any exceptions that occur
+            return JsonResponse({
+                'error': str(e)
+            }, status_code=400)
+
+        # Remove Python dunder and built-in references
+        executed_vars = {
+            k: v for k, v in local_vars.items()
+            if not (k.startswith('__') and k.endswith('__'))
+        }
+
+        # Return the final context as JSON
+        return JsonResponse(executed_vars, safe=False)
+
+
+class ExternalAPIFunction(BaseAPIFunction):
+    """
+    Functions called via an external API endpoint.
+    """
+    # API endpoint definition
+    endpoint = models.URLField(blank=True, null=True)
+    method = models.CharField(
+        max_length=10, default='GET',
+        choices=[(m, m) for m in ['GET', 'POST', 'PUT', 'DELETE']],
+    )
+    bearer_token = models.CharField(max_length=200, blank=True, null=True)
 
     async def execute(self, **kwargs):
         headers = {}
@@ -166,27 +131,23 @@ class ExternalAPIFunction(models.Model):
                 raise RuntimeError(f"Request failed: {e}")
 
 
-class Parameter(models.Model):
-    function = models.ForeignKey(ExternalAPIFunction, on_delete=models.CASCADE, related_name="parameters")
-    name = models.CharField(max_length=100)
-    type = models.CharField(max_length=1, choices=(
-        ('o', 'object'),
-        ('a', 'array'),
-        ('s', 'string'),
-        ('n', 'number'),
-        ('b', 'boolean'),
-        ('-', 'null'),
-    ))
-    description = models.TextField()
-    required = models.BooleanField(default=False)
+class FunctionExecution(models.Model):
+    """
+    Represents a single run of an APIFunction, capturing the inputs, outputs and any metadata around execution.
+    """
+    function = models.ForeignKey(BaseAPIFunction, related_name='executions',
+                                 blank=True, null=True, on_delete=models.SET_NULL)
 
-    def __str__(self):
-        return f'{self.function.name}::{self.name}'
+    # For function calls from built-in tools like code_interpreter that won't have a FK to the BaseAPIFunction
+    function_name = models.CharField(max_length=50)
 
-
-class ExternalAPIFunctionExecution(models.Model):
-    function = models.ForeignKey(ExternalAPIFunction, on_delete=models.CASCADE)
     arguments = models.JSONField(default=dict, blank=True)
     result = models.JSONField(default=dict, blank=True)
+
+    status_code = models.CharField(max_length=5, blank=True, null=True)
+    error_message = models.TextField(blank=True, null=True)
+
     time = models.DateTimeField()
 
+    def __str__(self):
+        return f"Execution of {self.function.name if self.function else self.function_name} at {self.time}"

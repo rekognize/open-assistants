@@ -16,7 +16,7 @@ from openai import AsyncOpenAI, OpenAIError
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
-from ..function_calls.models import ExternalAPIFunction
+from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
 
@@ -713,13 +713,14 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                             tool_outputs = []
 
                             for tool_call in tool_calls:
-                                function = await ExternalAPIFunction.objects.filter(slug=tool_call.function.name).afirst()
+                                # function = await ExternalAPIFunction.objects.filter(slug=tool_call.function.name).afirst()
+                                function = await LocalAPIFunction.objects.filter(slug=tool_call.function.name).afirst()
 
                                 if not function:
                                     tool_outputs.append({
                                         "tool_call_id": tool_call.id,
                                         "output": json.dumps(
-                                            {"error": f"No function found with slug '{tool_call.function.name}'"}
+                                            {"error": f"No function named '{tool_call.function.name}'"}
                                         ),
                                     })
                                     continue
