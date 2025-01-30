@@ -289,6 +289,35 @@ async def list_threads(request, assistant_id):
     return JsonResponse({'threads': threads_data})
 
 
+@api.get("/scripts/{assistant_id}", auth=BearerAuth())
+def list_scripts(request, assistant_id):
+    if not assistant_id:
+        return JsonResponse({"error": "assistant_id required"}, status=400)
+
+    project = request.auth['project']
+    scripts_qs = CodeInterpreterScript.objects.filter(
+        project=project,
+        assistant_id=assistant_id
+    ).order_by('run_id', 'snippet_index')
+
+
+    # Group by run_id
+    data = {}
+    for s in scripts_qs:
+        group = data.setdefault(s.run_id, {"run_id": s.run_id, "snippets": []})
+        group["snippets"].append({
+            "id": s.id,
+            "run_step_id": s.run_step_id,
+            "tool_call_id": s.tool_call_id,
+            "snippet_index": s.snippet_index,
+            "code": s.code,
+        })
+
+    result = list(data.values())
+
+    return JsonResponse({"assistant_scripts": result})
+
+
 # Vector Stores
 
 @api.post("/vector_stores", auth=BearerAuth())
