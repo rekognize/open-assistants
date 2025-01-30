@@ -2,7 +2,7 @@ import json
 from ninja import NinjaAPI
 from ninja import Schema
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Any
 from openai import OpenAI
 from oa.function_calls.models import LocalAPIFunction
 
@@ -15,32 +15,21 @@ class FunctionCreateSchema(Schema):
 
 
 class FunctionParameter(BaseModel):
-    name: str = Field(..., description="The name of the parameter")
-    type: str = Field(..., description="The data type of the parameter", enum=["string", "number", "boolean", "object", "array"])
-    description: str = Field(..., description="A short description of the parameter's purpose.")
+    name: str = Field(description="The name of the parameter")
+    type: str = Field(description="The data type of the parameter", enum=["string", "number", "boolean", "object", "array"])
+    description: str = Field(description="A short description of the parameter's purpose.")
     required: bool = Field(description="Whether this parameter is required.")
     enum: Optional[List[str]] = Field(description="List of allowed values for this parameter, if applicable.")
-    default: Optional[Union[str, int, float, bool, dict, list, None]] = Field(description="The default value of the parameter, if applicable.")
 
-class ReturnSchemaProperties(BaseModel):
-    type: str = Field(..., enum=["string", "number", "boolean", "object", "array"], description="The data type of the property.")
-    description: Optional[str] = Field(description="Description of this field.")
-
-class ReturnSchemaItems(BaseModel):
-    type: str = Field(..., enum=["string", "number", "boolean", "object", "array"], description="The data type of the array items.")
-    description: Optional[str] = Field(description="Description of array items.")
-
-class ReturnSchema(BaseModel):
-    type: str = Field(..., description="The type of the output.", enum=["single_value", "object", "array"])
-    description: str = Field(..., description="A short description of what the function returns.")
-    schema: Optional[Dict[str, Union[str, Dict[str, ReturnSchemaProperties], ReturnSchemaItems]]] = Field(description="A JSON schema describing the return structure if type is 'object' or 'array'.")
 
 class ExecutePythonFunctionSchema(BaseModel):
-    name: str = Field(..., description="The name of the function")
-    description: str = Field(..., description="The description of the function")
-    arguments: List[FunctionParameter] = Field(..., description="A list of function parameters, each describing a required or optional argument.")
-    code: str = Field(..., description="The full Python script to be executed")
-    return_schema: ReturnSchema = Field(..., description="Defines the structure of the function's return value.")
+    name: str = Field(description="The name of the function")
+    description: str = Field(description="The description of the function")
+    arguments: List[FunctionParameter] = Field(description="A list of function parameters, each describing a required or optional argument.")
+    code: str = Field(description="The full Python script to be executed")
+    return_schema: dict = Field(
+        ..., description="Defines the structure of the function's return value (can be any object)."
+    )
 
 
 @api.post("/create_function")
@@ -53,7 +42,7 @@ def create_function(request, data: FunctionCreateSchema):
         "function": {
             "name": "execute_python_function",
             "description": "Executes a python function.",
-            "strict": True,
+            "strict": False,
             "parameters": {
                 "type": "object",
                 "required": [
@@ -114,52 +103,8 @@ def create_function(request, data: FunctionCreateSchema):
                     },
                     "return_schema": {
                         "type": "object",
-                        "description": "Defines the structure of the function's return value.",
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "description": "The type of the output.",
-                                "enum": ["single_value", "object", "array"]
-                            },
-                            "description": {
-                                "type": "string",
-                                "description": "A short description of what the function returns."
-                            },
-                            "schema": {
-                                "type": ["object", "null"],
-                                "description": "A JSON schema describing the return structure if type is 'object' or 'array'.",
-                                "properties": {
-                                    "type": {
-                                        "type": "string",
-                                        "enum": ["object", "array"]
-                                    },
-                                    "properties": {
-                                        "type": "object",
-                                        "description": "Defines properties of an object return type.",
-                                        "additionalProperties": False
-                                    },
-                                    "items": {
-                                        "type": "object",
-                                        "description": "Schema for each item if type is 'array'.",
-                                        "properties": {
-                                            "type": {
-                                                "type": "string",
-                                                "enum": ["string", "number", "boolean", "object", "array"]
-                                            },
-                                            "description": {
-                                                "type": "string",
-                                                "description": "Description of array items."
-                                            }
-                                        },
-                                        "required": ["type", "description"],
-                                        "additionalProperties": False
-                                    }
-                                },
-                                "additionalProperties": False
-                            }
-                        },
-                        "required": ["type", "description", "schema"],
-                        "additionalProperties": False
+                        "description": "Defines the structure of the function's return value (can be any object).",
+                        "additionalProperties": True
                     }
                 },
                 "additionalProperties": False
@@ -176,29 +121,31 @@ def create_function(request, data: FunctionCreateSchema):
 
     client = OpenAI()
 
-    """
+    # JSON
     completion = client.chat.completions.create(
         model="gpt-4o",
         messages=messages,
         tools=tools,
         tool_choice="required"
     )
+    response = json.loads(completion.choices[0].message.tool_calls[0].function.arguments)
     """
-
+    # Pydantic:
     completion = client.beta.chat.completions.parse(
         model="gpt-4o",
         messages=messages,
         response_format=ExecutePythonFunctionSchema,
     )
+    response = json.loads(completion.choices[0].message.content)
+    """
 
-    response = json.loads(completion.choices[0].message.tool_calls[0].function.arguments)
 
     LocalAPIFunction.objects.create(
         name=response['name'],
         description=response['description'],
         arguments=response['arguments'],
         code=response['code'],
-        return_schema=response['return_schema'],
+        return_schema=response.get('return_schema', {}),
     )
 
     return
