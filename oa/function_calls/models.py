@@ -67,15 +67,14 @@ class LocalAPIFunction(BaseAPIFunction):
         # Adding extra context
         local_vars.update(self.extra_context)
 
-        status_code, result, error_message = 200, None, None
-
         # Execute the code
         try:
             exec(self.code, {}, local_vars)
 
         except Exception as e:
-            status_code = 400
-            error_message = str(e)
+            return JsonResponse({
+                'message': str(e)
+            }, safe=False, status=400)
 
         else:
             # Remove built-in references
@@ -87,12 +86,7 @@ class LocalAPIFunction(BaseAPIFunction):
             # TODO: Apply result_template and return rendered result
             result = executed_vars
 
-        # Return the final context as JSON
-        return JsonResponse({
-            'result': result,
-            'error_message': error_message,
-            'status_code': status_code,
-        }, safe=False)
+        return JsonResponse(result, safe=False)
 
 
 class ExternalAPIFunction(BaseAPIFunction):
