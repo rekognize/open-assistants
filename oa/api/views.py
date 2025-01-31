@@ -289,6 +289,35 @@ async def list_threads(request, assistant_id):
     return JsonResponse({'threads': threads_data})
 
 
+@api.get("/scripts/{assistant_id}", auth=BearerAuth())
+def list_scripts(request, assistant_id):
+    if not assistant_id:
+        return JsonResponse({"error": "assistant_id required"}, status=400)
+
+    project = request.auth['project']
+    scripts_qs = CodeInterpreterScript.objects.filter(
+        project=project,
+        assistant_id=assistant_id
+    ).order_by('run_id', 'snippet_index')
+
+
+    # Group by run_id
+    data = {}
+    for s in scripts_qs:
+        group = data.setdefault(s.run_id, {"run_id": s.run_id, "snippets": []})
+        group["snippets"].append({
+            "id": s.id,
+            "run_step_id": s.run_step_id,
+            "tool_call_id": s.tool_call_id,
+            "snippet_index": s.snippet_index,
+            "code": s.code,
+        })
+
+    result = list(data.values())
+
+    return JsonResponse({"assistant_scripts": result})
+
+
 # Vector Stores
 
 @api.post("/vector_stores", auth=BearerAuth())
@@ -761,6 +790,37 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                                         yield f"data: {json.dumps(data)}\n\n"
 
                                         await asyncio.sleep(0)
+
+                    # If run step completed, check for CodeInterpreter calls
+                    if event.event == "thread.run.step.completed":
+                        step_data = event.data  # The RunStep
+
+                        if hasattr(step_data.step_details, 'tool_calls'):
+                            for tool_call in step_data.step_details.tool_calls:
+                                if tool_call.type == "code_interpreter":
+                                    run_step_id = step_data.id
+                                    tool_call_id = tool_call.id
+                                    code_input = tool_call.code_interpreter.input
+
+                                    existing_count = await sync_to_async(CodeInterpreterScript.objects.filter(
+                                        project=request.auth['project'],
+                                        assistant_id=step_data.assistant_id,
+                                        thread_id=step_data.thread_id,
+                                        run_id=step_data.run_id
+                                    ).count)()
+
+                                    snippet_index = existing_count + 1
+
+                                    await sync_to_async(CodeInterpreterScript.objects.create)(
+                                        project=request.auth['project'],
+                                        assistant_id=step_data.assistant_id,
+                                        thread_id=step_data.thread_id,
+                                        run_id=step_data.run_id,
+                                        run_step_id=run_step_id,
+                                        tool_call_id=tool_call_id,
+                                        snippet_index=snippet_index,
+                                        code=code_input
+                                    )
 
                     # Yield data to the client immediately
                     while shared_data:

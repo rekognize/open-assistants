@@ -49,4 +49,3 @@ class ExternalAPIFunctionAdmin(admin.ModelAdmin):
     formfield_overrides = {
         JSONField: {'widget': JSONEditorWidget},
     }
-

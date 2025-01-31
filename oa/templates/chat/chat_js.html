@@ -100,10 +100,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         // Show loading indicators initially
         toggleLoading('thread-files', true);
+        toggleLoading('scripts', true);
 
         // After thread is created or retrieved
         await fetchMessages(threadId);
         await fetchThreadFiles(threadId);
+        await fetchScripts(assistantId);
     }
 
     // Helper function to update the URL with thread_id
@@ -478,6 +480,91 @@ document.addEventListener("DOMContentLoaded", async function () {
         } finally {
             toggleLoading('thread-files', false);
         }
+    }
+
+    async function fetchScripts(assistantId) {
+        const listScriptsUrlTemplate = "{% url 'api-1.0.0:list_scripts' assistant_id='ASST_ID_PLACEHOLDER' %}";
+        const listScriptsUrl = listScriptsUrlTemplate.replace('ASST_ID_PLACEHOLDER', assistantId);
+        try {
+            const response = await fetch(listScriptsUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                showToast("Failed to fetch scripts!", errorData.error);
+                console.error("Failed to fetch scripts!", errorData.error);
+
+            } else {
+                const data = await response.json();
+
+                const scriptsList = document.getElementById('scripts-list');
+                scriptsList.innerHTML = ''; // Clear existing
+
+                if (data.assistant_scripts.length === 0) {
+                    document.getElementById('no-scripts').style.display = 'block';
+                } else {
+                    document.getElementById('no-scripts').style.display = 'none';
+
+                    data.assistant_scripts.forEach(group => {
+                        // Create an LI for each run_id
+                        const li = document.createElement('li');
+                        li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+
+                        li.textContent = `${group.run_id}`;
+
+                        // Create a button or link to view
+                        const viewBtn = document.createElement('button');
+                        viewBtn.classList.add('btn', 'btn-sm', 'btn-outline-primary');
+                        viewBtn.textContent = 'View';
+
+                        viewBtn.addEventListener('click', () => {
+                            showScriptModal(group.run_id, group.snippets);
+                        });
+
+                        li.appendChild(viewBtn);
+                        scriptsList.appendChild(li);
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Error loading scripts:', err);
+        } finally {
+            toggleLoading('scripts', false);
+        }
+    }
+
+    function showScriptModal(runId, snippets) {
+        const modalBody = document.getElementById('script-modal-body');
+        // Clear old content first
+        modalBody.innerHTML = "";
+
+        // For each snippet, create a block
+        snippets.forEach(snippet => {
+            const snippetDiv = document.createElement('div');
+            snippetDiv.classList.add('my-3', 'p-2', 'border', 'rounded');
+
+            snippetDiv.innerHTML = `
+                <pre><code>${escapeHtml(snippet.code)}</code></pre>
+            `;
+            modalBody.appendChild(snippetDiv);
+        });
+
+        // Now show the modal (assuming Bootstrap 5)
+        const scriptModal = new bootstrap.Modal(document.getElementById('scriptModal'));
+        scriptModal.show();
+    }
+
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     async function fetchMessages(threadId) {

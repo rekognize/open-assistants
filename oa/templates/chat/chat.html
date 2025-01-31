@@ -124,6 +124,34 @@
                 </div>
             </div>
 
+            <!-- Display code interpreter scripts -->
+            <div id="scripts-section" class="mt-3 text-secondary">
+                <p><strong>Scripts</strong></p>
+                <div id="scripts-list-container" style="max-height:200px; overflow-y:auto;">
+                    <ul id="scripts-list" class="list-group"></ul>
+                    {% include 'partials/loading_indicator.html' with content_id='scripts' content_name='scripts' %}
+                    <div id="no-scripts" class="mt-3 text-secondary" style="display:none">No scripts available.</div>
+                </div>
+            </div>
+
+            <!-- A modal to show snippet details -->
+            <div class="modal fade" id="scriptModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Script</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body" id="script-modal-body">
+                            <!-- Snippet code blocks will be dynamically filled -->
+                        </div>
+                        <div class="modal-footer py-2">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- Right panel for message streams -->
