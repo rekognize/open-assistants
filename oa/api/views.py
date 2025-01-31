@@ -16,7 +16,7 @@ from openai import AsyncOpenAI, OpenAIError
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
-from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction
+from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction, CodeInterpreterScript
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
 
