@@ -5,6 +5,22 @@ from django.utils.text import slugify
 from ..main.models import Project
 
 
+class CodeInterpreterScript(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    assistant_id = models.CharField(max_length=50, db_index=True)
+    thread_id = models.CharField(max_length=50, db_index=True)
+    run_id = models.CharField(max_length=50, db_index=True)
+    run_step_id = models.CharField(max_length=50, db_index=True)
+    tool_call_id = models.CharField(max_length=50, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    snippet_index = models.PositiveIntegerField(default=1)
+    code = models.TextField()
+
+    def __str__(self):
+        return f"CodeInterpreterScript(pk={self.pk}, run={self.run_id}, snippet={self.snippet_index})"
+
+
 class BaseAPIFunction(models.Model):
     """
     Functions called by assistants and executed via the local or external APIs

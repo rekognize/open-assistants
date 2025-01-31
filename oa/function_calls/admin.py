@@ -1,7 +1,31 @@
 from django.contrib import admin
 from django.db.models import JSONField
 from django_json_widget.widgets import JSONEditorWidget
-from .models import LocalAPIFunction, ExternalAPIFunction
+from .models import LocalAPIFunction, ExternalAPIFunction, CodeInterpreterScript
+
+
+@admin.register(CodeInterpreterScript)
+class CodeInterpreterScriptAdmin(admin.ModelAdmin):
+    list_display = (
+        "project",
+        "assistant_id",
+        "thread_id",
+        "run_id",
+        "run_step_id",
+        "tool_call_id",
+        "snippet_index",
+        "created_at",
+    )
+    list_filter = ("created_at",)
+    search_fields = (
+        "assistant_id",
+        "thread_id",
+        "run_id",
+        "run_step_id",
+        "tool_call_id",
+        "code",
+    )
+    ordering = ("-created_at",)
 
 
 @admin.register(LocalAPIFunction)
