@@ -298,7 +298,7 @@ def list_scripts(request, assistant_id):
     scripts_qs = CodeInterpreterScript.objects.filter(
         project=project,
         assistant_id=assistant_id
-    ).order_by('run_id', 'snippet_index')
+    ).order_by('-created_at', 'run_id')
 
 
     # Group by run_id
@@ -974,6 +974,70 @@ async def get_thread_files(request, thread_id):
     files = [file for file in files_responses if file is not None]
 
     return JsonResponse({'success': True, 'files': files})
+
+
+@api.get("/get_tool_outputs/{thread_id}", auth=BearerAuth())
+async def get_tool_outputs(request, thread_id):
+    """
+    Returns only run steps that contain tool_calls (non-empty).
+    If no steps or tool_calls exist, they are omitted from the response.
+    """
+    if not thread_id:
+        return JsonResponse({"error": "thread_id required"}, status=400)
+
+    try:
+        runs_response = await request.auth['client'].beta.threads.runs.list(
+            thread_id=thread_id,
+            limit=100
+        )
+        runs = runs_response.data
+
+        def extract_tool_calls(step):
+            s = serialize_to_dict(step)
+            details = s.get("step_details", {})
+            step_id = s.get("id")
+
+            # Only capture tool_calls if step_details.type == "tool_calls"
+            if details.get("type") == "tool_calls":
+                calls = []
+                for call in details.get("tool_calls", []):
+                    calls.append({
+                        "id": call.get("id"),
+                        "type": call.get("type"),
+                        "code_interpreter": call.get("code_interpreter", {}),
+                        "file_search": call.get("file_search", {}),
+                        "function": call.get("function", {})
+                    })
+                return {"id": step_id, "tool_calls": calls}
+            else:
+                # Return empty tool_calls list if not a tool_calls step
+                return {"id": step_id, "tool_calls": []}
+
+        async def get_run_data(run):
+            steps_response = await request.auth['client'].beta.threads.runs.steps.list(
+                thread_id=thread_id,
+                run_id=run.id
+            )
+            extracted_steps = [extract_tool_calls(step) for step in steps_response.data]
+            # Keep only steps that have tool_calls
+            filtered_steps = [step for step in extracted_steps if step["tool_calls"]]
+            return {
+                "run_id": run.id,
+                "steps": filtered_steps
+            }
+
+        all_runs_data = await asyncio.gather(*[get_run_data(run) for run in runs])
+        # Remove runs that have no steps after filtering
+        all_runs_data = [r for r in all_runs_data if r["steps"]]
+
+        return JsonResponse({
+            "thread_id": thread_id,
+            "runs": all_runs_data
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
 
 
 @api.get("/download-trigger/{file_id}", auth=BearerAuth())

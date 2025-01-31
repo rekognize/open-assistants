@@ -45,7 +45,7 @@ class BaseAPIFunction(models.Model):
     def get_definition(self):
         # Returns the definition in OpenAI function definition format
         return {
-            "name": self.name,
+            "name": self.slug,
             "description": self.description,
             "parameters": self.argument_schema,
             # "strict": True,

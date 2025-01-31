@@ -105,6 +105,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         // After thread is created or retrieved
         await fetchMessages(threadId);
         await fetchThreadFiles(threadId);
+        await fetchToolOutputs(threadId);
+
         await fetchScripts(assistantId);
     }
 
@@ -442,6 +444,32 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     }
 
+    async function fetchToolOutputs(threadId) {
+        const getToolOutputsUrlTemplate = "{% url 'api-1.0.0:get_tool_outputs' thread_id='THREAD_ID' %}";
+        const getToolOutputsUrl = getToolOutputsUrlTemplate.replace('THREAD_ID', threadId);
+
+        try {
+            const response = await fetch(getToolOutputsUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log("Success fetchToolOutputs");
+
+                console.log('fetchToolOutputs', data);
+            } else {
+                const data = await response.json();
+                console.error('Error fetchToolOutputs:', data);
+            }
+        } catch (error) {
+            console.error('Error fetchToolOutputs:', error);
+        }
+    }
+
     async function fetchThreadFiles(threadId) {
         console.log("Fetching files for threadId:", threadId);
 
@@ -538,6 +566,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     function showScriptModal(runId, snippets) {
+        // Sort by snippet_index ascending
+        snippets.sort((a, b) => a.snippet_index - b.snippet_index);
+
         const modalBody = document.getElementById('script-modal-body');
         // Clear old content first
         modalBody.innerHTML = "";
