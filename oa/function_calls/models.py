@@ -47,8 +47,9 @@ class LocalAPIFunction(BaseAPIFunction):
     # Extra context required by the script; e.g. API keys
     extra_context = models.JSONField(default=dict, blank=True)
 
-    # Jinja2 template to render the outputs
-    template = models.TextField(blank=True, null=True)
+    # Response
+    result_type = models.CharField(max_length=100, default='application/json')
+    result_template = models.TextField(default=dict, blank=True)
 
     # Metadata
     version = models.PositiveIntegerField(default=1)
@@ -66,23 +67,35 @@ class LocalAPIFunction(BaseAPIFunction):
         # Adding extra context
         local_vars.update(self.extra_context)
 
+        status_code, result, error_message = 200, None, None
+
         # Execute the code
         try:
             exec(self.code, {}, local_vars)
-        except Exception as e:
-            # Handle any exceptions that occur
-            return JsonResponse({
-                'error': str(e)
-            }, status_code=400)
 
-        # Remove Python dunder and built-in references
-        executed_vars = {
-            k: v for k, v in local_vars.items()
-            if not (k.startswith('__') and k.endswith('__'))
-        }
+        except Exception as e:
+            status_code = 400
+            error_message = str(e)
+
+        else:
+            # Remove built-in references
+            executed_vars = {
+                k: v for k, v in local_vars.items()
+                if not (k.startswith('__') and k.endswith('__'))
+            }
+
+            # TODO: Apply result_template and return rendered result
+            result = executed_vars
 
         # Return the final context as JSON
-        return JsonResponse(executed_vars, safe=False)
+        return JsonResponse({
+            'function_type': 'local',
+            'function_name': self.slug,
+            'result_type': self.result_type,
+            'result': result,
+            'error_message': error_message,
+            'status_code': status_code,
+        }, safe=False)
 
 
 class ExternalAPIFunction(BaseAPIFunction):
