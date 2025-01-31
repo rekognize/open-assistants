@@ -10,6 +10,19 @@ from oa.function_calls.models import LocalAPIFunction
 api = NinjaAPI(urls_namespace="function_calls")
 
 
+@api.get("/list_functions")
+def list_functions(request):
+    functions = {}
+    for function in LocalAPIFunction.objects.all():
+        functions[function.function_slug] = {
+            "type": "local",
+            "name": function.name,
+            "slug": function.slug,
+            "result_type": function.result_type,
+        }
+    return functions
+
+
 class FunctionCreateSchema(Schema):
     description: str
 

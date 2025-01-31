@@ -89,9 +89,6 @@ class LocalAPIFunction(BaseAPIFunction):
 
         # Return the final context as JSON
         return JsonResponse({
-            'function_type': 'local',
-            'function_name': self.slug,
-            'result_type': self.result_type,
             'result': result,
             'error_message': error_message,
             'status_code': status_code,
