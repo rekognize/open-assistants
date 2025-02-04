@@ -155,11 +155,7 @@ class FunctionExecution(models.Model):
     """
     Represents a single run of an APIFunction, capturing the inputs, outputs and any metadata around execution.
     """
-    function = models.ForeignKey(BaseAPIFunction, related_name='executions',
-                                 blank=True, null=True, on_delete=models.SET_NULL)
-
-    # For function calls from built-in tools like code_interpreter that won't have a FK to the BaseAPIFunction
-    function_name = models.CharField(max_length=50)
+    function = models.ForeignKey(BaseAPIFunction, related_name='executions', on_delete=models.CASCADE)
 
     arguments = models.JSONField(default=dict, blank=True)
     result = models.JSONField(default=dict, blank=True)
@@ -170,4 +166,4 @@ class FunctionExecution(models.Model):
     time = models.DateTimeField()
 
     def __str__(self):
-        return f"Execution of {self.function.name if self.function else self.function_name} at {self.time}"
+        return f"Execution of {self.function.name} at {self.time}"
