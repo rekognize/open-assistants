@@ -12,7 +12,7 @@ api = NinjaAPI(urls_namespace="function_calls")
 def list_functions(request):
     functions = {}
     for function in LocalAPIFunction.objects.all():
-        functions[function.function_slug] = {
+        functions[function.slug] = {
             "type": "local",
             "name": function.name,
             "slug": function.slug,
