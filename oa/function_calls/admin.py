@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import JSONField
 from django_json_widget.widgets import JSONEditorWidget
-from .models import LocalAPIFunction, ExternalAPIFunction, CodeInterpreterScript
+from .models import LocalAPIFunction, ExternalAPIFunction, CodeInterpreterScript, FunctionExecution
 
 
 @admin.register(CodeInterpreterScript)
@@ -50,3 +50,9 @@ class ExternalAPIFunctionAdmin(admin.ModelAdmin):
         JSONField: {'widget': JSONEditorWidget},
     }
 
+@admin.register(FunctionExecution)
+class FunctionExecutionAdmin(admin.ModelAdmin):
+    list_display = ('function', 'time', 'status_code')
+    list_filter = ('status_code', 'time')
+    search_fields = ('function__name', 'error_message')
+    ordering = ('-time',)

@@ -122,7 +122,7 @@
             if (index === 0) {
                 tabLink.className = 'nav-link py-1 px-2 bg-secondary text-white active';
             } else {
-                tabLink.className = 'nav-link py-1 px-2 bg-light text-secondary';
+                tabLink.className = 'nav-link py-1 px-2 bg-white text-secondary';
             }
             tabLink.setAttribute('data-bs-toggle', 'tab');
             tabLink.setAttribute('href', `#function-${func.id}`);
@@ -167,11 +167,11 @@
                 // Loop through all tabs and update classes accordingly
                 document.querySelectorAll('#functionTabs a[data-bs-toggle="tab"]').forEach(t => {
                     if (t === event.target) {
-                        t.classList.remove('bg-light', 'text-secondary');
+                        t.classList.remove('bg-white', 'text-secondary');
                         t.classList.add('bg-secondary', 'text-white');
                     } else {
                         t.classList.remove('bg-secondary', 'text-white');
-                        t.classList.add('bg-light', 'text-secondary');
+                        t.classList.add('bg-white', 'text-secondary');
                     }
                 });
             });

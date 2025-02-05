@@ -16,7 +16,7 @@ from openai import AsyncOpenAI, OpenAIError
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
-from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction
+from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction, FunctionExecution
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
 
@@ -691,6 +691,16 @@ async def cancel_run(request, thread_id, run_id):
 
 # Chat
 
+@sync_to_async
+def log_function_execution(function, arguments, result, status_code, error_message):
+    return FunctionExecution.objects.create(
+        function=function,
+        arguments=arguments,
+        result=result,
+        status_code=status_code,
+        error_message=error_message,
+    )
+
 @api.get("/stream/{assistant_id}/{thread_id}", auth=BearerAuth())
 async def stream_responses(request, assistant_id: str, thread_id: str):
     async def event_stream():
@@ -729,20 +739,26 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
 
                                 try:
                                     result = await function.execute(**args_dict)
-
-                                    if isinstance(result, dict):
-                                        output_str = json.dumps(result)
-                                    elif isinstance(result, bytes):
-                                        output_str = result.decode("utf-8", errors="replace")
-                                    else:
-                                        output_str = str(result)
-
+                                    status_code = "200"
+                                    error_message = None
                                 except Exception as e:
-                                    output_str = json.dumps({"error": str(e)})
+                                    result = {"error": str(e)}
+                                    status_code = "400"
+                                    error_message = str(e)
 
+                                # Log the execution
+                                await log_function_execution(
+                                    function=function,
+                                    arguments=args_dict,
+                                    result=result,
+                                    status_code=status_code,
+                                    error_message=error_message
+                                )
+
+                                # Prepare output for the assistant
                                 tool_outputs.append({
                                     "tool_call_id": tool_call.id,
-                                    "output": output_str
+                                    "output": json.dumps(result)
                                 })
 
                             tool_output_event_handler = EventHandler(
