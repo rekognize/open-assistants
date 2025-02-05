@@ -5,12 +5,6 @@ from .models import Folder, FolderFile
 api = NinjaAPI(urls_namespace="folders")
 
 
-@api.get("/sync/{folder_uuid}")
-async def sync_folder(request, folder_uuid):
-    folder = Folder.objects.get(uuid=folder_uuid)
-    folder.sync()
-
-
 @api.get("/")
 async def list_folders(request):
     qs = Folder.objects.all()
@@ -50,3 +44,9 @@ async def list_files(request, folder_uuid):
         async for file_id in FolderFile.objects.filter(folder__uuid=folder_uuid).values_list('file_id', flat=True)
     ]
     return {"file_ids": file_ids}
+
+
+@api.get("/{folder_uuid}/sync/")
+async def sync_folder(request, folder_uuid):
+    folder = Folder.objects.get(uuid=folder_uuid)
+    folder.sync()
