@@ -1,10 +1,8 @@
 import json
 from ninja import NinjaAPI
 from ninja import Schema
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Union, Any
 from openai import OpenAI
-from oa.function_calls.models import LocalAPIFunction
+from .models import LocalAPIFunction
 
 
 api = NinjaAPI(urls_namespace="function_calls")
