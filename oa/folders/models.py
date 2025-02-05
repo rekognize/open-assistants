@@ -21,9 +21,15 @@ class Folder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
     public = models.BooleanField(default=False)
+    sync_source = models.URLField(blank=True, null=True)
 
     def __str__(self):
         return self.name
+
+    def sync(self):
+        if self.sync_source:
+            if self.source.startswith("s3://"):
+                pass
 
 
 class FolderFile(models.Model):
@@ -33,16 +39,3 @@ class FolderFile(models.Model):
 
     def __str__(self):
         return f"{self.folder.name} - {self.file_id}"
-
-
-class FolderSync(models.Model):
-    folder = models.ForeignKey('Folder', on_delete=models.CASCADE)
-    source = models.URLField()
-    cron = models.CharField(max_length=100)
-
-    def __str__(self):
-        return f"{self.folder.name} - {self.source}"
-
-    def sync(self):
-        if self.source.startswith("s3://"):
-            pass

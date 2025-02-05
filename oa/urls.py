@@ -5,6 +5,8 @@ from django.urls import path
 
 from .api.views import api
 from .function_calls.api import api as function_calls_api
+from .folders.api import api as folders_api
+
 from .main import views as main_views
 
 
@@ -15,8 +17,8 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
 
     path("api/", api.urls),
-
     path("api/core/", function_calls_api.urls),
+    path("api/folders/", folders_api.urls),
 
     path('', main_views.HomeView.as_view(), name='home'),
     path('<uuid:project_uuid>/', main_views.HomeView.as_view(), name='home'),
