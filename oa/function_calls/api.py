@@ -1,26 +1,46 @@
 import json
+
+from django.http import JsonResponse
 from ninja import NinjaAPI
 from ninja import Schema
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Union, Any
 from openai import OpenAI
+
+from oa.api.views import BearerAuth
 from oa.function_calls.models import LocalAPIFunction
 
 
 api = NinjaAPI(urls_namespace="function_calls")
 
 
-@api.get("/list_functions")
-def list_functions(request):
-    functions = {}
-    for function in LocalAPIFunction.objects.all():
-        functions[function.function_slug] = {
-            "type": "local",
-            "name": function.name,
-            "slug": function.slug,
-            "result_type": function.result_type,
-        }
-    return functions
+@api.get("/list_local_functions", auth=BearerAuth())
+def list_local_functions(request):
+    try:
+        functions = LocalAPIFunction.objects.filter(
+            project=request.auth['project'],
+        ).order_by('-created_at')
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    functions_data = []
+    for func in functions:
+        functions_data.append({
+            'id': func.id,
+            'name': func.name,
+            'slug': func.slug,
+            'description': func.description,
+            'argument_schema': func.argument_schema,
+            'created_at': func.created_at.isoformat() if func.created_at else None,
+            'code': func.code,
+            'extra_context': func.extra_context,
+            'result_type': func.result_type,
+            'result_template': func.result_template,
+            'version': func.version,
+            'assistant_id': func.assistant_id,
+        })
+
+    return JsonResponse({"functions": functions_data})
 
 
 class FunctionCreateSchema(Schema):

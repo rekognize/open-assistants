@@ -5,4 +5,192 @@
 
 {% block content %}
 
+    <!-- Table Selection-->
+    <div class="container mt-4 mb-4">
+
+        <ul class="nav nav-pills mb-md-2 mb-1">
+            <li class="nav-item small me-1 mb-1">
+                <a href="#" class="nav-link py-1 px-2 bg-secondary active">
+                    Functions
+                </a>
+            </li>
+            <li class="nav-item small me-1 mb-1">
+                <a href="#" class="nav-link py-1 px-2 bg-light text-secondary">
+                    Code Interpreter Scripts
+                </a>
+            </li>
+        </ul>
+
+    </div>
+
+    <!-- Tools Tables -->
+    <div class="container mt-4 mb-4">
+
+        <!-- Functions Table -->
+        <div id="functions-container" class="my-4">
+
+            {% include 'partials/loading_indicator.html' with content_id='functions' content_name='functions' %}
+
+            <div class="row">
+
+                <div class="col-3">
+                    <ul class="nav nav-pills flex-column" role="tablist" id="functionTabs">
+                    </ul>
+                </div>
+
+                <div class="col-9">
+                    <div class="tab-content" id="functionContent">
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="no-functions" class="text-center text-secondary d-none">
+                <p>No functions available.</p>
+                <span class="text-secondary">
+                    You can create functions <a href="#" class="text-decoration-none">here</a>.
+                </span>
+            </div>
+
+        </div>
+
+    </div>
+
+{% include "modals/get_started_modal.html" %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+
+    const API_KEY = "{{ selected_project.uuid }}";
+
+    /* Utility functions */
+
+    function initializePopovers() {
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
+    }
+
+    /* Functions */
+
+    async function fetchFunctions() {
+        try {
+            const functionsResponse = await fetch("{% url 'function_calls:list_local_functions' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const functionsData = await functionsResponse.json();
+
+            console.log('functions:', functionsData);
+
+            populateTabsAndContent(functionsData.functions);
+
+        } catch (error) {
+            console.error('Error fetching functions:', error);
+        } finally {
+            toggleLoading('functions', false);
+        }
+    }
+
+    function populateTabsAndContent(functions) {
+        const tabsContainer = document.getElementById('functionTabs');
+        const contentContainer = document.getElementById('functionContent');
+
+        // Clear any existing content
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        if (!functions || functions.length === 0) {
+            document.getElementById('no-functions').classList.remove('d-none');
+            return;
+        }
+
+        functions.forEach((func, index) => {
+            // Create tab item with secondary styling
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            const tabLink = document.createElement('a');
+            // For the initial tab, use bg-secondary and text-white; others get bg-light/text-secondary.
+            if (index === 0) {
+                tabLink.className = 'nav-link py-1 px-2 bg-secondary text-white active';
+            } else {
+                tabLink.className = 'nav-link py-1 px-2 bg-light text-secondary';
+            }
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#function-${func.id}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `function-${func.id}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.id = `function-${func.id}-tab`;
+            tabLink.textContent = func.name || 'Untitled Function';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            // Create content pane without any border (using simple margin/padding)
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `function-${func.id}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `function-${func.id}-tab`);
+
+            contentPane.innerHTML = `
+                <div class="mb-3">
+                    <h4>${func.name || 'Untitled Function'}</h4>
+                    <p><strong>Description:</strong> ${func.description || 'No description provided'}</p>
+                    <p><strong>Result Type:</strong> ${func.result_type || 'N/A'}</p>
+                    <p><strong>Created At:</strong> ${func.created_at ? formatDbDate(func.created_at) : 'N/A'}</p>
+                    <p><strong>Version:</strong> ${func.version || 'N/A'}</p>
+                    <p><strong>Argument Schema:</strong></p>
+                    <pre class="bg-light p-2"><code>${JSON.stringify(func.argument_schema, null, 2)}</code></pre>
+                    <p><strong>Code:</strong></p>
+                    <pre class="bg-light p-2"><code>${func.code || 'No code provided'}</code></pre>
+                    <p><strong>Extra Context:</strong></p>
+                    <pre class="bg-light p-2"><code>${JSON.stringify(func.extra_context, null, 2)}</code></pre>
+                </div>
+            `;
+
+            contentContainer.appendChild(contentPane);
+        });
+
+        // Listen for tab activation events so we can update the background classes
+        document.querySelectorAll('#functionTabs a[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                // Loop through all tabs and update classes accordingly
+                document.querySelectorAll('#functionTabs a[data-bs-toggle="tab"]').forEach(t => {
+                    if (t === event.target) {
+                        t.classList.remove('bg-light', 'text-secondary');
+                        t.classList.add('bg-secondary', 'text-white');
+                    } else {
+                        t.classList.remove('bg-secondary', 'text-white');
+                        t.classList.add('bg-light', 'text-secondary');
+                    }
+                });
+            });
+        });
+    }
+
+
+    /* Initialize Page */
+
+    async function initializePage() {
+        toggleLoading('functions', true);
+        fetchFunctions();
+    }
+
+    initializePage();
+
+</script>
+
+{% include "modals/get_started_js.html" %}
+{% include "partials/utils_js.html" %}
+
 {% endblock %}
