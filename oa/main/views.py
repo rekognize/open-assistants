@@ -86,6 +86,19 @@ def analytics(request, project_uuid):
     })
 
 
+@login_required
+def tools(request, project_uuid):
+    if request.user.is_staff:
+        selected_project = get_object_or_404(Project, uuid=project_uuid)
+    else:
+        selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
+
+    return render(request, "tools.html", {
+        'active_nav': 'tools',
+        'selected_project': selected_project,
+    })
+
+
 # Threads
 
 @login_required

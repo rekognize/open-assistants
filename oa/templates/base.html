@@ -60,6 +60,10 @@
                                                 <a href="{% url 'analytics' project_uuid=project.uuid %}"
                                                    class="dropdown-item">{{ project }}
                                                 </a>
+                                            {% elif active_nav == 'tools' %}
+                                                <a href="{% url 'tools' project_uuid=project.uuid %}"
+                                                   class="dropdown-item">{{ project }}
+                                                </a>
                                             {% else  %}
                                                 <a href="{% url 'home' project_uuid=project.uuid %}"
                                                    class="dropdown-item">{{ project }}
@@ -90,6 +94,10 @@
                             <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
                                href="{% url "analytics" project_uuid=selected_project.uuid %}">Monitor</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_nav == 'tools' %}active{% endif %}"
+                               href="{% url "tools" project_uuid=selected_project.uuid %}">Tools</a>
+                        </li>
                         
                     {% else %}
                         
@@ -100,6 +108,10 @@
                         <li class="nav-item">
                             <a class="nav-link {% if active_nav == 'analytics' %}active{% endif %}"
                                href="{% url "analytics" project_uuid=user_projects.0.uuid %}">Monitor</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_nav == 'tools' %}active{% endif %}"
+                               href="{% url "tools" project_uuid=user_projects.0.uuid %}">Tools</a>
                         </li>
                         
                     {% endif %}
