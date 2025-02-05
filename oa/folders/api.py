@@ -49,4 +49,4 @@ async def list_files(request, folder_uuid):
 @api.get("/{folder_uuid}/sync/")
 async def sync_folder(request, folder_uuid):
     folder = Folder.objects.get(uuid=folder_uuid)
-    folder.sync()
+    folder.sync_files()

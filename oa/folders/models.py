@@ -26,7 +26,8 @@ class Folder(models.Model):
     def __str__(self):
         return self.name
 
-    def sync(self):
+    def sync_files(self):
+        # Syncs the files of the folder with the remote folder defined by sync_source
         if self.sync_source:
             if self.source.startswith("s3://"):
                 pass
