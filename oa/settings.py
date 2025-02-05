@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 
     'oa.main',
     'oa.function_calls',
+    'oa.folders',
 ]
 
 MIDDLEWARE = [
