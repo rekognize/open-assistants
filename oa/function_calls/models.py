@@ -1,3 +1,4 @@
+import uuid
 import httpx
 from django.db import models
 from django.http import JsonResponse
@@ -25,6 +26,7 @@ class BaseAPIFunction(models.Model):
     """
     Functions called by assistants and executed via the local or external APIs
     """
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=100, blank=True, unique=True)
     description = models.TextField(blank=True)
