@@ -692,9 +692,10 @@ async def cancel_run(request, thread_id, run_id):
 # Chat
 
 @sync_to_async
-def log_function_execution(function, arguments, result, status_code, error_message):
+def log_function_execution(function, thread, arguments, result, status_code, error_message):
     return FunctionExecution.objects.create(
         function=function,
+        thread=thread,
         arguments=arguments,
         result=result,
         status_code=status_code,
@@ -707,6 +708,8 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
         shared_data = []
         event_handler = EventHandler(request=request, shared_data=shared_data)
         try:
+            thread = await Thread.objects.filter(openai_id=thread_id).afirst()
+
             async with request.auth['client'].beta.threads.runs.stream(
                 thread_id=thread_id,
                 assistant_id=assistant_id,
@@ -735,7 +738,16 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                                     })
                                     continue
 
-                                args_dict = json.loads(tool_call.function.arguments or "{}")
+                                try:
+                                    args_dict = json.loads(tool_call.function.arguments or "{}")
+                                except Exception as e:
+                                    tool_outputs.append({
+                                        "tool_call_id": tool_call.id,
+                                        "output": json.dumps(
+                                            {"error": f"Invalid arguments JSON: {str(e)}"}
+                                        ),
+                                    })
+                                    continue
 
                                 try:
                                     result = await function.execute(**args_dict)
@@ -749,6 +761,7 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                                 # Log the execution
                                 await log_function_execution(
                                     function=function,
+                                    thread=thread,
                                     arguments=args_dict,
                                     result=result,
                                     status_code=status_code,
