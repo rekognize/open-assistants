@@ -120,6 +120,26 @@
         }
     }
 
+    async function fetchAssistantName(assistantId) {
+        const retrieveAssistantUrlTemplate = "{% url 'api-1.0.0:retrieve_assistant' assistant_id='ASST_ID_PLACEHOLDER' %}";
+        const retrieveAssistantUrl = retrieveAssistantUrlTemplate.replace('ASST_ID_PLACEHOLDER', assistantId);
+
+        try {
+            const response = await fetch(retrieveAssistantUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            return data.name || 'N/A';
+        } catch (error) {
+            console.error('Error fetching assistant info:', error);
+            return 'N/A';
+        }
+    }
+
     function populateTabsAndContent(functions) {
         const tabsContainer = document.getElementById('functionTabs');
         const contentContainer = document.getElementById('functionContent');
@@ -177,11 +197,11 @@
                               <table class="table table-sm">
                                 <thead>
                                   <tr>
-                                    <th>Assistant ID</th>
                                     <th>Thread ID</th>
                                     <th>Time</th>
                                     <th>Status Code</th>
                                     <th>Arguments</th>
+                                    <th>Assistant</th>
                                   </tr>
                                 </thead>
                                 <tbody id="executionsTable-${func.id}">
@@ -227,10 +247,6 @@
                             executions.forEach(exec => {
                                 const row = document.createElement('tr');
 
-                                // Assistant ID from thread_metadata._asst
-                                const assistantTd = document.createElement('td');
-                                assistantTd.textContent = (exec.thread_metadata && exec.thread_metadata._asst) ? exec.thread_metadata._asst : 'N/A';
-
                                 // Thread ID
                                 const threadTd = document.createElement('td');
                                 if (exec.thread_id) {
@@ -238,10 +254,12 @@
                                 } else {
                                     threadTd.textContent = 'N/A';
                                 }
+                                row.appendChild(threadTd);
 
                                 // Time
                                 const timeTd = document.createElement('td');
                                 timeTd.textContent = exec.time ? formatDbDate(exec.time) : 'N/A';
+                                row.appendChild(timeTd);
 
                                 // Status Code
                                 const statusTd = document.createElement('td');
@@ -251,16 +269,32 @@
                                 } else {
                                     statusTd.classList.add('text-success');
                                 }
+                                row.appendChild(statusTd);
 
                                 // Arguments (stringified JSON)
                                 const argsTd = document.createElement('td');
                                 argsTd.textContent = JSON.stringify(exec.arguments);
-
-                                row.appendChild(assistantTd);
-                                row.appendChild(threadTd);
-                                row.appendChild(timeTd);
-                                row.appendChild(statusTd);
                                 row.appendChild(argsTd);
+
+                                // Assistant
+                                const assistantTd = document.createElement('td');
+                                assistantTd.textContent = 'Loading...';
+                                row.appendChild(assistantTd);
+
+                                // Fetch the assistant's name
+                                if (exec.thread_metadata && exec.thread_metadata._asst) {
+                                    const assistantId = exec.thread_metadata._asst;
+                                    fetchAssistantName(assistantId)
+                                        .then(name => {
+                                            assistantTd.textContent = name;
+                                        })
+                                        .catch(() => {
+                                            assistantTd.textContent = 'N/A';
+                                        });
+                                } else {
+                                    assistantTd.textContent = 'N/A';
+                                }
+
                                 tbody.appendChild(row);
                             });
                         } else {
