@@ -63,8 +63,8 @@
         padding: 5px 0;
     }
 
-    .file-list-container,
-    .vector-store-list-container {
+    .function-list-container,
+    .folder-list-container {
         max-height: 200px;
         overflow-y: auto;
         border: 1px solid #e5e5e5;
@@ -96,7 +96,7 @@
             <a class="nav-link text-secondary" href="#">Assistants</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link text-secondary" href="#">Folders</a>
+            <a class="nav-link text-secondary" href="#">Knowledge</a>
         </li>
         <li class="nav-item">
             <a class="nav-link text-secondary" href="#">Tools</a>
@@ -182,8 +182,8 @@
                                         </div>
                                         <!-- Vector Store Filter -->
                                         <div class="mb-2">
-                                            <label for="filterVectorStore" class="form-label">Vector Store</label>
-                                            <select class="form-select form-select-sm" id="filterVectorStore">
+                                            <label for="filterFolder" class="form-label">Folder</label>
+                                            <select class="form-select form-select-sm" id="filterFolder">
                                                 <option value="">All</option>
                                                 <!-- Options will be populated dynamically -->
                                             </select>
@@ -209,7 +209,7 @@
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
                                 onclick="hideTooltip(this); refreshAssistantsList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
-                            <a href="#" onclick="hideTooltip(this); addAssistant()" class="text-light-emphasis bi bi-plus-lg ms-2"
+                            <a href="#" class="text-light-emphasis bi bi-plus-lg ms-2"
                                 data-bs-toggle="tooltip" data-bs-title="Create a new assistant"></a>
                         </div>
                     </div>
@@ -225,55 +225,55 @@
 
         </div>
 
-        <!-- Vector Stores Column -->
+        <!-- Folders Column -->
         <div class="col-md-4">
 
             <div class="sticky-top">
                 <div class="mb-2 pb-2 border-bottom">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <h5 class="lead mb-0">Folders</h5>
-                            <span id="stores-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                            <h5 class="lead mb-0">Knowledge</h5>
+                            <span id="folders-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
                         </div>
                         <div>
-                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-stores"
-                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllStores('collapse');"></a>
-                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-stores"
-                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllStores('expand');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-folders"
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllFolders('collapse');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-folders"
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllFolders('expand');"></a>
 
                             <!-- Sorting Dropdown -->
                             <div class="dropdown d-inline">
-                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="vectorStoreSortDropdown" data-bs-toggle="dropdown"
+                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="folderSortDropdown" data-bs-toggle="dropdown"
                                    aria-expanded="false"></a>
-                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="vectorStoreSortDropdown">
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="folderSortDropdown">
                                     <li class="dropdown-header">Sort by</li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('created_at', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('created_at', 'desc', event);">
                                             Created Time (Newest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('created_at', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('created_at', 'asc', event);">
                                             Created Time (Oldest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('name', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('name', 'asc', event);">
                                             Name (A to Z)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('name', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('name', 'desc', event);">
                                             Name (Z to A)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('last_active_at', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('last_active_at', 'desc', event);">
                                             Last Active (Newest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setVectorStoreSort('last_active_at', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('last_active_at', 'asc', event);">
                                             Last Active (Oldest First)
                                         </a>
                                     </li>
@@ -282,10 +282,10 @@
 
                             <!-- Filter Dropdown -->
                             <div class="dropdown d-inline">
-                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="vectorStoreFilterDropdown" data-bs-toggle="dropdown"
+                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="folderFilterDropdown" data-bs-toggle="dropdown"
                                    aria-expanded="false"></a>
-                                <div class="dropdown-menu p-3" aria-labelledby="vectorStoreFilterDropdown">
-                                    <form id="vectorStoreFilterForm">
+                                <div class="dropdown-menu p-3" aria-labelledby="folderFilterDropdown">
+                                    <form id="folderFilterForm">
                                         <!-- Name Filter -->
                                         <div class="mb-2">
                                             <label for="vsFilterName" class="form-label">Name</label>
@@ -320,26 +320,26 @@
                                         </div>
                                         <!-- Filter Buttons -->
                                         <div class="d-flex justify-content-between mt-3">
-                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyVectorStoreFilters()">Apply</button>
-                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetVectorStoreFilters()">Reset</button>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyFolderFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetFolderFilters()">Reset</button>
                                         </div>
                                     </form>
                                 </div>
                             </div>
 
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
-                                onclick="hideTooltip(this); refreshVSList();"
+                                onclick="hideTooltip(this); refreshFolderList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
-                            <a href="#" onclick="hideTooltip(this); addVectorStore();" class="text-light-emphasis bi bi-plus-lg ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Create a new vector store"></a>
+                            <a href="#" class="text-light-emphasis bi bi-plus-lg ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Create a new folder"></a>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div id="content-vector-stores" class="content-section pt-2">
-                <div id="vector-stores-list" class="row row-cols-1 g-4">
-                    <!-- Vector Stores will be populated here -->
+            <div id="content-folders" class="content-section pt-2">
+                <div id="folders-list" class="row row-cols-1 g-4">
+                    <!-- Folders will be populated here -->
                 </div>
                 {% include 'partials/loading_indicator.html' with content_id='vector-stores' content_name='vector stores' %}
             </div>
