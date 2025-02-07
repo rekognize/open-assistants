@@ -7,9 +7,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Union, Any
 from openai import OpenAI
 
-from oa.api.views import BearerAuth
-from oa.function_calls.models import LocalAPIFunction
-
+from ..api.views import BearerAuth
+from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, FunctionExecution
 
 api = NinjaAPI(urls_namespace="function_calls")
 
@@ -41,6 +40,35 @@ def list_local_functions(request):
         })
 
     return JsonResponse({"functions": functions_data})
+
+
+@api.get("/get_function_executions/{slug}", auth=BearerAuth())
+def get_function_executions(request, slug: str):
+    try:
+        function_instance = BaseAPIFunction.objects.get(slug=slug)
+    except BaseAPIFunction.DoesNotExist:
+        return JsonResponse({"executions": []})
+
+    # If the function is a LocalAPIFunction, verify that it belongs to the authorized project.
+    if hasattr(function_instance, 'localapifunction'):
+        if function_instance.localapifunction.project.uuid != request.auth['project'].uuid:
+            return JsonResponse({"executions": []})
+
+    executions = FunctionExecution.objects.filter(function=function_instance).order_by('-time')
+
+    executions_data = []
+    for execution in executions:
+        executions_data.append({
+            'id': execution.id,
+            'time': execution.time.isoformat() if execution.time else None,
+            'arguments': execution.arguments,
+            'status_code': execution.status_code,
+            'error_message': execution.error_message,
+            'thread_id': execution.thread.openai_id if execution.thread else None,
+            'thread_metadata': execution.thread.metadata if execution.thread else None,
+        })
+
+    return JsonResponse({"executions": executions_data})
 
 
 class FunctionCreateSchema(Schema):
