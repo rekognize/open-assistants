@@ -341,11 +341,11 @@
                 <div id="folders-list" class="row row-cols-1 g-4">
                     <!-- Folders will be populated here -->
                 </div>
-                {% include 'partials/loading_indicator.html' with content_id='vector-stores' content_name='vector stores' %}
+                {% include 'partials/loading_indicator.html' with content_id='folders' content_name='folders' %}
             </div>
         </div>
 
-        <!-- Files Column -->
+        <!-- Tools Column -->
         <div class="col-md-4">
 
             <div class="sticky-top">
@@ -353,48 +353,38 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
                         <h5 class="lead mb-0">Tools</h5>
-                            <span id="files-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                            <span id="functions-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
                         </div>
                         <div>
-                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-files"
-                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllFiles('collapse');"></a>
-                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-files"
-                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllFiles('expand');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-functions"
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllFunctions('collapse');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-functions"
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllFunctions('expand');"></a>
 
                             <!-- Sorting Dropdown -->
                             <div class="dropdown d-inline">
-                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="fileSortDropdown" data-bs-toggle="dropdown"
+                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="functionSortDropdown" data-bs-toggle="dropdown"
                                    aria-expanded="false"></a>
-                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="fileSortDropdown">
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="functionSortDropdown">
                                     <li class="dropdown-header">Sort by</li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('created_at', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('created_at', 'desc', event);">
                                             Created Time (Newest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('created_at', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('created_at', 'asc', event);">
                                             Created Time (Oldest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('filename', 'asc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('name', 'asc', event);">
                                             Name (A to Z)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('filename', 'desc', event);">
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('name', 'desc', event);">
                                             Name (Z to A)
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('bytes', 'asc', event);">
-                                            Size (Smallest First)
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFileSort('bytes', 'desc', event);">
-                                            Size (Largest First)
                                         </a>
                                     </li>
                                 </ul>
@@ -402,63 +392,64 @@
 
                             <!-- Filter Dropdown -->
                             <div class="dropdown d-inline">
-                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="fileFilterDropdown" data-bs-toggle="dropdown"
+                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="functionFilterDropdown" data-bs-toggle="dropdown"
                                    aria-expanded="false"></a>
-                                <div class="dropdown-menu p-3" aria-labelledby="fileFilterDropdown">
-                                    <form id="fileFilterForm">
+                                <div class="dropdown-menu p-3" aria-labelledby="functionFilterDropdown">
+                                    <form id="functionFilterForm">
                                         <!-- Name Filter -->
                                         <div class="mb-2">
-                                            <label for="fileFilterName" class="form-label">Name</label>
-                                            <input type="text" class="form-control form-control-sm" id="fileFilterName" placeholder="Search by name">
+                                            <label for="functionFilterName" class="form-label">Name</label>
+                                            <input type="text" class="form-control form-control-sm" id="functionFilterName" placeholder="Search by name">
                                         </div>
                                         <!-- Creation Date Filter -->
                                         <div class="mb-2">
                                             <label class="form-label">Creation Date</label>
                                             <div class="d-flex">
-                                                <input type="date" class="form-control form-control-sm me-1" id="fileFilterStartDate">
-                                                <input type="date" class="form-control form-control-sm" id="fileFilterEndDate">
+                                                <input type="date" class="form-control form-control-sm me-1" id="functionFilterStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="functionFilterEndDate">
                                             </div>
                                         </div>
-                                        <!-- Vector Store Filter -->
+                                        <!-- Assistant Filter -->
                                         <div class="mb-2">
-                                            <label for="fileFilterVectorStore" class="form-label">Vector Store</label>
-                                            <select class="form-select form-select-sm" id="fileFilterVectorStore">
+                                            <label for="functionFilterAssistant" class="form-label">Assistant</label>
+                                            <select class="form-select form-select-sm" id="functionFilterAssistant">
                                                 <option value="">All</option>
-                                                <!-- Options will be populated dynamically -->
+                                                <!-- List of assistants will be populated dynamically -->
                                             </select>
                                         </div>
-                                        <!-- File Type Filter -->
+                                        <!-- Function Type Filter -->
                                         <div class="mb-2">
-                                            <label for="fileFilterType" class="form-label">File Type</label>
-                                            <select class="form-select form-select-sm" id="fileFilterType">
+                                            <label for="functionFilterType" class="form-label">Function Type</label>
+                                            <select class="form-select form-select-sm" id="functionFilterType">
                                                 <option value="">All</option>
-                                                <!-- Options will be populated dynamically -->
+                                                <option value="local">Local</option>
+                                                <option value="external">External</option>
                                             </select>
                                         </div>
                                         <!-- Filter Buttons -->
                                         <div class="d-flex justify-content-between mt-3">
-                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyFileFilters()">Apply</button>
-                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetFileFilters()">Reset</button>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyFunctionFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetFunctionFilters()">Reset</button>
                                         </div>
                                     </form>
                                 </div>
                             </div>
 
                             <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
-                                onclick="hideTooltip(this); refreshFilesList();"
+                                onclick="hideTooltip(this); refreshFunctionsList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
-                            <a href="#" onclick="hideTooltip(this); showUploadFileModal()" class="text-light-emphasis bi bi-plus-lg ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Add files"></a>
+                            <a href="#" class="text-light-emphasis bi bi-plus-lg ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Add function"></a>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div id="content-files" class="content-section pt-2">
-                <div id="files-list" class="row row-cols-1 g-4">
-                    <!-- Files will be populated here -->
+            <div id="content-functions" class="content-section pt-2">
+                <div id="functions-list" class="row row-cols-1 g-4">
+                    <!-- Functions will be populated here -->
                 </div>
-                {% include 'partials/loading_indicator.html' with content_id='files' content_name='files' %}
+                {% include 'partials/loading_indicator.html' with content_id='functions' content_name='functions' %}
             </div>
         </div>
 
