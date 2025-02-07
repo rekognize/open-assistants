@@ -3,10 +3,11 @@ from django.db import models
 from django.conf import settings
 
 
-class FolderVectorStore(models.Model):
-    # M2M model to hold the Folder - Vector Store relations
+class FolderAssistant(models.Model):
+    # M2M model to hold the Folder - Assistant relations
+    # FolderFiles => Vector Store are handled transparently
     folder = models.ForeignKey('Folder', on_delete=models.CASCADE)
-    vector_store_id = models.CharField(max_length=100)
+    assistant_id = models.CharField(max_length=100)
 
     def __str__(self):
         return f"{self.folder.name} - {self.vector_store_id}"
@@ -16,7 +17,7 @@ class Folder(models.Model):
     # Folders are M2M related to Assistants through Vector Stores
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
-    project = models.ForeignKey('main.Project', blank=True, null=True, on_delete=models.CASCADE)
+    projects = models.ManyToManyField('main.Project', blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)

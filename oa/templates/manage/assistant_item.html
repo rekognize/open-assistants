@@ -31,84 +31,11 @@
                     </div>
 
                     <div class="info-box">
-                        <span class="info-label">Vector Store</span>
-                        <p class="info-value" id="info-vs-${assistant.id}">${vs_name}</p>
+                        <span class="info-label">Folders</span>
+                        <p class="info-value" id="info-folders-${assistant.id}"></p>
                     </div>
 
                 </div>
-
-            </div>
-
-            <!-- Edit Form (Initially Hidden) -->
-
-            <div class="edit-mode d-none">
-
-                <form>
-
-                    <div class="form-floating mb-3">
-                        <input type="text" class="form-control" id="name-${assistant.id}" value="${assistant.name}">
-                        <label for="name-${assistant.id}" class="form-label">Name</label>
-                    </div>
-
-                    <div class="form-floating mb-3">
-                        <textarea class="form-control" id="description-${assistant.id}" placeholder="Description"
-                                  rows="3">${assistant.description || ''}</textarea>
-                        <label for="description-${assistant.id}">Description</label>
-                    </div>
-
-                    <div class="form-floating mb-3">
-                        <textarea class="form-control" id="instructions-${assistant.id}" placeholder="Instructions"
-                                  style="height: 100px">${assistant.instructions || ''}</textarea>
-                        <label for="instructions-${assistant.id}">Instructions</label>
-                    </div>
-
-                    <div class="form-floating mb-3">
-                        <select class="form-select" id="model-${assistant.id}">
-                            <option value="gpt-4o">gpt-4o</option>
-                            <option value="gpt-4o-mini">gpt-4o-mini</option>
-                        </select>
-                        <label for="model-${assistant.id}">Model</label>
-                    </div>
-
-                    <h6 class="card-title text-secondary">Tools</h6>
-
-                    <!-- File Search Tool -->
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" role="switch" id="fileSearchSwitch-${assistant.id}" onchange="toggleAssistantFileSearch('${assistant.id}')">
-                            <label class="form-check-label" for="fileSearchSwitch-${assistant.id}">File search</label>
-                        </div>
-
-                        <!-- Vector Store Select -->
-                        <div class="form-floating" id="vector-store-div-${assistant.id}" style="display: none;">
-                            ${selectVectorStore}
-                            <label for="vs-${assistant.id}">Vector store</label>
-                        </div>
-                    </div>
-
-                    <!-- Code Interpreter Tool -->
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" role="switch" id="codeInterpreterSwitch-${assistant.id}">
-                        <label class="form-check-label" for="codeInterpreterSwitch-${assistant.id}">Code interpreter</label>
-                    </div>
-
-                    <small class="text-secondary">Functions</small>
-                    <!-- Functions Section -->
-                    <div class="mb-3" id="functions-list-${assistant.id}">
-                        <!-- Function checkboxes will be inserted here -->
-                    </div>
-
-                    <h6 class="card-title text-secondary">Metadata</h6>
-
-                    <!-- Metadata Fields -->
-                    <div class="metadata-fields" id="metadata-fields-${assistant.id}">
-                        <!-- Parameter entries will be added here dynamically -->
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMetadataField('${assistant.id}')">
-                        Add parameter
-                    </button>
-
-                </form>
 
             </div>
 
@@ -121,27 +48,11 @@
 
                 <!-- Edit Mode Toggle Buttons -->
                 <div class="brief-info">
-                    <button type="button" onclick="toggleEditMode('${assistant.id}', 'assistant')"
-                            class="btn btn-sm btn-outline-secondary"
-                            data-bs-toggle="tooltip" data-bs-title="Edit">
+                    <a href="#"
+                        class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="tooltip" data-bs-title="Edit">
                         <i class="bi bi-pencil"></i>
-                    </button>
-                </div>
-
-                <!-- Save/Cancel Buttons in Edit Mode -->
-                <div class="edit-mode d-none">
-                    <button type="button" class="btn btn-sm btn-outline-success btnModifyAssistant"
-                            onclick="modifyAssistant('${assistant.id}');"
-                            data-assistant-id="${assistant.id}"
-                            data-bs-toggle="tooltip" data-bs-title="Save">
-                        <span class="button-text"><i class="bi bi-check-lg"></i></span>
-                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary"
-                            onclick="toggleEditMode('${assistant.id}', 'assistant')"
-                            data-bs-toggle="tooltip" data-bs-title="Cancel">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
+                    </a>
                 </div>
 
             </div>

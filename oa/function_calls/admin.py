@@ -7,7 +7,6 @@ from .models import LocalAPIFunction, ExternalAPIFunction, CodeInterpreterScript
 @admin.register(CodeInterpreterScript)
 class CodeInterpreterScriptAdmin(admin.ModelAdmin):
     list_display = (
-        "project",
         "assistant_id",
         "thread_id",
         "run_id",
@@ -30,8 +29,8 @@ class CodeInterpreterScriptAdmin(admin.ModelAdmin):
 
 @admin.register(LocalAPIFunction)
 class LocalAPIFunctionAdmin(admin.ModelAdmin):
-    list_display = ("name", "project", "assistant_id", "created_at")
-    list_filter = ("project", "assistant_id", "created_at")
+    list_display = ("name", "assistant_id", "created_at")
+    list_filter = ("assistant_id", "created_at")
     search_fields = ("name", "assistant_id", "description")
     ordering = ("-created_at",)
     readonly_fields = ("created_at",)

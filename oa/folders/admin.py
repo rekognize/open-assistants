@@ -1,9 +1,9 @@
 from django.contrib import admin
-from .models import Folder, FolderVectorStore, FolderFile
+from .models import Folder, FolderAssistant, FolderFile
 
 
-class FolderVectorStoreInline(admin.TabularInline):
-    model = FolderVectorStore
+class FolderAssistantInline(admin.TabularInline):
+    model = FolderAssistant
     extra = 1
 
 
@@ -17,13 +17,13 @@ class FolderAdmin(admin.ModelAdmin):
     list_display = ('uuid', 'name', 'created_by', 'created_at', 'modified_at', 'public')
     search_fields = ('name', 'created_by__username')
     list_filter = ('public', 'created_at')
-    inlines = [FolderVectorStoreInline, FolderFileInline]
+    inlines = [FolderAssistantInline, FolderFileInline]
 
 
-@admin.register(FolderVectorStore)
-class FolderVectorStoreAdmin(admin.ModelAdmin):
-    list_display = ('folder', 'vector_store_id')
-    search_fields = ('folder__name', 'vector_store_id')
+@admin.register(FolderAssistant)
+class FolderAssistantAdmin(admin.ModelAdmin):
+    list_display = ('folder', 'assistant_id')
+    search_fields = ('folder__name', 'assistant_id')
 
 
 @admin.register(FolderFile)

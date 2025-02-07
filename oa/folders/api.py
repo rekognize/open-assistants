@@ -1,40 +1,65 @@
 from ninja import NinjaAPI
+from ninja.security import HttpBearer
+from ninja.errors import AuthenticationError
+from openai import AsyncOpenAI
+from django.http import JsonResponse
+from ..main.models import Project
 from .models import Folder, FolderFile
 
 
-api = NinjaAPI(urls_namespace="folders")
+api = NinjaAPI(urls_namespace="folders-api")
 
 
-@api.get("/")
+class APIError(Exception):
+    def __init__(self, message, status=500):
+        self.message = message
+        self.status = status
+        super().__init__(self.message)
+
+
+class BearerAuth(HttpBearer):
+    async def authenticate(self, request, token: str):
+        try:
+            project = await Project.objects.aget(uuid=token)
+        except Project.DoesNotExist:
+            return AuthenticationError("Invalid or missing Bearer token.")
+
+        try:
+            client = AsyncOpenAI(api_key=project.key)
+        except APIError as e:
+            return JsonResponse({"error": e.message}, status=e.status)
+
+        return {
+            'project': project,
+            'client': client,
+        }
+
+
+@api.get("/", auth=BearerAuth())
 async def list_folders(request):
-    qs = Folder.objects.all()
+    project = request.auth['project']
+    qs = Folder.objects.filter(projects=project)
 
-    # Filter by project_uuid
-    project_uuid = request.GET.get('project_uuid')
-    if project_uuid is not None:
-        qs = qs.filter(project__uuid=project_uuid)
+    # Filter by assistant_id
+    assistant_id = request.GET.get('assistant_id')
+    if assistant_id is not None:
+        qs = qs.filter(folderassistant_set__assistant_id=assistant_id)
 
-    # Filter by vector_store_id
-    vector_store_id = request.GET.get('vector_store_id')
-    if vector_store_id is not None:
-        qs = qs.filter(foldervectorstore_set__vector_store_id=vector_store_id)
+    qs = qs.select_related("created_by").prefetch_related("folderfile_set")
 
-    folders = {}
-    async for folder in qs.select_related("project", "created_by"):
-        folders[folder.name] = {
+    folders = []
+    async for folder in qs:
+        folders.append({
             "uuid": folder.uuid,
             "name": folder.name,
-            "project": {
-                "uuid": folder.project.uuid,
-                "name": folder.project.name,
-            } if folder.project else None,
             "created_at": folder.created_at,
             "created_by": folder.created_by.username,
             "modified_at": folder.modified_at,
             "public": folder.public,
             "sync_source": folder.sync_source,
-        }
-    return folders
+            "file_ids": [ff.file_id for ff in folder.folderfile_set.all()],
+        })
+    return {"folders": folders}
 
 
 @api.get("/{folder_uuid}/list/")

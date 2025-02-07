@@ -8,90 +8,14 @@ function compileTemplate(templateString) {
     return new Function("data", "with(data) { return `" + templateString + "`; }");
 }
 
-function getStatusIcon(status) {
-    switch(status) {
-        case 'expired':
-            return '<i class="bi bi-x-circle-fill text-danger"></i>'; // Danger icon for expired status
-        case 'in_progress':
-            return '<i class="bi bi-exclamation-triangle-fill text-warning"></i>'; // Warning icon for in_progress status
-        case 'completed':
-            return '<i class="bi bi-check-circle-fill text-success"></i>'; // Success icon for completed status
-        default:
-            return '<i class="bi bi-question-circle-fill text-secondary"></i>'; // Default icon for unknown status
-    }
-}
-
-function renderFileVSList(vsList) {
-    let rendered = '<div class="info-box"><span class="info-label">Vector Store(s)</span>';
-
-    if (vsList) {
-        rendered += '<p class="info-value">'
-        vsList.forEach(vsId => {
-            const vectorStore = vectorStores[vsId]; // Fetch the vector store from the global object
-            rendered += `
-                <span class="d-block">${vectorStore.name ?? 'Untitled store'}</span>
-            `;
-        });
-        rendered += '</p>'
-    } else {
-        rendered += '<p class="info-value">No vector store</p>'
-    }
-    rendered += '</div>'
-
-    return rendered;
-}
-
-function renderFileVSSelect(fileId) {
-    let selectedVectorStoreIds = fileVectorStores[fileId] || []
-    let checkBoxes = '<span class="text-muted small">Vector Store(s)</span>';
-    const fileName = files[fileId].filename; // Get the file name
-
-    // Check if the file type is supported
-    if (!isSupportedFileType(fileName)) {
-        checkBoxes += `
-        <div class="text-muted small">Unsupported file type</div>`;  // Display unsupported file type message
-        return checkBoxes
-    }
-
-    // First list the vector stores the file belongs to
-    for (const vsId of selectedVectorStoreIds) {
-        const vs = vectorStores[vsId];
-        checkBoxes += `
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" value="${vsId}" id="vs-check-${vsId}" checked
-                    onchange="toggleVectorStore('${fileId}', '${vsId}', this.checked)">
-                <label class="form-check-label" for="vs-check-${vsId}">
-                    ${vs.name ?? 'Untitled store'}
-                </label>
-            </div>
-        `;
-    }
-
-    // Then list the other vector stores
-    for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
-        if (selectedVectorStoreIds.indexOf(vsId) === -1) {
-            checkBoxes += `
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="${vsId}" id="vs-check-${vsId}"
-                        onchange="toggleVectorStore('${fileId}', '${vsId}', this.checked)">
-                    <label class="form-check-label" for="vs-check-${vsId}">
-                        ${vectorStore.name ?? 'Untitled store'}
-                    </label>
-                </div>
-            `;
-        }
-    }
-
-    return checkBoxes;
-}
 
 function toggleAssistantFileSearch(assistantId) {
     const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${assistantId}`);
-    const vectorStoreDiv = document.getElementById(`vector-store-div-${assistantId}`);
+    const folderDiv = document.getElementById(`folder-div-${assistantId}`);
     if (fileSearchSwitch.checked) {
-        vectorStoreDiv.style.display = 'block';
+        folderDiv.style.display = 'block';
     } else {
-        vectorStoreDiv.style.display = 'none';
+        folderDiv.style.display = 'none';
     }
 }
 
@@ -126,191 +50,16 @@ function renderFunctionCheckboxes(assistantId) {
     });
 }
 
-function toggleEditMode(id, type) {
-    const cardBody = document.getElementById(`${id}`);
-    const card = cardBody.closest('.card');
-    const cardFooter = card.querySelector('.card-footer');
-
-    // Toggle brief-info and edit-mode in the card body
-    const briefInfoBody = cardBody.querySelector('.brief-info');
-    const editModeBody = cardBody.querySelector('.edit-mode');
-    briefInfoBody.classList.toggle('d-none');
-    editModeBody.classList.toggle('d-none');
-
-    // Toggle brief-info and edit-mode in the card footer
-    const briefInfoFooter = cardFooter.querySelectorAll('.brief-info');
-    const editModeFooter = cardFooter.querySelectorAll('.edit-mode');
-    briefInfoFooter.forEach(element => element.classList.toggle('d-none'));
-    editModeFooter.forEach(element => element.classList.toggle('d-none'));
-
-    if (!briefInfoBody.classList.contains('d-none')) {
-        // Exiting edit mode
-        card.classList.remove('border-warning');
-    } else {
-        // Entering edit mode
-        card.classList.add('border-warning');
-
-        // Reset the form fields
-        if (type === 'assistant') {
-            const assistant = assistants[id];
-            document.getElementById(`name-${id}`).value = assistant.name || '';
-            document.getElementById(`description-${id}`).value = assistant.description || '';
-            document.getElementById(`instructions-${id}`).value = assistant.instructions || '';
-            document.getElementById(`model-${id}`).value = assistant.model || 'gpt-4o';
-
-            // Initialize switches
-            const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${id}`);
-            const codeInterpreterSwitch = document.getElementById(`codeInterpreterSwitch-${id}`);
-
-            if (fileSearchSwitch) {
-                const hasFileSearch = assistant.tools.some(tool => tool.type === 'file_search');
-                fileSearchSwitch.checked = hasFileSearch;
-
-                // Initialize vector store visibility
-                toggleAssistantFileSearch(id);
-            }
-
-            if (codeInterpreterSwitch) {
-                codeInterpreterSwitch.checked = assistant.tools.some(tool => tool.type === 'code_interpreter');
-            }
-
-            // Reset the vector store dropdown to original value
-            const vsDropdownContainer = document.getElementById(`vector-store-div-${id}`);
-            if (vsDropdownContainer) {
-                const selectHtml = renderAssistantVSSelect(id);  // Re-render dropdown with original data
-                vsDropdownContainer.innerHTML = `
-                    ${selectHtml}
-                    <label for="vs-${id}">Vector store</label>
-                `;  // Update the dropdown HTML and re-add the label
-            }
-
-            // Initialize functions checkboxes
-            renderFunctionCheckboxes(id);
-
-            // Check the functions that are already selected
-            const functionTools = assistant.tools.filter(tool => tool.type === 'function');
-            functionTools.forEach(funcTool => {
-                const functionName = funcTool.function.name;
-                const checkbox = document.getElementById(`function-${functionName}-${id}`);
-                if (checkbox) {
-                    checkbox.checked = true;
-                }
-            });
-
-            // Initialize metadata fields
-            initializeMetadataFields(id, assistant.metadata);
-
-            // Scroll to the assistant's card
-            const assistantCard = document.getElementById(`assistant-${id}`);
-            if (assistantCard) {
-                assistantCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        } else if (type === 'vectorStore') {
-            const vectorStore = vectorStores[id];
-            document.getElementById(`name-${id}`).value = vectorStore.name || '';
-            document.getElementById(`expiration-days-${id}`).value = vectorStore.expires_after?.days || '';
-            // Initialize metadata fields
-            initializeMetadataFields(id, vectorStore.metadata);
-
-            // Scroll to the vector store's card
-            const vectorStoreCard = document.getElementById(`vector-store-${id}`);
-            if (vectorStoreCard) {
-                vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        } else if (type === 'file') {
-            const file = files[id];
-            const checkboxes = cardBody.querySelectorAll('.form-check-input');
-            checkboxes.forEach(checkbox => {
-                const vectorStoreId = checkbox.value;
-                const isSelected = fileVectorStores[file.id]?.includes(vectorStoreId);
-                checkbox.checked = isSelected;
-            });
-
-            // Scroll to the file's card
-            const fileCard = document.getElementById(`file-${id}`);
-            if (fileCard) {
-                fileCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }
-    }
-}
-
-function initializeMetadataFields(id, metadata) {
-    const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
-    metadataFieldsContainer.innerHTML = ''; // Clear existing fields
-
-    if (metadata) {
-        Object.entries(metadata).forEach(([key, value]) => {
-            addMetadataField(id);
-            const index = metadataFieldsContainer.children.length - 1;
-            document.getElementById(`metadata-key-${id}-${index}`).value = key;
-            document.getElementById(`metadata-value-${id}-${index}`).value = value;
-        });
-    }
-}
-
-function addMetadataField(id) {
-    const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
-
-    // Create a unique index for each metadata entry
-    const index = metadataFieldsContainer.children.length;
-
-    const metadataRow = document.createElement('div');
-    metadataRow.classList.add('row', 'mb-2', 'metadata-row');
-    metadataRow.setAttribute('data-index', index);
-
-    metadataRow.innerHTML = `
-        <div class="col-5">
-            <input type="text" class="form-control form-control-sm" id="metadata-key-${id}-${index}" placeholder="Name">
-        </div>
-        <div class="col-5">
-            <input type="text" class="form-control form-control-sm" id="metadata-value-${id}-${index}" placeholder="Value">
-        </div>
-        <div class="col-2 text-end">
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="removeMetadataField('${id}', ${index})">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
-    `;
-
-    metadataFieldsContainer.appendChild(metadataRow);
-}
-
-function removeMetadataField(id, index) {
-    const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
-    const metadataRow = metadataFieldsContainer.querySelector(`.metadata-row[data-index="${index}"]`);
-    if (metadataRow) {
-        metadataFieldsContainer.removeChild(metadataRow);
-    }
-}
-
-function collectMetadata(id) {
-    const metadataFieldsContainer = document.getElementById(`metadata-fields-${id}`);
-    const metadataRows = metadataFieldsContainer.querySelectorAll('.metadata-row');
-    const metadata = {};
-
-    metadataRows.forEach(row => {
-        const index = row.getAttribute('data-index');
-        const key = document.getElementById(`metadata-key-${id}-${index}`).value.trim();
-        const value = document.getElementById(`metadata-value-${id}-${index}`).value.trim();
-        if (key && value) {
-            metadata[key] = value;
-        }
-    });
-
-    return metadata;  // Always return an object
-}
-
 
 /* Loading components and orchestration of the flow */
 
 // Global dicts to store the current references of objects as id: object items
 
-let vectorStores = {};
+let folders = {};
 let assistants = {};
 let files = {};
-let vectorStoreFiles = {};  // {vsId: [file1, file2, ...]}
-let fileVectorStores = {};  // {fileId: [vs1, vs2, ...]}
+let folderFiles = {};  // {folderId: [file1, file2, ...]}
+let fileFolders = {};  // {fileId: [folder1, folder2, ...]}
 let selectedFiles = [];
 
 // Global variables for sorting and filtering
@@ -321,12 +70,12 @@ let assistantFilters = {
     name: '',
     startDate: null,
     endDate: null,
-    vectorStoreId: '',
+    folderId: '',
     model: ''
 };
-let vectorStoreSortField = 'created_at'; // default sort field
-let vectorStoreSortOrder = 'desc';       // default sort order
-let vectorStoreFilters = {
+let folderSortField = 'created_at'; // default sort field
+let folderSortOrder = 'desc';       // default sort order
+let folderFilters = {
     name: '',
     startDate: null,
     endDate: null,
@@ -335,19 +84,16 @@ let vectorStoreFilters = {
 };
 let fileSortField = 'created_at'; // default sort field
 let fileSortOrder = 'desc';       // default sort order
-let fileFilters = {
+let functionFilters = {
     name: '',
-    startDate: null,
-    endDate: null,
-    vectorStoreId: '',
-    fileType: ''
+    functionType: ''
 };
 
 
-async function loadAndDisplayVectorStores() {
-    const vectorStores = await fetchVectorStores();
-    displayVectorStores(vectorStores);
-    return vectorStores;
+async function loadAndDisplayFolders() {
+    const folders = await fetchFolders();
+    displayFolders(folders);
+    return folders;
 }
 
 async function loadAndDisplayAssistants() {
@@ -356,33 +102,23 @@ async function loadAndDisplayAssistants() {
     return assistants;
 }
 
-async function loadAllVectorStoreFiles() {
-    // Reset related objects
-    vectorStoreFiles = {};
-    fileVectorStores = {};
-
-    const fetchPromises = Object.keys(vectorStores).map(vectorStoreId => fetchVectorStoreFiles(vectorStoreId));
-    await Promise.all(fetchPromises);
-}
-
-async function loadAndDisplayFiles() {
-    const files = await fetchFiles();
-    displayFiles();
-    populateFileFilterOptions();
+async function loadAndDisplayFunctions() {
+    const functions = await fetchFunctions();
+    displayFunctions();
+    return functions;
 }
 
 // Orchestrate the flow
 async function initializePage() {
     // Show loading indicator initially for all
-    toggleLoading('vector-stores', true);
+    toggleLoading('folders', true);
     toggleLoading('assistants', true);
     toggleLoading('files', true);
 
-    vectorStores = await loadAndDisplayVectorStores();
+    folders = await loadAndDisplayFolders();
     populateAssistantFilterOptions();
-    loadAndDisplayAssistants();  // Runs in parallel with loadAllVectorStoreFiles
-    await loadAllVectorStoreFiles();
-    loadAndDisplayFiles();
+    loadAndDisplayAssistants();
+    loadAndDisplayFunctions();
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -390,11 +126,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     await initializePage();
 
     setTimeout(() => {
-        const isVectorStoresEmpty = Object.keys(vectorStores).length === 0;
+        const isFoldersEmpty = Object.keys(folders).length === 0;
         const isAssistantsEmpty = Object.keys(assistants).length === 0;
         const isFilesEmpty = Object.keys(files).length === 0;
 
-        if (isVectorStoresEmpty && isAssistantsEmpty && isFilesEmpty) {
+        if (isFoldersEmpty && isAssistantsEmpty && isFilesEmpty) {
             const getStartedModalElement = document.getElementById('getStartedModal');
             const getStartedModal = new bootstrap.Modal(getStartedModalElement, {
                 backdrop: 'static',
@@ -439,35 +175,33 @@ async function refreshAssistantsList() {
     btnExpandAllAssistants.classList.add('d-none');
 }
 
-async function refreshVSList() {
-    const vectorStoresList = document.getElementById('vector-stores-list');
+async function refreshFolderList() {
+    const foldersList = document.getElementById('folders-list');
 
-    // Dispose of existing tooltips within the vector stores list
-    disposeTooltips(vectorStoresList);
+    // Dispose of existing tooltips within the folders list
+    disposeTooltips(foldersList);
 
-    vectorStoresList.innerHTML = ''; // Clear any existing vector stores
-    toggleLoading('vector-stores', true);
+    foldersList.innerHTML = ''; // Clear any existing folders
+    toggleLoading('folders', true);
 
     // Reset to default sorting options
-    vectorStoreSortField = 'created_at';
-    vectorStoreSortOrder = 'desc';
-    updateSortDropdownUI('vectorStoreSortDropdown', vectorStoreSortField, vectorStoreSortOrder);
+    folderSortField = 'created_at';
+    folderSortOrder = 'desc';
+    updateSortDropdownUI('folderSortDropdown', folderSortField, folderSortOrder);
 
     // Fetch and display
-    await loadAndDisplayVectorStores();
+    await loadAndDisplayFolders();
     populateAssistantFilterOptions();
 
     // Refresh collapse all button
-    const btnCollapseAllStores = document.getElementById('collapse-all-stores');
-    const btnExpandAllStores = document.getElementById('expand-all-stores');
+    const btnCollapseAllStores = document.getElementById('collapse-all-folders');
+    const btnExpandAllStores = document.getElementById('expand-all-folders');
     btnCollapseAllStores.classList.remove('d-none');
     btnExpandAllStores.classList.add('d-none');
-
-    loadAllVectorStoreFiles(); // Also refresh vector store files
 }
 
-async function refreshFilesList() {
-    const filesList = document.getElementById('files-list');
+async function refreshFunctionsList() {
+    const functionsList = document.getElementById('functions-list');
 
     // Dispose of existing tooltips within the files list
     disposeTooltips(filesList);
@@ -476,8 +210,8 @@ async function refreshFilesList() {
     toggleLoading('files', true);
 
     // Reset to default sorting options
-    fileSortField = 'created_at';
-    fileSortOrder = 'desc';
+    functionSortField = 'created_at';
+    functionSortOrder = 'desc';
     updateSortDropdownUI('fileSortDropdown', fileSortField, fileSortOrder);
 
     // Close the sorting dropdown if open
@@ -517,9 +251,9 @@ function toggleAllAssistants(action) {
 }
 
 function toggleAllStores(action) {
-    const btnCollapseAllStores = document.getElementById('collapse-all-stores');
-    const btnExpandAllStores = document.getElementById('expand-all-stores');
-    const collapsibleItems = document.querySelectorAll('#vector-stores-list .collapse');
+    const btnCollapseAllStores = document.getElementById('collapse-all-folders');
+    const btnExpandAllStores = document.getElementById('expand-all-folders');
+    const collapsibleItems = document.querySelectorAll('#folders-list .collapse');
     collapsibleItems.forEach(item => {
         const bsCollapse = new bootstrap.Collapse(item, {
             toggle: false
@@ -581,17 +315,17 @@ function setAssistantSort(field, order, event) {
     }
 }
 
-function setVectorStoreSort(field, order, event) {
+function setFolderSort(field, order, event) {
     if (event) event.preventDefault();
 
-    vectorStoreSortField = field;
-    vectorStoreSortOrder = order;
+    folderSortField = field;
+    folderSortOrder = order;
 
-    updateSortDropdownUI('vectorStoreSortDropdown', field, order);
+    updateSortDropdownUI('folderSortDropdown', field, order);
 
-    displayVectorStores();
+    displayFolders();
 
-    const dropdownElement = document.getElementById('vectorStoreSortDropdown');
+    const dropdownElement = document.getElementById('folderSortDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
@@ -646,7 +380,7 @@ function applyAssistantFilters() {
         assistantFilters.endDate.setHours(23, 59, 59, 999);
     }
 
-    assistantFilters.vectorStoreId = document.getElementById('filterVectorStore').value;
+    assistantFilters.folderId = document.getElementById('filterFolder').value;
     assistantFilters.model = document.getElementById('filterModel').value;
 
     displayAssistants(); // Re-display assistants with filters applied
@@ -668,7 +402,7 @@ function resetAssistantFilters() {
         name: '',
         startDate: null,
         endDate: null,
-        vectorStoreId: '',
+        folderId: '',
         model: ''
     };
     displayAssistants();
@@ -684,55 +418,41 @@ function resetAssistantFilters() {
     updateFilterIcon('assistantFilterDropdown', assistantFilters);
 }
 
-function applyVectorStoreFilters() {
-    vectorStoreFilters.name = document.getElementById('vsFilterName').value.toLowerCase();
-    vectorStoreFilters.startDate = document.getElementById('vsFilterStartDate').value
-        ? new Date(document.getElementById('vsFilterStartDate').value)
-        : null;
-    vectorStoreFilters.endDate = document.getElementById('vsFilterEndDate').value
-        ? new Date(document.getElementById('vsFilterEndDate').value)
-        : null;
+function applyFolderFilters() {
+    folderFilters.name = document.getElementById('folderFilterName').value.toLowerCase();
 
-    // Adjust dates
-    if (vectorStoreFilters.startDate) {
-        vectorStoreFilters.startDate.setHours(0, 0, 0, 0);
-    }
-    if (vectorStoreFilters.endDate) {
-        vectorStoreFilters.endDate.setHours(23, 59, 59, 999);
-    }
+    folderFilters.status = document.getElementById('vsFilterStatus').value;
+    folderFilters.hasExpiration = document.getElementById('vsFilterHasExpiration').value;
 
-    vectorStoreFilters.status = document.getElementById('vsFilterStatus').value;
-    vectorStoreFilters.hasExpiration = document.getElementById('vsFilterHasExpiration').value;
+    displayFolders();
 
-    displayVectorStores();
-
-    const dropdownElement = document.getElementById('vectorStoreFilterDropdown');
+    const dropdownElement = document.getElementById('folderFilterDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
 
-    updateFilterIcon('vectorStoreFilterDropdown', vectorStoreFilters);
+    updateFilterIcon('folderFilterDropdown', folderFilters);
 }
 
-function resetVectorStoreFilters() {
-    document.getElementById('vectorStoreFilterForm').reset();
-    vectorStoreFilters = {
+function resetFolderFilters() {
+    document.getElementById('folderFilterForm').reset();
+    folderFilters = {
         name: '',
         startDate: null,
         endDate: null,
         status: '',
         hasExpiration: ''
     };
-    displayVectorStores();
+    displayFolders();
 
-    const dropdownElement = document.getElementById('vectorStoreFilterDropdown');
+    const dropdownElement = document.getElementById('folderFilterDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
 
-    updateFilterIcon('vectorStoreFilterDropdown', vectorStoreFilters);
+    updateFilterIcon('folderFilterDropdown', folderFilters);
 }
 
 function applyFileFilters() {
@@ -753,13 +473,13 @@ function applyFileFilters() {
         fileFilters.endDate.setHours(23, 59, 59, 999);
     }
 
-    fileFilters.vectorStoreId = document.getElementById('fileFilterVectorStore').value;
+    fileFilters.folderId = document.getElementById('fileFilterFolder').value;
     fileFilters.fileType = document.getElementById('fileFilterType').value;
 
     displayFiles();
 
     // Update button styles and icons
-    updateVectorStoreFilesButtonStyles();
+    updateFolderFilesButtonStyles();
 
     // Update the filter icon
     updateFilterIcon('fileFilterDropdown', fileFilters);
@@ -774,18 +494,15 @@ function applyFileFilters() {
 
 function resetFileFilters() {
     document.getElementById('fileFilterForm').reset();
-    fileFilters = {
+    functionFilters = {
         name: '',
-        startDate: null,
-        endDate: null,
-        vectorStoreId: '',
-        fileType: ''
+        functionType: ''
     };
 
     displayFiles();
 
     // Update button styles and icons
-    updateVectorStoreFilesButtonStyles();
+    updateFolderFilesButtonStyles();
 
     // Update the filter icon
     updateFilterIcon('fileFilterDropdown', fileFilters);
@@ -799,26 +516,26 @@ function resetFileFilters() {
 }
 
 function populateAssistantFilterOptions() {
-    const filterVectorStore = document.getElementById('filterVectorStore');
-    filterVectorStore.innerHTML = '<option value="">All</option>'; // Reset options
+    const filterFolder = document.getElementById('filterFolder');
+    filterFolder.innerHTML = '<option value="">All</option>'; // Reset options
 
-    for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
+    for (const [folderId, folder] of Object.entries(folders)) {
         const option = document.createElement('option');
-        option.value = vsId;
-        option.textContent = vectorStore.name ?? 'Untitled store';
-        filterVectorStore.appendChild(option);
+        option.value = folderId;
+        option.textContent = folder.name;
+        filterFolder.appendChild(option);
     }
 }
 
-function populateFileFilterOptions() {
-    const filterVectorStore = document.getElementById('fileFilterVectorStore');
-    filterVectorStore.innerHTML = '<option value="">All</option>'; // Reset options
+function populateFunctionFilterOptions() {
+    const filterFolder = document.getElementById('fileFilterFolder');
+    filterFolder.innerHTML = '<option value="">All</option>'; // Reset options
 
-    for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
+    for (const [folderId, folder] of Object.entries(folders)) {
         const option = document.createElement('option');
-        option.value = vsId;
-        option.textContent = vectorStore.name ?? 'Untitled store';
-        filterVectorStore.appendChild(option);
+        option.value = folderId;
+        option.textContent = folder.name ?? 'Untitled store';
+        filterFolder.appendChild(option);
     }
 
     // Populate file types
@@ -891,11 +608,11 @@ function getFileType(filename) {
 }
 
 
-/* Vector stores */
+/* Folders */
 
-async function fetchVectorStores() {
+async function fetchFolders() {
     try {
-        const response = await fetch(listVectorStoresUrl, {
+        const response = await fetch(listFoldersUrl, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
@@ -905,38 +622,38 @@ async function fetchVectorStores() {
 
         const data = await response.json();
 
-        if (data.vector_stores) {
-            // Clear the global vectorStores object
-            vectorStores = {};
+        if (data.folders) {
 
-            // Populate the global vectorStores object
-            data.vector_stores.forEach(store => {
-                vectorStores[store.id] = store;
+            // Clear the global folders object
+            folders = {};
 
+            // Populate the global folders object
+            data.folders.forEach(folder => {
+                folders[folder.uuid] = folder;
             });
 
-            // Return the global vectorStores object
-            return vectorStores;
+            // Return the global folders object
+            return folders;
         } else {
             const parsedError = parseErrorText(data.error);
-            showToast("Failed to fetch vector stores!", parsedError.errorMessage);
-            console.error('Failed to fetch vector stores!', parsedError);
+            showToast("Failed to fetch folders!", parsedError.errorMessage);
+            console.error('Failed to fetch folders!', parsedError);
             return {};
         }
     } catch (error) {
-        showToast("Error fetching vector stores:", error);
-        console.error('Error fetching vector stores:', error);
+        showToast("Error fetching folders:", error);
+        console.error('Error fetching folders:', error);
         return {};
     } finally {
-        toggleLoading('vector-stores', false);
+        toggleLoading('folders', false);
     }
 }
 
-async function updateVectorStoresByIds(vectorStoreIds) {
-    const fetchPromises = vectorStoreIds.map(async (vsId) => {
-        const retrieveVectorStoreUrl = retrieveVectorStoreUrlTemplate.replace('VS_ID_PLACEHOLDER', vsId);
+async function updateFoldersByIds(folderIds) {
+    const fetchPromises = folderIds.map(async (folderId) => {
+        const retrieveFolderUrl = retrieveFolderUrlTemplate.replace('VS_ID_PLACEHOLDER', folderId);
         try {
-            const response = await fetch(retrieveVectorStoreUrl, {
+            const response = await fetch(retrieveFolderUrl, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
@@ -945,572 +662,137 @@ async function updateVectorStoresByIds(vectorStoreIds) {
             });
             if (response.ok) {
                 const data = await response.json();
-                vectorStores[vsId] = data;
+                folders[folderId] = data;
             } else {
-                console.error(`Failed to fetch vector store with ID ${vsId}`);
+                console.error(`Failed to fetch folder with ID ${folderId}`);
             }
         } catch (error) {
-            console.error(`Error fetching vector store with ID ${vsId}:`, error);
+            console.error(`Error fetching folder with ID ${folderId}:`, error);
         }
     });
 
     await Promise.all(fetchPromises);
 }
 
-const vsItemTemplate = document.getElementById("vector-store-item-template").innerHTML;
+const folderItemTemplate = document.getElementById("folder-item-template").innerHTML;
 
-function renderVectorStore(store) {
-    const vectorStoreItem = document.createElement('div');
-    vectorStoreItem.className = 'vector-store-item';
-    vectorStoreItem.id = `vector-store-${store.id}`;
-
-    const storeName = store.name || 'Untitled store';
+function renderFolder(folder) {
+    const folderItem = document.createElement('div');
+    folderItem.className = 'folder-item';
+    folderItem.id = `folder-${folder.uuid}`;
 
     // Grab the raw template string from the DOM
     const data = {
-        store: store,
-        storeName: storeName
+        folder: folder
     };
 
     // Compile the template into a function
-    const renderTemplate = compileTemplate(vsItemTemplate);
-    vectorStoreItem.innerHTML = renderTemplate(data);
+    const renderTemplate = compileTemplate(folderItemTemplate);
+    folderItem.innerHTML = renderTemplate(data);
 
-    return vectorStoreItem;
+    return folderItem;
 }
 
-function displayVectorStores() {
-    const vectorStoresList = document.getElementById('vector-stores-list');
+function displayFolders() {
+    const foldersList = document.getElementById('folders-list');
 
-    // Dispose of existing tooltips within the vector stores list
-    disposeTooltips(vectorStoresList);
+    // Dispose of existing tooltips within the folders list
+    disposeTooltips(foldersList);
 
-    vectorStoresList.innerHTML = '';
+    foldersList.innerHTML = '';
 
-    const totalStores = Object.values(vectorStores).length;
+    const totalStores = Object.values(folders).length;
 
     // Convert to array
-    let vectorStoresArray = Object.values(vectorStores);
+    let foldersArray = Object.values(folders);
 
     // Apply filters
-    vectorStoresArray = vectorStoresArray.filter(store => {
+    foldersArray = foldersArray.filter(folder => {
         // Name filter
-        if (vectorStoreFilters.name && !(store.name || 'Untitled store').toLowerCase().includes(vectorStoreFilters.name)) {
+        if (folderFilters.name && ! folder.name.toLowerCase().includes(folderFilters.name)) {
             return false;
         }
         // Creation date filter
-        const createdAt = new Date(store.created_at * 1000);
-        if (vectorStoreFilters.startDate && createdAt < vectorStoreFilters.startDate) {
+        const createdAt = new Date(folder.created_at * 1000);
+        if (folderFilters.startDate && createdAt < folderFilters.startDate) {
             return false;
         }
-        if (vectorStoreFilters.endDate && createdAt > vectorStoreFilters.endDate) {
-            return false;
-        }
-        // Status filter
-        if (vectorStoreFilters.status && store.status !== vectorStoreFilters.status) {
-            return false;
-        }
-        // Has expiration filter
-        const hasExpiration = store.expires_at ? 'true' : 'false';
-        if (vectorStoreFilters.hasExpiration && hasExpiration !== vectorStoreFilters.hasExpiration) {
+        if (folderFilters.endDate && createdAt > folderFilters.endDate) {
             return false;
         }
         return true;
     });
 
-    const filteredStoresCount = vectorStoresArray.length;
+    const filteredStoresCount = foldersArray.length;
 
-    // Update the stores count display only if filters are active
-    const storesCountElement = document.getElementById('stores-count');
-    if (areFiltersActive(vectorStoreFilters)) {
-        storesCountElement.textContent = `${filteredStoresCount} results (${totalStores} total)`;
-        storesCountElement.style.display = 'inline';
+    // Update the folder count display only if filters are active
+    const folderCountElement = document.getElementById('folders-count');
+    if (areFiltersActive(folderFilters)) {
+        folderCountElement.textContent = `${filteredStoresCount} results (${totalStores} total)`;
+        folderCountElement.style.display = 'inline';
     } else {
-        storesCountElement.style.display = 'none';
+        folderCountElement.style.display = 'none';
     }
 
-    // Handle different cases based on total stores and filtered stores
+    // Handle different cases based on total folders and filtered folders
     if (totalStores === 0) {
-        // No vector stores exist at all
+        // No folders exist at all
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'text-center mt-4 no-vector-stores-message';
+        messageDiv.className = 'text-center mt-4 no-folders-message';
         messageDiv.innerHTML = `
-            <p class="text-secondary">No vector stores found.</p>
+            <p class="text-secondary">No folders found.</p>
             <span class="text-secondary">
-                <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addVectorStore()"><i class="bi bi-plus-lg"></i>Add your first vector store.</a>
+                <a href="#" class="text-decoration-none"><i class="bi bi-plus-lg"></i>Add a folder.</a>
             </span>
         `;
-        vectorStoresList.appendChild(messageDiv);
+        foldersList.appendChild(messageDiv);
         return;
-    } else if (vectorStoresArray.length === 0) {
-        // Vector stores exist, but none match the filters
+    } else if (foldersArray.length === 0) {
+        // Folders exist, but none match the filters
         const messageDiv = document.createElement('div');
         messageDiv.className = 'text-center mt-4';
         messageDiv.innerHTML = `
-            <p class="text-secondary">No vector stores match your filters.</p>
+            <p class="text-secondary">No folders match your filters.</p>
             <span class="text-secondary">You can
-            <a href="#" class="text-decoration-none" onclick="resetVectorStoreFilters()">reset the filters</a>
-            to see all vector stores.</span>
+            <a href="#" class="text-decoration-none" onclick="resetFolderFilters()">reset the filters</a>
+            to see all folders.</span>
         `;
-        vectorStoresList.appendChild(messageDiv);
+        foldersList.appendChild(messageDiv);
         return;
     }
 
     // Sort
-    vectorStoresArray.sort((a, b) => {
+    foldersArray.sort((a, b) => {
         let compareResult = 0;
 
-        if (vectorStoreSortField === 'name') {
+        if (folderSortField === 'name') {
             compareResult = (a.name || 'Untitled store').localeCompare(b.name || 'Untitled store');
-        } else if (vectorStoreSortField === 'created_at') {
+        } else if (folderSortField === 'created_at') {
             compareResult = a.created_at - b.created_at;
-        } else if (vectorStoreSortField === 'last_active_at') {
+        } else if (folderSortField === 'last_active_at') {
             compareResult = a.last_active_at - b.last_active_at;
         }
 
-        return vectorStoreSortOrder === 'asc' ? compareResult : -compareResult;
+        return folderSortOrder === 'asc' ? compareResult : -compareResult;
     });
 
     // Display
-    for (const store of vectorStoresArray) {
-        const vectorStoreItem = renderVectorStore(store);
-        vectorStoresList.appendChild(vectorStoreItem);
+    for (const store of foldersArray) {
+        const folderItem = renderFolder(store);
+        foldersList.appendChild(folderItem);
     }
 
     initializeTooltips();
 }
 
-async function fetchVectorStoreFiles(vectorStoreId) {
-    // Fetch the files of a vectorStore and update vectorStoreFiles and fileVectorStores objects
 
-    const url = listVSFilesUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
-
-    try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-            }
-        });
-        const data = await response.json();
-
-        if (data.files) {
-
-            // Update the global files object
-            data.files.forEach(vsFile => {
-
-                if (!vectorStoreFiles[vectorStoreId]) {
-                    vectorStoreFiles[vectorStoreId] = [];
-                }
-                vectorStoreFiles[vectorStoreId].push(vsFile.id);
-
-                if (!fileVectorStores[vsFile.id]) {
-                    fileVectorStores[vsFile.id] = [];
-                }
-                fileVectorStores[vsFile.id].push(vectorStoreId);
-
-            });
-
-        } else {
-            const parsedError = parseErrorText(data.error);
-            showToast("Failed to fetch files!", parsedError.errorMessage);
-            console.error('Failed to fetch files!', parsedError);
-            return {};
-        }
-    } catch (error) {
-        showToast("Error fetching files:", error);
-        console.error('Error fetching files:', error);
-        return {};
-    }
-}
-
-function addVectorStore() {
-    // Check if there is already a vector store item with an ID starting with 'temp-card-'
-    const existingTempCard = document.querySelector('.vector-store-item[id^="temp-card-"]');
-    if (existingTempCard) {
-        // An empty card is already present, do not add another
-        return;
-    }
-
-    const tempId = `temp_${Date.now()}`; // Temporary ID based on timestamp for uniqueness
-
-    // Remove the "No vector stores found." message if present
-    const vectorStoresList = document.getElementById('vector-stores-list');
-    const noVectorStoresMessage = vectorStoresList.querySelector('.no-vector-stores-message');
-    if (noVectorStoresMessage) {
-        noVectorStoresMessage.remove();
-    }
-
-    // Create a new vector store item element
-    const vectorStoreItem = document.createElement('div');
-    vectorStoreItem.className = 'vector-store-item';
-    vectorStoreItem.id = `temp-card-${tempId}`;
-
-    // Create the inner HTML for the vector store item (in edit mode)
-    vectorStoreItem.innerHTML = document.getElementById("vector-store-form-template").innerHTML;
-
-    // Append the new vector store item to the vector stores list
-    if (vectorStoresList.firstChild) {
-        vectorStoresList.insertBefore(vectorStoreItem, vectorStoresList.firstChild);
-    } else {
-        vectorStoresList.appendChild(vectorStoreItem);
-    }
-
-    // Scroll to the top of vector-stores-list
-    const vectorStoresListSection = document.getElementById('vector-stores-list');
-    if (vectorStoresListSection) {
-        vectorStoresListSection.scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-function removeVectorStoreCard(vectorStoreId) {
-    // Remove the vector store card
-    const vsCard = document.getElementById(`temp-card-${vectorStoreId}`) || document.getElementById(`vs-${vectorStoreId}`).closest('.vector-store-item');
-    if (vsCard) {
-        vsCard.remove();
-    }
-
-    // Check if the vector stores list is empty
-    const vectorStoresList = document.getElementById('vector-stores-list');
-    const vectorStoreItems = vectorStoresList.querySelectorAll('.vector-store-item');
-    if (vectorStoreItems.length === 0) {
-        // Display the "No vector stores found." message
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'text-center mt-4 no-vector-stores-message';
-        messageDiv.innerHTML = `
-            <p class="text-secondary">No vector stores found.</p>
-            <span class="text-secondary">
-                <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addVectorStore()"><i class="bi bi-plus-lg"></i>Add your first vector store.</a>
-            </span>
-        `;
-        vectorStoresList.appendChild(messageDiv);
-    }
-}
-
-async function saveNewVectorStore(vectorStoreId) {
-    const button = document.querySelector(`.btnModifyVectorStore[data-vector-store-id="${vectorStoreId}"]`);
-    const buttonText = button.querySelector('.button-text');
-    const spinner = button.querySelector('.spinner-border');
-
-    // Show spinner and disable button
-    buttonText.classList.add('d-none');
-    spinner.classList.remove('d-none');
-    button.disabled = true;
-
-    const metadata = collectMetadata(vectorStoreId);
-
-    const payload = {
-        name: document.getElementById(`name-${vectorStoreId}`).value,
-        expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
-        metadata: metadata
-    };
-
-    try {
-        const response = await fetch(createVectorStoreUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-
-            // Update the global vectorStores object
-            vectorStores[data.id] = data;
-
-            // Remove the form card and prepend the new vector store to the list
-            const tempCard = document.getElementById(`temp-card-${vectorStoreId}`);
-            if (tempCard) {
-                tempCard.remove();
-            }
-
-            // Re-display the vector stores list
-            displayVectorStores();
-
-            // Update related UI elements
-            updateVectorStoreRelatedUI();
-
-            // Scroll to the newly added vector store's card
-            const newVectorStoreId = data.id;
-            const vectorStoreCard = document.getElementById(`vector-store-${newVectorStoreId}`);
-            if (vectorStoreCard) {
-                vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-
-        } else {
-            const errorData = await response.json();
-            let errorMessage = '';
-
-            if (errorData.error) {
-                const parsedError = parseErrorText(errorData.error);
-                errorMessage = parsedError.errorMessage;
-            } else if (errorData.detail) {
-                // Handle server errors
-                if (Array.isArray(errorData.detail)) {
-                    // Extract the message from the first error detail
-                    errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
-                } else if (typeof errorData.detail === 'string') {
-                    errorMessage = errorData.detail;
-                } else {
-                    errorMessage = 'Unknown error occurred.';
-                }
-            } else {
-                errorMessage = 'Unknown error occurred.';
-            }
-
-            showToast("Failed to save new vector store!", errorMessage);
-            console.error('Failed to save new vector store!', errorMessage);
-        }
-    } catch (error) {
-        showToast("Unexpected error:", error);
-        console.error('Unexpected error:', error);
-    } finally {
-        // Hide spinner and enable button
-        spinner.classList.add('d-none');
-        buttonText.classList.remove('d-none');
-        button.disabled = false;
-    }
-}
-
-async function modifyVectorStore(vectorStoreId) {
-    const button = document.querySelector(`.btnModifyVectorStore[data-store-id="${vectorStoreId}"]`);
-    const buttonText = button.querySelector('.button-text');
-    const spinner = button.querySelector('.spinner-border');
-
-    // Show spinner and disable button
-    buttonText.classList.add('d-none');
-    spinner.classList.remove('d-none');
-    button.disabled = true;
-
-    const url = modifyVectorStoreUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
-
-    const metadata = collectMetadata(vectorStoreId);
-
-    const payload = {
-        name: document.getElementById(`name-${vectorStoreId}`).value,
-        expiration_days: document.getElementById(`expiration-days-${vectorStoreId}`).value,
-        metadata: metadata
-    };
-
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-
-            // Update the global vectorStores object
-            vectorStores[vectorStoreId] = data;
-
-            // Re-display the vector stores list
-            displayVectorStores();
-
-            // Update related UI elements
-            updateVectorStoreRelatedUI();
-
-            // Scroll to the updated vector store's card
-            const vectorStoreCard = document.getElementById(`vector-store-${vectorStoreId}`);
-            if (vectorStoreCard) {
-                vectorStoreCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-
-        } else {
-            const errorData = await response.json();
-            let errorMessage = '';
-
-            if (errorData.error) {
-                const parsedError = parseErrorText(errorData.error);
-                errorMessage = parsedError.errorMessage;
-            } else if (errorData.detail) {
-                // Handle server errors
-                if (Array.isArray(errorData.detail)) {
-                    // Extract the message from the first error detail
-                    errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
-                } else if (typeof errorData.detail === 'string') {
-                    errorMessage = errorData.detail;
-                } else {
-                    errorMessage = 'Unknown error occurred.';
-                }
-            } else {
-                errorMessage = 'Unknown error occurred.';
-            }
-
-            showToast("Failed to update vector store!", errorMessage);
-            console.error('Failed to update vector store!', errorMessage);
-        }
-    } catch (error) {
-        showToast("Unexpected error:", error);
-        console.error('Unexpected error:', error);
-    } finally {
-        // Hide spinner and enable button
-        spinner.classList.add('d-none');
-        buttonText.classList.remove('d-none');
-        button.disabled = false;
-    }
-}
-
-let vectorStoreToDeleteId = null; // To store the ID of the vector store to delete
-
-async function deleteVectorStore(vectorStoreId) {
-    vectorStoreToDeleteId = vectorStoreId; // Store the vector store ID for use in the confirm deletion function
-
-    // Collect assistants using this vector store
-    const assistantsUsingVS = [];
-    for (const [assistantId, assistant] of Object.entries(assistants)) {
-        const assignedVsId = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || null;
-        if (assignedVsId === vectorStoreId) {
-            assistantsUsingVS.push(assistant.name || 'Untitled assistant');
-        }
-    }
-
-    // Update the modal content
-    const assistantsListElement = document.getElementById('assistantNamesList');
-    const assistantsUsingVectorStoreDiv = document.getElementById('assistantsUsingVectorStore');
-    const vectorStoreInfo = document.getElementById('vectorStoreInfo');
-
-    // Clear previous list
-    assistantsListElement.innerHTML = '';
-
-    // Add vector store info
-    vectorStoreInfo.textContent = '';
-    vectorStoreInfo.textContent = vectorStores[vectorStoreId] && vectorStores[vectorStoreId].name && vectorStores[vectorStoreId].name.trim() !== '' ? vectorStores[vectorStoreId].name : 'Untitled store';
-
-    if (assistantsUsingVS.length > 0) {
-        // Show the list of assistants
-        assistantsUsingVectorStoreDiv.classList.remove('d-none');
-        assistantsUsingVS.forEach(name => {
-            const li = document.createElement('li');
-            li.textContent = name;
-            assistantsListElement.appendChild(li);
-        });
-    } else {
-        assistantsUsingVectorStoreDiv.classList.add('d-none');
-    }
-
-    // Show the modal
-    const deleteModal = new bootstrap.Modal(document.getElementById('vectorStoreDeleteModal'));
-    deleteModal.show();
-
-    // Attach event listener to the confirm delete button
-    const confirmDeleteBtn = document.getElementById('confirmDeleteVectorStoreBtn');
-    confirmDeleteBtn.onclick = confirmDeleteVectorStore;
-}
-
-async function confirmDeleteVectorStore() {
-    const vectorStoreId = vectorStoreToDeleteId;
-    const deleteVectorStoreUrl = deleteVectorStoreUrlTemplate.replace('VS_ID_PLACEHOLDER', vectorStoreId);
-    const vectorStoreName = vectorStores[vectorStoreId] && vectorStores[vectorStoreId].name && vectorStores[vectorStoreId].name.trim() !== '' ? vectorStores[vectorStoreId].name : 'Untitled store';
-
-    // Hide the modal
-    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('vectorStoreDeleteModal'));
-    deleteModal.hide();
-
-    try {
-        const response = await fetch(deleteVectorStoreUrl, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            }
-        });
-
-        if (response.ok) {
-            // Remove the vector store from the global vectorStores object
-            delete vectorStores[vectorStoreId];
-
-            // Update file-vector store associations
-            const associatedFiles = vectorStoreFiles[vectorStoreId] || [];
-            associatedFiles.forEach(fileId => {
-                // Remove vectorStoreId from fileVectorStores[fileId]
-                if (fileVectorStores[fileId]) {
-                    fileVectorStores[fileId] = fileVectorStores[fileId].filter(id => id !== vectorStoreId);
-                }
-            });
-
-            // Remove the vector store from vectorStoreFiles
-            delete vectorStoreFiles[vectorStoreId];
-
-            // Re-display the vector stores list
-            displayVectorStores();
-
-            // Update related UI elements
-            updateVectorStoreRelatedUI();
-
-            showToast("Vector store deleted!", vectorStoreName, "success");
-            console.log(`Vector Store with ID ${vectorStoreId} deleted successfully.`);
-        } else {
-            const errorData = await response.json();
-            const parsedError = parseErrorText(errorData.error);
-            showToast("Failed to delete vector store!", parsedError.errorMessage);
-            console.error('Failed to delete vector store!', parsedError);
-        }
-    } catch (error) {
-        showToast("Unexpected error:", error);
-        console.error('Unexpected error:', error);
-    }
-}
-
-function updateVectorStoreRelatedUI() {
-    // Update the assistant filter dropdown
-    populateAssistantFilterOptions();
-
-    // Update the file filter dropdown
-    populateFileFilterOptions();
-
-    // Re-display assistants to reflect the new vector store
-    displayAssistants();
-
-    // Update all file cards to reflect the updated list of vector stores
-    displayFiles();
-
-    // Re-initialize tooltips if necessary
-    initializeTooltips();
-}
-
-function toggleFileFilterByVectorStore(storeId, buttonElement) {
-    hideTooltip(buttonElement);
-
-    if (fileFilters.vectorStoreId === storeId) {
-        // Remove the vector store filter
-        fileFilters.vectorStoreId = '';
-    } else {
-        // Set the vector store filter to this storeId
-        fileFilters.vectorStoreId = storeId;
-    }
-
-    // Update the file filter dropdown to reflect the selected vector store
-    document.getElementById('fileFilterVectorStore').value = fileFilters.vectorStoreId;
-
-    // Update the styles and icons of all vector store 'Files' buttons
-    updateVectorStoreFilesButtonStyles();
-
-    // Display the files with the updated filters
-    displayFiles();
-
-    // Update the file filter icon based on active filters
-    updateFilterIcon('fileFilterDropdown', fileFilters);
-}
-
-function updateVectorStoreFilesButtonStyles() {
-    const buttons = document.querySelectorAll('.vector-store-files-button');
+function updateFolderFilesButtonStyles() {
+    const buttons = document.querySelectorAll('.folder-files-button');
     buttons.forEach(button => {
         const storeId = button.getAttribute('data-store-id');
         const iconElement = button.querySelector('i');
 
-        if (fileFilters.vectorStoreId === storeId && fileFilters.vectorStoreId !== '') {
+        if (fileFilters.folderId === storeId && fileFilters.folderId !== '') {
             // The filter is active for this store
             button.classList.remove('btn-outline-secondary');
             button.classList.add('btn-secondary');
@@ -1567,28 +849,6 @@ async function fetchAssistants() {
     }
 }
 
-function renderAssistantVSSelect(assistantId) {
-    let selectedVectorStoreId = null;
-    if (assistantId && assistants[assistantId])
-        selectedVectorStoreId = assistants[assistantId].tool_resources?.file_search?.vector_store_ids?.[0] || null;
-
-    // Start building the HTML for the select element
-    let selectHtml = `<select class="form-select vector-store" id="vs-${assistantId}">`;
-
-    // Add the null option
-    selectHtml += '<option value="">No vector store assigned</option>';
-
-    // Iterate over the global vectorStores object to create options
-    for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
-        const isSelected = vsId === selectedVectorStoreId ? 'selected' : '';
-        selectHtml += `<option value="${vsId}" ${isSelected}>${vectorStore.name ?? 'Untitled store'}</option>`;
-    }
-
-    // Close the select element
-    selectHtml += '</select>';
-
-    return selectHtml;
-}
 
 const assistantItemTemplate = document.getElementById("assistant-item-template").innerHTML;
 
@@ -1600,23 +860,12 @@ function renderAssistant(assistant) {
     // Get the assistant name
     const assistantName = assistant.name || 'Untitled assistant';
 
-    // Get the vector store name
-    let vs_name = 'No vector store assigned';  // Default if not assigned
-    const vs_id = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || null;
-
-    if (vs_id && vectorStores[vs_id]) {
-        vs_name = vectorStores[vs_id].name ?? 'Untitled store';
-    }
-
-    const selectVectorStore = renderAssistantVSSelect(assistant.id);
-
     // The template context
+    // TODO: Get the folders; can be [{name: ..., uuid: ...]
     const data = {
         assistant: assistant,
         assistantName: assistantName,
-        vs_id: vs_id,
-        vs_name: vs_name,
-        selectVectorStore: selectVectorStore
+        folders: []
     };
 
     // Compile the template into a function
@@ -1655,11 +904,9 @@ function displayAssistants() {
         if (assistantFilters.endDate && assistantDate > assistantFilters.endDate) {
             return false;
         }
-        // Filter by vector store
-        const assignedVsId = assistant.tool_resources?.file_search?.vector_store_ids?.[0] || null;
-        if (assistantFilters.vectorStoreId && assignedVsId !== assistantFilters.vectorStoreId) {
-            return false;
-        }
+
+        // TODO: Filter by folder
+
         // Filter by model
         if (assistantFilters.model && assistant.model !== assistantFilters.model) {
             return false;
@@ -1686,7 +933,7 @@ function displayAssistants() {
         messageDiv.innerHTML = `
             <p class="text-secondary">No assistants found.</p>
             <span class="text-secondary">
-                <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addAssistant()"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
+                <a href="#" class="text-decoration-none"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
             </span>
         `;
         assistantsList.appendChild(messageDiv);
@@ -1728,48 +975,6 @@ function displayAssistants() {
     initializeTooltips();
 }
 
-function addAssistant() {
-    // Check if there is already an assistant item with an ID starting with 'temp-card-'
-    const existingTempCard = document.querySelector('.assistant-item[id^="temp-card-"]');
-    if (existingTempCard) {
-        // An empty card is already present, do not add another
-        return;
-    }
-
-    const tempId = `temp_${Date.now()}`; // Temporary ID based on timestamp for uniqueness
-
-    // Remove the "No assistants found." message if present
-    const assistantsList = document.getElementById('assistants-list');
-    const noAssistantsMessage = assistantsList.querySelector('.no-assistants-message');
-    if (noAssistantsMessage) {
-        noAssistantsMessage.remove();
-    }
-
-    // Create a new assistant item element
-    const assistantItem = document.createElement('div');
-    assistantItem.className = 'assistant-item';
-    assistantItem.id = `temp-card-${tempId}`;
-
-    // Render the vector store select element for the new assistant
-    const selectVectorStore = renderAssistantVSSelect(tempId);
-
-    // Create the inner HTML for the assistant item (in edit mode)
-    assistantItem.innerHTML = document.getElementById("assistant-form-template").innerHTML;
-
-    // Append the new assistant item to the assistants list
-    if (assistantsList.firstChild) {
-        assistantsList.insertBefore(assistantItem, assistantsList.firstChild);
-    } else {
-        assistantsList.appendChild(assistantItem);
-    }
-    renderFunctionCheckboxes(tempId);
-
-    // Scroll to the top of assistants-list
-    const assistantsListSection = document.getElementById('assistants-list');
-    if (assistantsListSection) {
-        assistantsListSection.scrollIntoView({ behavior: 'smooth' });
-    }
-}
 
 function removeAssistantCard(assistantId) {
     // Remove the assistant card
@@ -1788,341 +993,20 @@ function removeAssistantCard(assistantId) {
         messageDiv.innerHTML = `
             <p class="text-secondary">No assistants found.</p>
             <span class="text-secondary">
-                <a href="#" class="text-decoration-none" onclick="hideTooltip(this); addAssistant()"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
+                <a href="#" class="text-decoration-none"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
             </span>
         `;
         assistantsList.appendChild(messageDiv);
     }
 }
 
-async function saveNewAssistant(assistantId) {
-    const button = document.querySelector(`.btnModifyAssistant[data-assistant-id="${assistantId}"]`);
-    const buttonText = button.querySelector('.button-text');
-    const spinner = button.querySelector('.spinner-border');
 
-    // Show spinner and disable button
-    buttonText.classList.add('d-none');
-    spinner.classList.remove('d-none');
-    button.disabled = true;
+/* Tools */
 
-    const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${assistantId}`);
-    const fileSearchEnabled = fileSearchSwitch ? fileSearchSwitch.checked : false;
-    const codeInterpreterSwitch = document.getElementById(`codeInterpreterSwitch-${assistantId}`);
-    const codeInterpreterEnabled = codeInterpreterSwitch ? codeInterpreterSwitch.checked : false;
-    const vectorStoreId = fileSearchEnabled ? document.getElementById(`vs-${assistantId}`).value : null;
-
-    // Collect selected functions
-    const selectedFunctionNames = [];
-    const functionCheckboxes = document.querySelectorAll(`input[id^="function-"][id$="-${assistantId}"]:checked`);
-    functionCheckboxes.forEach(checkbox => {
-        selectedFunctionNames.push(checkbox.value);
-    });
-
-    // For each selected function name, find the function definition
-    const selectedFunctions = functionDefinitions.filter(funcDef => selectedFunctionNames.includes(funcDef.name));
-
-    // Build tools array based on switches
-    const tools = [];
-    if (codeInterpreterEnabled) {
-        tools.push({ "type": "code_interpreter" });
-    }
-    if (fileSearchEnabled) {
-        tools.push({ "type": "file_search" });
-    }
-    // Add selected functions to tools
-    selectedFunctions.forEach(funcDef => {
-        tools.push({
-            "type": "function",
-            "function": funcDef
-        });
-    });
-
-    // Build tool_resources
-    const tool_resources = {};
-    if (fileSearchEnabled && vectorStoreId) {
-        tool_resources["file_search"] = {
-            "vector_store_ids": [vectorStoreId]
-        };
-    }
-
-    const metadata = collectMetadata(assistantId);
-
-    const payload = {
-        name: document.getElementById(`name-${assistantId}`).value,
-        description: document.getElementById(`description-${assistantId}`).value,
-        instructions: document.getElementById(`instructions-${assistantId}`).value,
-        model: document.getElementById(`model-${assistantId}`).value,
-        tools: tools,
-        tool_resources: tool_resources,
-        metadata: metadata
-    };
-
+async function fetchFunctions() {
+    console.log(listFunctionsUrl);
     try {
-        const response = await fetch(createAssistantUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-
-            // Update the global assistants object
-            assistants[data.id] = data;
-
-            // Remove the form card and prepend the new assistant to the list
-            const tempCard = document.getElementById(`temp-card-${assistantId}`);
-            if (tempCard) {
-                tempCard.remove();
-            }
-
-            // Re-display the assistants list
-            displayAssistants();
-
-            // Scroll to the newly added assistant's card
-            const newAssistantId = data.id;
-            const assistantCard = document.getElementById(`assistant-${newAssistantId}`);
-            if (assistantCard) {
-                assistantCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-
-        } else {
-            const errorData = await response.json();
-            let errorMessage = '';
-
-            if (errorData.error) {
-                const parsedError = parseErrorText(errorData.error);
-                errorMessage = parsedError.errorMessage;
-            } else if (errorData.detail) {
-                // Handle server errors
-                if (Array.isArray(errorData.detail)) {
-                    // Extract the message from the first error detail
-                    errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
-                } else if (typeof errorData.detail === 'string') {
-                    errorMessage = errorData.detail;
-                } else {
-                    errorMessage = 'Unknown error occurred.';
-                }
-            } else {
-                errorMessage = 'Unknown error occurred.';
-            }
-
-            showToast("Failed to save new assistant!", errorMessage);
-            console.error('Failed to save new assistant!', errorMessage);
-        }
-    } catch (error) {
-        showToast("Unexpected error:", error);
-        console.error('Unexpected error:', error);
-    } finally {
-        // Hide spinner and enable button
-        spinner.classList.add('d-none');
-        buttonText.classList.remove('d-none');
-        button.disabled = false;
-    }
-}
-
-async function modifyAssistant(assistantId) {
-    const button = document.querySelector(`.btnModifyAssistant[data-assistant-id="${assistantId}"]`);
-    const buttonText = button.querySelector('.button-text');
-    const spinner = button.querySelector('.spinner-border');
-
-    // Show spinner and disable button
-    buttonText.classList.add('d-none');
-    spinner.classList.remove('d-none');
-    button.disabled = true;
-
-    const url = modifyAssistantUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
-
-    const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${assistantId}`);
-    const fileSearchEnabled = fileSearchSwitch ? fileSearchSwitch.checked : false;
-    const codeInterpreterSwitch = document.getElementById(`codeInterpreterSwitch-${assistantId}`);
-    const codeInterpreterEnabled = codeInterpreterSwitch ? codeInterpreterSwitch.checked : false;
-    const vectorStoreId = fileSearchEnabled ? document.getElementById(`vs-${assistantId}`).value : null;
-
-    // Collect selected functions
-    const selectedFunctionNames = [];
-    const functionCheckboxes = document.querySelectorAll(`input[id^="function-"][id$="-${assistantId}"]:checked`);
-    functionCheckboxes.forEach(checkbox => {
-        selectedFunctionNames.push(checkbox.value);
-    });
-
-    // For each selected function name, find the function definition
-    const selectedFunctions = functionDefinitions.filter(funcDef => selectedFunctionNames.includes(funcDef.name));
-
-    // Build tools array based on switches
-    const tools = [];
-    if (codeInterpreterEnabled) {
-        tools.push({ "type": "code_interpreter" });
-    }
-    if (fileSearchEnabled) {
-        tools.push({ "type": "file_search" });
-    }
-    // Add selected functions to tools
-    selectedFunctions.forEach(funcDef => {
-        tools.push({
-            "type": "function",
-            "function": funcDef
-        });
-    });
-
-    // Build tool_resources
-    const tool_resources = {};
-    if (fileSearchEnabled) {
-        if (vectorStoreId) {
-            tool_resources["file_search"] = {
-                "vector_store_ids": [vectorStoreId]
-            };
-        } else {
-            // Clear the vector_store_ids when "No vector store assigned" is selected
-            tool_resources["file_search"] = {
-                "vector_store_ids": []
-            };
-        }
-    }
-
-    const metadata = collectMetadata(assistantId);
-
-    const payload = {
-        name: document.getElementById(`name-${assistantId}`).value,
-        description: document.getElementById(`description-${assistantId}`).value,
-        instructions: document.getElementById(`instructions-${assistantId}`).value,
-        model: document.getElementById(`model-${assistantId}`).value,
-        tools: tools,
-        tool_resources: tool_resources,
-        metadata: metadata
-    };
-
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-
-            // Update the global assistants object
-            assistants[assistantId] = data;
-
-            // Re-display the assistants list
-            displayAssistants();
-
-            // Scroll to the updated assistant's card
-            const assistantCard = document.getElementById(`assistant-${assistantId}`);
-            if (assistantCard) {
-                assistantCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-
-        } else {
-            const errorData = await response.json();
-            let errorMessage = '';
-
-            if (errorData.error) {
-                const parsedError = parseErrorText(errorData.error);
-                errorMessage = parsedError.errorMessage;
-            } else if (errorData.detail) {
-                // Handle server errors
-                if (Array.isArray(errorData.detail)) {
-                    // Extract the message from the first error detail
-                    errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
-                } else if (typeof errorData.detail === 'string') {
-                    errorMessage = errorData.detail;
-                } else {
-                    errorMessage = 'Unknown error occurred.';
-                }
-            } else {
-                errorMessage = 'Unknown error occurred.';
-            }
-
-            showToast("Failed to update assistant!", errorMessage);
-            console.error('Failed to update assistant!', errorMessage);
-        }
-    } catch (error) {
-        showToast("Unexpected error:", error);
-        console.error('Unexpected error:', error);
-    } finally {
-        // Hide spinner and enable button
-        spinner.classList.add('d-none');
-        buttonText.classList.remove('d-none');
-        button.disabled = false;
-    }
-}
-
-let assistantToDeleteId = null; // To store the ID of the assistant to delete
-
-async function deleteAssistant(assistantId) {
-    assistantToDeleteId = assistantId; // Store the assistant ID for use in the confirm deletion function
-
-    const assistantInfo = document.getElementById('assistantInfo');
-
-    // Add assistant info
-    assistantInfo.textContent = '';
-    assistantInfo.textContent = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
-
-    // Show the modal
-    const deleteModal = new bootstrap.Modal(document.getElementById('assistantDeleteModal'));
-    deleteModal.show();
-
-    // Attach event listener to the confirm delete button
-    const confirmDeleteBtn = document.getElementById('confirmDeleteAssistantBtn');
-    confirmDeleteBtn.onclick = confirmDeleteAssistant;
-}
-
-async function confirmDeleteAssistant() {
-    const assistantId = assistantToDeleteId;
-    const deleteAssistantUrl = deleteAssistantUrlTemplate.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
-    const assistantName = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
-
-    // Hide the modal
-    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('assistantDeleteModal'));
-    deleteModal.hide();
-
-    try {
-        const response = await fetch(deleteAssistantUrl, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            }
-        });
-
-        if (response.ok) {
-            // Remove the assistant from the global assistants object
-            delete assistants[assistantId];
-
-            // Re-display the assistants list
-            displayAssistants();
-
-            showToast("Assistant deleted!", assistantName, "success");
-            console.log(`Assistant with ID ${assistantId} deleted successfully.`);
-        } else {
-            const errorData = await response.json();
-            const parsedError = parseErrorText(errorData.error);
-            showToast("Failed to delete assistant!", parsedError.errorMessage);
-            console.error('Failed to delete assistant!', parsedError);
-        }
-    } catch (error) {
-        showToast("Unexpected error:", error);
-        console.error('Unexpected error:', error);
-    }
-}
-
-
-/* Files */
-
-async function fetchFiles() {
-    try {
-        const response = await fetch(listFilesUrl, {
+        const response = await fetch(listFunctionsUrl, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
@@ -2132,469 +1016,162 @@ async function fetchFiles() {
 
         const data = await response.json();
 
-        if (data.files) {
-            // Clear the global files object
-            files = {};
+        if (data.functions) {
+            // Clear the global functions object
+            functions = {};
 
-            // Populate the global files object
-            data.files.forEach(file => {
-                files[file.id] = file;
+            // Populate the global functions object
+            data.functions.forEach(func => {
+                functions[func.uuid] = func;
             });
 
-            // Return the global files object
-            return files;
+            // Return the global functions object
+            return functions;
         } else {
             const parsedError = parseErrorText(data.error);
-            showToast("Failed to fetch files!", parsedError.errorMessage);
-            console.error('Failed to fetch files!', parsedError);
+            showToast("Failed to fetch functions!", parsedError.errorMessage);
+            console.error('Failed to fetch functions!', parsedError);
             return {};
         }
     } catch (error) {
-        showToast("Error fetching files:", error);
-        console.error('Error fetching files:', error);
+        showToast("Error fetching functions:", error);
+        console.error('Error fetching functions:', error);
         return {};
     } finally {
-        toggleLoading('files', false);
+        toggleLoading('functions', false);
     }
 }
 
-function renderFile(file) {
-    const fileItem = document.createElement('div');
-    fileItem.className = 'file-item';
-    fileItem.id = `file-${file.id}`;
 
-    // File's vector stores
-    const vectorStoresHtml = renderFileVSList(fileVectorStores[file.id]);
+const functionItemTemplate = document.getElementById("function-item-template").innerHTML;
 
-    // All vector stores to be displayed in the edit mode
-    const vectorStoresForm = renderFileVSSelect(file.id);
+function renderFunction(func) {
+    const functionItem = document.createElement('div');
+    functionItem.className = 'function-item';
+    functionItem.id = `function-${func.id}`;
 
-    // Create the inner HTML for the file item
-    fileItem.innerHTML = document.getElementById("file-item-template").innerHTML;
+    // The template context
+    const data = {
+        func: func,
+    };
 
-    return fileItem;
+    // Compile the template into a function
+    const renderTemplate = compileTemplate(functionItemTemplate);
+
+    // Create the inner HTML for the assistant item
+    functionItem.innerHTML = renderTemplate(data);
+
+    return functionItem;
 }
 
-function displayFiles() {
-    const filesList = document.getElementById('files-list');
 
-    // Dispose of existing tooltips within the files list
-    disposeTooltips(filesList);
+function displayFunctions() {
+    const functionsList = document.getElementById('functions-list');
 
-    filesList.innerHTML = ''; // Clear any existing files
+    // Dispose of existing tooltips within the functions list
+    disposeTooltips(functionsList);
 
-    const totalFiles = Object.values(files).length;
+    functionsList.innerHTML = '';  // Clear any existing functions
 
-    // Convert the files object into an array
-    let filesArray = Object.values(files);
+    const totalFunctions = Object.values(functions).length;
+
+    // Convert the functions object into an array
+    let functionsArray = Object.values(functions);
 
     // Apply filters
-    filesArray = filesArray.filter(file => {
+    functionsArray = functionsArray.filter(func => {
         // Filter by name
-        if (fileFilters.name && !file.filename.toLowerCase().includes(fileFilters.name)) {
+        if (functionFilters.name && !func.name.toLowerCase().includes(functionFilters.name)) {
             return false;
         }
-        // Filter by creation date
-        const fileDate = new Date(file.created_at * 1000);
-        if (fileFilters.startDate && fileDate < fileFilters.startDate) {
-            return false;
-        }
-        if (fileFilters.endDate && fileDate > fileFilters.endDate) {
-            return false;
-        }
-        // Filter by vector store
-        const assignedVsIds = fileVectorStores[file.id] || [];
-        if (fileFilters.vectorStoreId && !assignedVsIds.includes(fileFilters.vectorStoreId)) {
-            return false;
-        }
-        // Filter by file type
-        const fileType = getFileType(file.filename);
-        if (fileFilters.fileType && fileType !== fileFilters.fileType) {
+        // Filter by function type
+        if (functionFilters.type !== functionFilters.type) {
             return false;
         }
         return true;
     });
 
-    const filteredFilesCount = filesArray.length;
+    const filteredFunctionsCount = functionsArray.length;
 
-    // Update the files count display only if filters are active
-    const filesCountElement = document.getElementById('files-count');
-    if (areFiltersActive(fileFilters)) {
-        filesCountElement.textContent = `${filteredFilesCount} results (${totalFiles} total)`;
-        filesCountElement.style.display = 'inline';
-    } else {
-        filesCountElement.style.display = 'none';
-    }
-
-    // Handle different cases based on total files and filtered files
-    if (totalFiles === 0) {
-        // No files exist at all
+    // Handle different cases based on total functions and filtered functions
+    if (totalFunctions === 0) {
+        // No functions exist at all
         const messageDiv = document.createElement('div');
         messageDiv.className = 'text-center mt-4';
         messageDiv.innerHTML = `
-            <p class="text-secondary">No files found.</p>
+            <p class="text-secondary">No functions found.</p>
             <span class="text-secondary">
-                <a href="#" class="text-decoration-none" onclick="hideTooltip(this); showUploadFileModal()"><i class="bi bi-plus-lg"></i>Add your first file.</a>
+                <a href="#" class="text-decoration-none"><i class="bi bi-plus-lg"></i>Add your first function.</a>
             </span>
         `;
-        filesList.appendChild(messageDiv);
+        functionsList.appendChild(messageDiv);
         return;
-    } else if (filesArray.length === 0) {
+    } else if (functionsArray.length === 0) {
         // Files exist, but none match the filters
         const messageDiv = document.createElement('div');
         messageDiv.className = 'text-center mt-4';
         messageDiv.innerHTML = `
-            <p class="text-secondary">No files match your filters.</p>
+            <p class="text-secondary">No functions match your filters.</p>
             <span class="text-secondary">You can
             <a href="#" class="text-decoration-none" onclick="resetFileFilters()">reset the filters</a>
-            to see all files.</span>
+            to see all functions.</span>
         `;
-        filesList.appendChild(messageDiv);
+        functionsList.appendChild(messageDiv);
         return;
     }
 
     // Sort the array according to the selected sort options
-    filesArray.sort((a, b) => {
+    functionsArray.sort((a, b) => {
         let compareResult = 0;
 
-        if (fileSortField === 'filename') {
-            compareResult = a.filename.localeCompare(b.filename);
-        } else if (fileSortField === 'created_at') {
+        if (functionSortField === 'name') {
+            compareResult = a.name.localeCompare(b.name);
+        } else if (functionSortField === 'created_at') {
             compareResult = a.created_at - b.created_at;
-        } else if (fileSortField === 'bytes') {
-            compareResult = a.bytes - b.bytes;
         }
 
-        return fileSortOrder === 'asc' ? compareResult : -compareResult;
+        return functionSortField === 'asc' ? compareResult : -compareResult;
     });
 
     // Iterate over the sorted and filtered array and append each item
-    for (const file of filesArray) {
-        const fileItem = renderFile(file);
-        filesList.appendChild(fileItem);
+    for (const func of functionsArray) {
+        const functionsItem = renderFunction(func);
+        functionsList.appendChild(functionsItem);
     }
 
     // Re-initialize tooltips after updating the DOM
     initializeTooltips();
 }
 
-let fileVectorStoreChanges = {};
-
-function toggleVectorStore(fileId, vectorStoreId, isSelected) {
-    // Updates the state of the file vector store changes
-
-    // Initialize if not already initialized
-    if (!fileVectorStoreChanges[fileId]) {
-        fileVectorStoreChanges[fileId] = {
-            toAdd: [],
-            toRemove: []
-        };
-    }
-
-    const { toAdd, toRemove } = fileVectorStoreChanges[fileId];
-    const initialVectorStoreIds = fileVectorStores[fileId] || [];
-
-    if (isSelected) {
-        // If it's checked and was in `toRemove`, remove it from `toRemove`
-        if (toRemove.includes(vectorStoreId)) {
-            fileVectorStoreChanges[fileId].toRemove = toRemove.filter(id => id !== vectorStoreId);
-        }
-        // If it's checked and not in `initialVectorStoreIds`, add it to `toAdd`
-        else if (!initialVectorStoreIds.includes(vectorStoreId)) {
-            fileVectorStoreChanges[fileId].toAdd.push(vectorStoreId);
-        }
-    } else {
-        // If it's unchecked and was in `toAdd`, remove it from `toAdd`
-        if (toAdd.includes(vectorStoreId)) {
-            fileVectorStoreChanges[fileId].toAdd = toAdd.filter(id => id !== vectorStoreId);
-        }
-        // If it's unchecked and is in `initialVectorStoreIds`, add it to `toRemove`
-        else if (initialVectorStoreIds.includes(vectorStoreId)) {
-            fileVectorStoreChanges[fileId].toRemove.push(vectorStoreId);
-        }
-    }
-}
-
-async function modifyFileVectorStores(fileId) {
-    const button = document.querySelector(`.btnModifyFile[data-file-id="${fileId}"]`);
-    const buttonText = button.querySelector('.button-text');
-    const spinner = button.querySelector('.spinner-border');
-
-    // Show spinner and disable button
-    buttonText.classList.add('d-none');
-    spinner.classList.remove('d-none');
-    button.disabled = true;
-
-    const changes = fileVectorStoreChanges[fileId]; // Get changes for the file
-
-    console.log('Changes:', changes); // Log changes
-
-    const affectedVectorStoreIds = new Set();
-
-    if (changes && changes.toAdd.length > 0) {
-        // Assign the file to the given vector stores
-
-        const url = addFileVectorStoreUrlTemplate.replace('FILE_ID_PLACEHOLDER', fileId);
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': CSRF_TOKEN
-                },
-                body: JSON.stringify({
-                    vector_store_ids: changes.toAdd
-                })
-            });
-
-            if (response.ok) {
-                const addStatus = await response.json();
-                console.log('Add Status:', addStatus);
-
-                console.log('changes.toAdd before reset:', changes.toAdd); // Log changes.toAdd before resetting
-
-                // Update client-side state
-                changes.toAdd.forEach(vectorStoreId => {
-                    affectedVectorStoreIds.add(vectorStoreId);
-
-                    // Update `fileVectorStores`
-                    if (!fileVectorStores[fileId]) {
-                        fileVectorStores[fileId] = [];
-                    }
-                    if (!fileVectorStores[fileId].includes(vectorStoreId)) {
-                        fileVectorStores[fileId].push(vectorStoreId);
-                    }
-
-                    // Update `vectorStoreFiles`
-                    if (!vectorStoreFiles[vectorStoreId]) {
-                        vectorStoreFiles[vectorStoreId] = [];
-                    }
-                    if (!vectorStoreFiles[vectorStoreId].includes(fileId)) {
-                        vectorStoreFiles[vectorStoreId].push(fileId);
-                    }
-                });
-
-                fileVectorStoreChanges[fileId].toAdd = []; // Reset `toAdd` list
-
-            } else {
-                const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to update vector store!", parsedError.errorMessage);
-                console.error('Failed to update vector store!', parsedError);
-            }
-
-        } catch (error) {
-            showToast("Unexpected error:", error);
-            console.error('Unexpected error:', error);
-        }
-    }
-
-    if (changes && changes.toRemove.length > 0) {
-        // Remove the file from the given vector stores
-        const url = removeFileVectorStoreUrlTemplate.replace('FILE_ID_PLACEHOLDER', fileId);
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': CSRF_TOKEN
-                },
-                body: JSON.stringify({
-                    vector_store_ids: changes.toRemove
-                })
-            });
-
-            if (response.ok) {
-                const removeStatus = await response.json();
-                console.log('Remove Status:', removeStatus);
-
-                console.log('changes.toRemove before reset:', changes.toRemove); // Log changes.toRemove before resetting
-
-                // Update client-side state
-                changes.toRemove.forEach(vectorStoreId => {
-                    affectedVectorStoreIds.add(vectorStoreId);
-
-                    // Update `fileVectorStores`
-                    if (fileVectorStores[fileId]) {
-                        fileVectorStores[fileId] = fileVectorStores[fileId].filter(id => id !== vectorStoreId);
-                    }
-
-                    // Update `vectorStoreFiles`
-                    if (vectorStoreFiles[vectorStoreId]) {
-                        vectorStoreFiles[vectorStoreId] = vectorStoreFiles[vectorStoreId].filter(id => id !== fileId);
-                    }
-                });
-
-                fileVectorStoreChanges[fileId].toRemove = []; // Reset `toRemove` list
-
-            } else {
-                const errorData = await response.json();
-                const parsedError = parseErrorText(errorData.error);
-                showToast("Failed to update vector store!", parsedError.errorMessage);
-                console.error('Failed to update vector store!', parsedError);
-            }
-
-        } catch (error) {
-            showToast("Unexpected error:", error);
-            console.error('Unexpected error:', error);
-        }
-    }
-
-    // Fetch updated vector stores
-    await updateVectorStoresByIds(Array.from(affectedVectorStoreIds));
-
-    // Re-display the files list
-    displayFiles();
-
-    displayVectorStores(); // Re-render vector store cards
-    populateFileFilterOptions(); // Update file filters
-
-    // Hide spinner and enable button
-    spinner.classList.add('d-none');
-    buttonText.classList.remove('d-none');
-    button.disabled = false;
-
-    // Scroll to the updated file's card
-    const fileCard = document.getElementById(`file-${fileId}`);
-    if (fileCard) {
-        fileCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-}
-
-let fileToDeleteId = null; // To store the ID of the file to delete
-
-async function deleteFile(fileId) {
-    fileToDeleteId = fileId; // Store the file ID for use in the confirm deletion function
-
-    // Collect vector stores associated with this file
-    const vectorStoresUsingFile = fileVectorStores[fileId] || [];
-
-    // Update the modal content
-    const vectorStoreNamesListElement = document.getElementById('vectorStoreNamesList');
-    const vectorStoresUsingFileDiv = document.getElementById('vectorStoresUsingFile');
-    const fileInfo = document.getElementById('fileInfo');
-
-    // Clear previous list
-    vectorStoreNamesListElement.innerHTML = '';
-
-    // Add file info
-    fileInfo.textContent = '';
-    fileInfo.textContent = files[fileId].filename;
-
-    if (vectorStoresUsingFile.length > 0) {
-        // Show the list of vector stores
-        vectorStoresUsingFileDiv.classList.remove('d-none');
-        vectorStoresUsingFile.forEach(vsId => {
-            const vsName = vectorStores[vsId] && vectorStores[vsId].name && vectorStores[vsId].name.trim() !== '' ? vectorStores[vsId].name : 'Untitled store';
-            const li = document.createElement('li');
-            li.textContent = vsName;
-            vectorStoreNamesListElement.appendChild(li);
-        });
-    } else {
-        vectorStoresUsingFileDiv.classList.add('d-none');
-    }
-
-    // Show the modal
-    const deleteModal = new bootstrap.Modal(document.getElementById('fileDeleteModal'));
-    deleteModal.show();
-
-    // Attach event listener to the confirm delete button
-    const confirmDeleteBtn = document.getElementById('confirmDeleteFileBtn');
-    confirmDeleteBtn.onclick = confirmDeleteFile;
-}
-
-async function confirmDeleteFile() {
-    const fileId = fileToDeleteId;
-    const deleteFileUrl = deleteFileUrlTemplate.replace('FILE_ID_PLACEHOLDER', fileId);
-    const fileName = files[fileId].filename;
-
-    // Hide the modal
-    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('fileDeleteModal'));
-    deleteModal.hide();
-
-    try {
-        const response = await fetch(deleteFileUrl, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            }
-        });
-
-        if (response.ok) {
-            // Update file-vector store associations
-            const associatedVectorStores = fileVectorStores[fileId] || [];
-
-            // Remove the file from the global files object
-            delete files[fileId];
-
-            associatedVectorStores.forEach(vsId => {
-                // Remove fileId from vectorStoreFiles[vsId]
-                if (vectorStoreFiles[vsId]) {
-                    vectorStoreFiles[vsId] = vectorStoreFiles[vsId].filter(id => id !== fileId);
-                }
-            });
-
-            // Remove the file from fileVectorStores
-            delete fileVectorStores[fileId];
-
-            // Fetch updated vector stores
-            await updateVectorStoresByIds(associatedVectorStores);
-
-            // Re-display the files list
-            displayFiles();
-
-            displayVectorStores(); // Re-render vector store cards
-            populateFileFilterOptions(); // Update file filters
-
-            showToast("File deleted!", fileName, "success");
-            console.log(`File with ID ${fileId} deleted successfully.`);
-        } else {
-            const errorData = await response.json();
-            const parsedError = parseErrorText(errorData.error);
-            showToast("Failed to delete file!", parsedError.errorMessage);
-            console.error('Failed to delete file!', parsedError);
-        }
-    } catch (error) {
-        showToast("Unexpected error:", error);
-        console.error('Unexpected error:', error);
-    }
-}
-
 
 /* File Uploads */
 
 async function showUploadFileModal() {
-    const vectorStoreCheckboxes = document.getElementById('vectorStoreCheckboxes');
-    vectorStoreCheckboxes.innerHTML = ''; // Clear previous checkboxes
+    const folderCheckboxes = document.getElementById('folderCheckboxes');
+    folderCheckboxes.innerHTML = ''; // Clear previous checkboxes
 
-    if (Object.keys(vectorStores).length === 0) {
-        vectorStoreCheckboxes.innerHTML = '<p class="text-muted small">No vector store available</p>';
+    if (Object.keys(folders).length === 0) {
+        folderCheckboxes.innerHTML = '<p class="text-muted small">No folder available</p>';
     } else {
-        // Dynamically generate checkboxes for each vector store
-        for (const [vsId, vectorStore] of Object.entries(vectorStores)) {
+        // Dynamically generate checkboxes for each folder
+        for (const [folderId, folder] of Object.entries(folders)) {
             const checkbox = document.createElement('div');
             checkbox.classList.add('form-check');
 
             const input = document.createElement('input');
             input.classList.add('form-check-input');
             input.type = 'checkbox';
-            input.value = vsId;
-            input.id = `vs-${vsId}`;
+            input.value = folderId;
+            input.id = `folder-${folderId}`;
 
             const label = document.createElement('label');
             label.classList.add('form-check-label');
-            label.setAttribute('for', `vs-${vsId}`);
-            label.textContent = vectorStore.name ?? 'Untitled store';
+            label.setAttribute('for', `folder-${folderId}`);
+            label.textContent = folder.name ?? 'Untitled store';
 
             checkbox.appendChild(input);
             checkbox.appendChild(label);
-            vectorStoreCheckboxes.appendChild(checkbox);
+            folderCheckboxes.appendChild(checkbox);
         }
     }
 
@@ -2751,8 +1328,8 @@ function FileListItems(files) {
 // Handle the actual upload when the "Upload Files" button is clicked
 async function uploadFiles() {
     const fileInput = document.getElementById('fileUploadInput');
-    const vectorStoreCheckboxes = document.querySelectorAll('#vectorStoreCheckboxes .form-check-input');
-    const selectedVectorStores = Array.from(vectorStoreCheckboxes)
+    const folderCheckboxes = document.querySelectorAll('#folderCheckboxes .form-check-input');
+    const selectedFolders = Array.from(folderCheckboxes)
         .filter(checkbox => checkbox.checked)
         .map(checkbox => checkbox.value);
     const uploadBtn = document.getElementById('uploadBtn');
@@ -2771,9 +1348,9 @@ async function uploadFiles() {
         formData.append('files', fileInput.files[i]);
     }
 
-    // Append selected vector stores
-    selectedVectorStores.forEach(vsId => {
-        formData.append('vector_store_ids', vsId);
+    // Append selected folders
+    selectedFolders.forEach(folderId => {
+        formData.append('folder_ids', folderId);
     });
 
     // Show spinner and disable button/dropzone
@@ -2801,47 +1378,38 @@ async function uploadFiles() {
             const uploadedFilenames = result.uploaded_files.map(file => file.filename).join(', ');
             const failedFilenames = result.failed_files.map(file => file.filename).join(', ');
 
-            // Update the global files and vector store relation states
+            // Update the global files and folder relation states
             result.uploaded_files.forEach(file => {
                 // Add the uploaded files to the global files dict
                 files[file.id] = file;
 
-                // Only update vector stores for supported_files
+                // Only update folders for supported_files
                 if (isSupportedFileType(file.filename)) {
-                    // Update fileVectorStores
-                    fileVectorStores[file.id] = selectedVectorStores;  // Set the selected vector stores for the uploaded file
+                    // Update fileFolders
+                    fileFolders[file.id] = selectedFolders;  // Set the selected folders for the uploaded file
 
-                    // Update vectorStoreFiles
-                    selectedVectorStores.forEach(vsId => {
-                        if (!vectorStoreFiles[vsId]) {
-                            vectorStoreFiles[vsId] = [];
+                    // Update folderFiles
+                    selectedFolders.forEach(folderId => {
+                        if (!folderFiles[folderId]) {
+                            folderFiles[folderId] = [];
                         }
-                        vectorStoreFiles[vsId].push(file.id);  // Add the file to the vector store
+                        folderFiles[folderId].push(file.id);  // Add the file to the folder
                     });
                 }
             });
 
-            console.log('fileVectorStores:', fileVectorStores);
-            console.log('vectorStoreFiles:', vectorStoreFiles);
-
-            // Fetch updated vector stores
-            await updateVectorStoresByIds(result.vector_store_ids);
+            console.log('fileFolders:', fileFolders);
+            console.log('folderFiles:', folderFiles);
 
             // Re-display the files list
             displayFiles();
 
-            displayVectorStores(); // Re-render vector store cards to reflect updated files
+            displayFolders(); // Re-render folder cards to reflect updated files
             populateFileFilterOptions(); // Update file filters to reflect new files
 
             // Hide the modal after successful upload
             const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
             modal.hide();
-
-            // Scroll to the top of files-list
-            const filesListSection = document.getElementById('files-list');
-            if (filesListSection) {
-                filesListSection.scrollIntoView({ behavior: 'smooth' });
-            }
 
             if (uploadedFilenames) {
                 showToast("Files uploaded!", uploadedFilenames, "success");
@@ -2885,11 +1453,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize sorting dropdowns
     new bootstrap.Dropdown(document.getElementById('assistantSortDropdown'));
-    new bootstrap.Dropdown(document.getElementById('vectorStoreSortDropdown'));
+    new bootstrap.Dropdown(document.getElementById('folderSortDropdown'));
     new bootstrap.Dropdown(document.getElementById('fileSortDropdown'));
 
     // Initialize filter icons
     updateFilterIcon('assistantFilterDropdown', assistantFilters);
-    updateFilterIcon('vectorStoreFilterDropdown', vectorStoreFilters);
+    updateFilterIcon('folderFilterDropdown', folderFilters);
     updateFilterIcon('fileFilterDropdown', fileFilters);
 });

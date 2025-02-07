@@ -36,6 +36,8 @@ class BaseAPIFunction(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    projects = models.ManyToManyField('main.Project', blank=True)
+
     def __str__(self):
         return self.name
 
@@ -71,7 +73,6 @@ class LocalAPIFunction(BaseAPIFunction):
 
     # Metadata
     version = models.PositiveIntegerField(default=1)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, blank=True, null=True)
     assistant_id = models.CharField(max_length=50, db_index=True, blank=True, null=True)
 
     async def execute(self, **kwargs):

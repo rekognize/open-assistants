@@ -1,24 +1,54 @@
 import json
 from ninja import NinjaAPI
+from ninja.security import HttpBearer
+from ninja.errors import AuthenticationError
 from ninja import Schema
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
+from django.http import JsonResponse
+from ..main.models import Project
 from .models import LocalAPIFunction
 
 
-api = NinjaAPI(urls_namespace="function_calls")
+api = NinjaAPI(urls_namespace="functions-api")
 
 
-@api.get("/list_functions")
-def list_functions(request):
-    functions = {}
-    for function in LocalAPIFunction.objects.all():
-        functions[function.slug] = {
-            "type": "local",
+class APIError(Exception):
+    def __init__(self, message, status=500):
+        self.message = message
+        self.status = status
+        super().__init__(self.message)
+
+
+class BearerAuth(HttpBearer):
+    async def authenticate(self, request, token: str):
+        try:
+            project = await Project.objects.aget(uuid=token)
+        except Project.DoesNotExist:
+            return AuthenticationError("Invalid or missing Bearer token.")
+
+        try:
+            client = AsyncOpenAI(api_key=project.key)
+        except APIError as e:
+            return JsonResponse({"error": e.message}, status=e.status)
+
+        return {
+            'project': project,
+            'client': client,
+        }
+
+
+@api.get("/", auth=BearerAuth())
+async def list_functions(request):
+    functions = []
+    async for function in LocalAPIFunction.objects.all():
+        functions.append({
+            "uuid": function.uuid,
+            "type": "local",  # TODO: Add external type
             "name": function.name,
             "slug": function.slug,
             "result_type": function.result_type,
-        }
-    return functions
+        })
+    return {"functions": functions}
 
 
 class FunctionCreateSchema(Schema):
