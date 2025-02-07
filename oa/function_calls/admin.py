@@ -52,7 +52,7 @@ class ExternalAPIFunctionAdmin(admin.ModelAdmin):
 
 @admin.register(FunctionExecution)
 class FunctionExecutionAdmin(admin.ModelAdmin):
-    list_display = ('function', 'time', 'status_code')
+    list_display = ('function', 'thread', 'time', 'status_code')
     list_filter = ('status_code', 'time')
-    search_fields = ('function__name', 'error_message')
+    search_fields = ('function__name', 'thread__openai_id', 'error_message')
     ordering = ('-time',)

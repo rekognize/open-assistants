@@ -2,7 +2,7 @@ import httpx
 from django.db import models
 from django.http import JsonResponse
 from django.utils.text import slugify
-from ..main.models import Project
+from ..main.models import Project, Thread
 
 
 class CodeInterpreterScript(models.Model):
@@ -150,6 +150,7 @@ class FunctionExecution(models.Model):
     Represents a single run of an APIFunction, capturing the inputs, outputs and any metadata around execution.
     """
     function = models.ForeignKey(BaseAPIFunction, related_name='executions', on_delete=models.CASCADE)
+    thread = models.ForeignKey(Thread, related_name='function_executions', blank=True, null=True, on_delete=models.SET_NULL)
 
     arguments = models.JSONField(default=dict, blank=True)
     result = models.JSONField(default=dict, blank=True)
