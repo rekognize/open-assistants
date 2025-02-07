@@ -458,8 +458,13 @@
 
 {% include "modals/file_upload_modal.html" %}
 {% include "modals/deletion_confirmation_modals.html" %}
+
 {% include "modals/share_assistant_modal.html" %}
-{% include "modals/get_started_modal.html" %}
+{% include "modals/share_assistant_js.html" %}
+
+{% include "modals/get_started_js.html" %}
+
+{% include "partials/utils_js.html" %}
 
 {% endblock %}
 
@@ -473,50 +478,31 @@
     const CSRF_TOKEN = "{{ csrf_token }}";
 
     // URLs and URL templates
-    const modifyVectorStoreUrlTemplate = "{% url 'api-1.0.0:modify_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}";
-    const deleteVectorStoreUrlTemplate = "{% url 'api-1.0.0:delete_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}";
-    const deleteAssistantUrlTemplate = "{% url 'api-1.0.0:delete_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
     const listAssistantsUrl = "{% url 'api-1.0.0:list_assistants' %}";
-    const createAssistantUrl = "{% url 'api-1.0.0:create_assistant' %}";
-    const listFilesUrl = '{% url "api-1.0.0:list_files" %}';
-    const listVectorStoresUrl = '{% url "api-1.0.0:list_vector_stores" %}';
-    const addFileVectorStoreUrlTemplate = "{% url 'api-1.0.0:add_file_to_vector_stores' file_id='FILE_ID_PLACEHOLDER' %}";
-    const removeFileVectorStoreUrlTemplate = "{% url 'api-1.0.0:remove_file_from_vector_stores' file_id='FILE_ID_PLACEHOLDER' %}";
+    const listFunctionsUrl = '{% url "function_calls:list_functions" %}';
+    const listFoldersUrl = '{% url "folders-api:list_folders" %}';
+    const listFolderFilesUrlTemplate = "{% url 'folders-api:list_files' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
+
     const deleteFileUrlTemplate = "{% url 'api-1.0.0:delete_file' file_id='FILE_ID_PLACEHOLDER' %}";
     const uploadFilesUrl = '{% url "api-1.0.0:upload_files" %}';
     const retrieveVectorStoreUrlTemplate = "{% url 'api-1.0.0:retrieve_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}";
-    const listVSFilesUrlTemplate = "{% url 'api-1.0.0:list_vector_store_files' vector_store_id='VS_ID_PLACEHOLDER' %}";
-    const createVectorStoreUrl = "{% url 'api-1.0.0:create_vector_store' %}";
-    const modifyAssistantUrlTemplate = "{% url 'api-1.0.0:modify_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
 
 </script>
 
-<script id="file-item-template" type="text/template">
-    {% include "manage/file_item.html" %}
+<script id="function-item-template" type="text/template">
+    {% include "manage/function_item.html" %}
 </script>
 
-<script id="vector-store-item-template" type="text/template">
-    {% include "manage/vector_store_item.html" %}
-</script>
-
-<script id="vector-store-form-template" type="text/template">
-    {% include "manage/vector_store_form.html" %}
+<script id="folder-item-template" type="text/template">
+    {% include "manage/folder_item.html" %}
 </script>
 
 <script id="assistant-item-template" type="text/template">
     {% include "manage/assistant_item.html" %}
 </script>
 
-<script id="assistant-form-template" type="text/template">
-    {% include "manage/assistant_form.html" %}
-</script>
-
-
 
 <script src="{% static '/js/manage.js' %}"></script>
 
-{% include "modals/share_assistant_js.html" %}
-{% include "modals/get_started_js.html" %}
-{% include "partials/utils_js.html" %}
 
 {% endblock %}
