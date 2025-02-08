@@ -8,7 +8,7 @@ from typing import List, Dict, Optional, Union, Any
 from openai import OpenAI
 
 from ..api.views import BearerAuth
-from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, FunctionExecution
+from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, FunctionExecution, CodeInterpreterScript
 
 api = NinjaAPI(urls_namespace="function_calls")
 
@@ -69,6 +69,32 @@ def get_function_executions(request, slug: str):
         })
 
     return JsonResponse({"executions": executions_data})
+
+
+@api.get("/list_scripts", auth=BearerAuth())
+def list_scripts(request):
+    try:
+        scripts = CodeInterpreterScript.objects.filter(
+            project=request.auth['project']
+        ).order_by('-created_at', 'snippet_index')
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    scripts_data = []
+    for script in scripts:
+        scripts_data.append({
+            'id': script.id,
+            'assistant_id': script.assistant_id,
+            'thread_id': script.thread_id,
+            'run_id': script.run_id,
+            'run_step_id': script.run_step_id,
+            'tool_call_id': script.tool_call_id,
+            'created_at': script.created_at.isoformat() if script.created_at else None,
+            'snippet_index': script.snippet_index,
+            'code': script.code,
+        })
+
+    return JsonResponse({"scripts": scripts_data})
 
 
 class FunctionCreateSchema(Schema):
