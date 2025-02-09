@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+
+{% block title %}Analytics - {{ SITE_NAME }}{% endblock %}
+
+{% block extra_head %}
+
+<style>
+    .custom-popover {
+      --bs-popover-max-width: 400px;
+    }
+</style>
+
+{% endblock %}
+
+{% block content %}
+
+    {% with active='assistants' %}
+        {% include "manage/nav.html" %}
+    {% endwith %}
+
+    <div class="container mt-4 mb-4">
+
+        <!-- Assistants Table -->
+        <div id="assistants-container" class="my-4">
+
+            <div class="row">
+
+                <div class="col-3">
+                    <ul class="nav nav-pills flex-column" role="tablist" id="assistantTabs">
+                    </ul>
+                </div>
+
+                <div class="col-9">
+                    <div class="tab-content" id="assistantContent">
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="no-assistants" class="text-center text-secondary d-none">
+                <p>No assistants available.</p>
+                <span class="text-secondary">
+                    You can create assistants <a href="{% url "manage_overview" project_uuid=selected_project.uuid %}" class="text-decoration-none">here</a>.
+                </span>
+            </div>
+
+        </div>
+
+    </div>
+
+{% include "modals/get_started_modal.html" %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+
+    const API_KEY = "{{ selected_project.uuid }}";
+
+    /* Utility functions */
+
+    function initializePopovers() {
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
+    }
+
+    function formatDbDate(dateString) {
+        if (!dateString) return '<span class="text-secondary">No threads</span>';
+        const date = new Date(dateString);
+        // Extract day, month, year, hours, and minutes
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${day}/${month}/${year}, ${hours}:${minutes}`;
+    }
+
+    function formatUnixTimestamp(unixTimestamp) {
+        const date = new Date(unixTimestamp * 1000); // Convert seconds to milliseconds
+        const day = String(date.getDate()).padStart(2, '0'); // Ensure 2 digits for the day
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0'); // 24-hour format
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${day}/${month}/${year}, ${hours}:${minutes}`;
+    }
+
+    function formatExpireTime(expireString) {
+        let icon = '';
+
+        if (expireString === 'Expired') {
+            icon = '<i class="bi bi-exclamation-circle text-danger"></i> ';
+        } else {
+            const parts = expireString.split(' ');
+            if (parts.length === 2) {
+                const unit = parts[1]; // yrs, mos, days, hrs, mins, secs
+
+                const soonUnits = ['hrs', 'mins', 'secs'];
+                if (soonUnits.includes(unit)) {
+                    icon = ' <i class="bi bi-exclamation-triangle text-warning"></i> ';
+                }
+            }
+        }
+
+        return icon + expireString;
+    }
+
+
+    /* Assistants */
+
+    async function fetchAssistants() {
+        try {
+            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const assistantsData = await assistantsResponse.json();
+            
+            console.log('assistants:', assistantsData);
+
+            populateTabsAndContent(assistantsData.assistants);
+
+        } catch (error) {
+            console.error('Error fetching assistants:', error);
+        } finally {
+            toggleLoading('assistants', false);
+        }
+    }
+
+    function populateTabsAndContent(assistants) {
+        const tabsContainer = document.getElementById('assistantTabs');
+        const contentContainer = document.getElementById('assistantContent');
+
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        if (!assistants || assistants.length === 0) {
+            document.getElementById('no-assistants').classList.remove('d-none');
+            return;
+        }
+
+        assistants.forEach((assistant, index) => {
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            const tabLink = document.createElement('a');
+            tabLink.className = `nav-link ${index === 0 ? 'active' : ''}`;
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#assistant-${assistant.id}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `assistant-${assistant.id}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.textContent = assistant.name || 'Untitled Assistant';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `assistant-${assistant.id}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `assistant-${assistant.id}-tab`);
+
+            contentPane.innerHTML = `
+                <h4>${assistant.name || 'Untitled Assistant'}</h4>
+                <p><strong>Model:</strong> ${assistant.model}</p>
+                <p><strong>Tools:</strong> ${assistant.tools.map(tool => tool.type).join(', ') || 'None'}</p>
+                <div id="stats-${assistant.id}"></div>
+            `;
+
+            contentContainer.appendChild(contentPane);
+
+        });
+    }
+
+
+    /* Initialize Page */
+
+    async function initializePage() {
+        toggleLoading('assistants', true);
+        fetchAssistants();
+    }
+
+    initializePage();
+
+</script>
+
+{% include "modals/get_started_js.html" %}
+{% include "partials/utils_js.html" %}
+
+{% endblock %}

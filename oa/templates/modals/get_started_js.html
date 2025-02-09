@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 showToast('Success!', 'Your assistant has been set up.', 'success');
                 setTimeout(() => {
-                    window.location.href = '{% url "manage_assistants" project_uuid=selected_project.uuid %}';
+                    window.location.href = '{% url "manage_overview" project_uuid=selected_project.uuid %}';
                 }, 1000);
             } else {
                 showToast('Creation Error', 'Failed to create assistant.', 'warning');

@@ -21,9 +21,12 @@ urlpatterns = [
     path("api/folders/", folders_api.urls),
 
     path('', main_views.HomeView.as_view(), name='home'),
+
     path('<uuid:project_uuid>/', main_views.HomeView.as_view(), name='home'),
 
-    path('<uuid:project_uuid>/manage/', main_views.manage_assistants, name='manage_assistants'),
+    path('<uuid:project_uuid>/manage/', main_views.manage_overview, name='manage_overview'),
+    path('<uuid:project_uuid>/manage/assistants', main_views.manage_assistants, name='manage_assistants'),
+
     path('<uuid:project_uuid>/analytics/', main_views.analytics, name='analytics'),
     path('<uuid:project_uuid>/chat/', main_views.thread_detail, name='thread_detail'),
 

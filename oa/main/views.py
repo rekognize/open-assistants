@@ -57,6 +57,23 @@ class HomeView(TemplateView):
 
 
 @login_required
+def manage_overview(request, project_uuid):
+    if request.user.is_staff:
+        selected_project = get_object_or_404(Project, uuid=project_uuid)
+    else:
+        selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
+
+    function_definitions = ([f.get_definition() for f in LocalAPIFunction.objects.all()] +
+                            [f.get_definition() for f in ExternalAPIFunction.objects.all()])
+
+    return render(request, "manage/overview.html", {
+        'function_definitions_json': json.dumps(function_definitions),
+        'active_nav': 'manage',
+        'selected_project': selected_project,
+    })
+
+
+@login_required
 def manage_assistants(request, project_uuid):
     if request.user.is_staff:
         selected_project = get_object_or_404(Project, uuid=project_uuid)
@@ -66,8 +83,7 @@ def manage_assistants(request, project_uuid):
     function_definitions = ([f.get_definition() for f in LocalAPIFunction.objects.all()] +
                             [f.get_definition() for f in ExternalAPIFunction.objects.all()])
 
-    return render(request, "manage.html", {
-        'function_definitions_json': json.dumps(function_definitions),
+    return render(request, "manage/assistants.html", {
         'active_nav': 'manage',
         'selected_project': selected_project,
     })
