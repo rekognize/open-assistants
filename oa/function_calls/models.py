@@ -3,7 +3,7 @@ import httpx
 from django.db import models
 from django.http import JsonResponse
 from django.utils.text import slugify
-from ..main.models import Project
+from ..main.models import Project, Thread
 
 
 class CodeInterpreterScript(models.Model):
@@ -47,12 +47,13 @@ class BaseAPIFunction(models.Model):
         super().save(*args, **kwargs)
 
     def get_definition(self):
-        # Returns the definition in OpenAI function definition format
+        parameters = self.argument_schema.get("parameters", self.argument_schema)
+        strict = self.argument_schema.get("strict", False)
         return {
-            "name": self.name,
+            "name": self.slug,
             "description": self.description,
-            "parameters": self.argument_schema,
-            # "strict": True,
+            "parameters": parameters,
+            "strict": strict,
         }
 
 
@@ -77,35 +78,28 @@ class LocalAPIFunction(BaseAPIFunction):
 
     async def execute(self, **kwargs):
         """
-        Executes the stored Python code with the provided **kwargs and returns the final context as a JSON object.
+        Executes the stored Python code with the provided **kwargs and returns the final result variable.
         """
+        # Use a single environment for both globals and locals.
+        env = {}
+        env.update(self.extra_context)
+        env['kwargs'] = kwargs
 
-        # Setting the local environment for exec
-        local_vars = dict(kwargs=kwargs)
-
-        # Adding extra context
-        local_vars.update(self.extra_context)
-
-        # Execute the code
+        # Execute the stored code.
         try:
-            exec(self.code, {}, local_vars)
-
+            exec(self.code, env)
         except Exception as e:
-            return JsonResponse({
-                'message': str(e)
-            }, safe=False, status=400)
+            # Return an error dictionary instead of a JsonResponse.
+            return {"error": str(e)}
 
-        else:
-            # Remove built-in references
-            executed_vars = {
-                k: v for k, v in local_vars.items()
-                if not (k.startswith('__') and k.endswith('__'))
-            }
+        # TODO: Apply result_template and return rendered result
 
-            # TODO: Apply result_template and return rendered result
-            result = executed_vars
+        # Check that the code has set a "result" variable.
+        if "result" not in env:
+            return {"error": "No result returned from function code."}
 
-        return JsonResponse(result, safe=False)
+        # Return the plain result dictionary.
+        return env["result"]
 
 
 class ExternalAPIFunction(BaseAPIFunction):
@@ -158,11 +152,8 @@ class FunctionExecution(models.Model):
     """
     Represents a single run of an APIFunction, capturing the inputs, outputs and any metadata around execution.
     """
-    function = models.ForeignKey(BaseAPIFunction, related_name='executions',
-                                 blank=True, null=True, on_delete=models.SET_NULL)
-
-    # For function calls from built-in tools like code_interpreter that won't have a FK to the BaseAPIFunction
-    function_name = models.CharField(max_length=50)
+    function = models.ForeignKey(BaseAPIFunction, related_name='executions', on_delete=models.CASCADE)
+    thread = models.ForeignKey(Thread, related_name='function_executions', blank=True, null=True, on_delete=models.SET_NULL)
 
     arguments = models.JSONField(default=dict, blank=True)
     result = models.JSONField(default=dict, blank=True)
@@ -170,7 +161,7 @@ class FunctionExecution(models.Model):
     status_code = models.CharField(max_length=5, blank=True, null=True)
     error_message = models.TextField(blank=True, null=True)
 
-    time = models.DateTimeField()
+    time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Execution of {self.function.name if self.function else self.function_name} at {self.time}"
+        return f"Execution of {self.function.name} at {self.time}"

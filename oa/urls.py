@@ -28,6 +28,8 @@ urlpatterns = [
     path('<uuid:project_uuid>/manage/assistants', main_views.manage_assistants, name='manage_assistants'),
 
     path('<uuid:project_uuid>/analytics/', main_views.analytics, name='analytics'),
+    path('<uuid:project_uuid>/tools/', main_views.tools, name='tools'),
+
     path('<uuid:project_uuid>/chat/', main_views.thread_detail, name='thread_detail'),
 
     path('shared/<uuid:shared_token>/', main_views.shared_thread_detail, name='shared_thread_detail'),

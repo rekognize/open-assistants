@@ -16,7 +16,7 @@ from openai import AsyncOpenAI, OpenAIError
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
-from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction
+from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction, FunctionExecution
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
 
@@ -691,12 +691,25 @@ async def cancel_run(request, thread_id, run_id):
 
 # Chat
 
+@sync_to_async
+def log_function_execution(function, thread, arguments, result, status_code, error_message):
+    return FunctionExecution.objects.create(
+        function=function,
+        thread=thread,
+        arguments=arguments,
+        result=result,
+        status_code=status_code,
+        error_message=error_message,
+    )
+
 @api.get("/stream/{assistant_id}/{thread_id}", auth=BearerAuth())
 async def stream_responses(request, assistant_id: str, thread_id: str):
     async def event_stream():
         shared_data = []
         event_handler = EventHandler(request=request, shared_data=shared_data)
         try:
+            thread = await Thread.objects.filter(openai_id=thread_id).afirst()
+
             async with request.auth['client'].beta.threads.runs.stream(
                 thread_id=thread_id,
                 assistant_id=assistant_id,
@@ -725,24 +738,40 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                                     })
                                     continue
 
-                                args_dict = json.loads(tool_call.function.arguments or "{}")
+                                try:
+                                    args_dict = json.loads(tool_call.function.arguments or "{}")
+                                except Exception as e:
+                                    tool_outputs.append({
+                                        "tool_call_id": tool_call.id,
+                                        "output": json.dumps(
+                                            {"error": f"Invalid arguments JSON: {str(e)}"}
+                                        ),
+                                    })
+                                    continue
 
                                 try:
                                     result = await function.execute(**args_dict)
-
-                                    if isinstance(result, dict):
-                                        output_str = json.dumps(result)
-                                    elif isinstance(result, bytes):
-                                        output_str = result.decode("utf-8", errors="replace")
-                                    else:
-                                        output_str = str(result)
-
+                                    status_code = "200"
+                                    error_message = None
                                 except Exception as e:
-                                    output_str = json.dumps({"error": str(e)})
+                                    result = {"error": str(e)}
+                                    status_code = "400"
+                                    error_message = str(e)
 
+                                # Log the execution
+                                await log_function_execution(
+                                    function=function,
+                                    thread=thread,
+                                    arguments=args_dict,
+                                    result=result,
+                                    status_code=status_code,
+                                    error_message=error_message
+                                )
+
+                                # Prepare output for the assistant
                                 tool_outputs.append({
                                     "tool_call_id": tool_call.id,
-                                    "output": output_str
+                                    "output": json.dumps(result)
                                 })
 
                             tool_output_event_handler = EventHandler(
