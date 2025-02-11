@@ -6,8 +6,7 @@ from ninja import Schema
 from openai import AsyncOpenAI, OpenAI
 from django.http import JsonResponse
 from ..main.models import Project
-from .models import LocalAPIFunction
-
+from .models import BaseAPIFunction, LocalAPIFunction, FunctionExecution, CodeInterpreterScript
 
 api = NinjaAPI(urls_namespace="functions-api")
 
@@ -49,6 +48,90 @@ async def list_functions(request):
             "result_type": function.result_type,
         })
     return {"functions": functions}
+
+
+@api.get("/list_local_functions", auth=BearerAuth())
+def list_local_functions(request):
+    try:
+        functions = LocalAPIFunction.objects.filter(
+            project=request.auth['project'],
+        ).order_by('-created_at')
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    functions_data = []
+    for func in functions:
+        functions_data.append({
+            'id': func.id,
+            'name': func.name,
+            'slug': func.slug,
+            'description': func.description,
+            'argument_schema': func.argument_schema,
+            'created_at': func.created_at.isoformat() if func.created_at else None,
+            'code': func.code,
+            'extra_context': func.extra_context,
+            'result_type': func.result_type,
+            'result_template': func.result_template,
+            'version': func.version,
+            'assistant_id': func.assistant_id,
+        })
+
+    return JsonResponse({"functions": functions_data})
+
+
+@api.get("/get_function_executions/{slug}", auth=BearerAuth())
+def get_function_executions(request, slug: str):
+    try:
+        function_instance = BaseAPIFunction.objects.get(slug=slug)
+    except BaseAPIFunction.DoesNotExist:
+        return JsonResponse({"executions": []})
+
+    # If the function is a LocalAPIFunction, verify that it belongs to the authorized project.
+    if hasattr(function_instance, 'localapifunction'):
+        if function_instance.localapifunction.project.uuid != request.auth['project'].uuid:
+            return JsonResponse({"executions": []})
+
+    executions = FunctionExecution.objects.filter(function=function_instance).order_by('-time')
+
+    executions_data = []
+    for execution in executions:
+        executions_data.append({
+            'id': execution.id,
+            'time': execution.time.isoformat() if execution.time else None,
+            'arguments': execution.arguments,
+            'status_code': execution.status_code,
+            'error_message': execution.error_message,
+            'thread_id': execution.thread.openai_id if execution.thread else None,
+            'thread_metadata': execution.thread.metadata if execution.thread else None,
+        })
+
+    return JsonResponse({"executions": executions_data})
+
+
+@api.get("/list_scripts", auth=BearerAuth())
+def list_scripts(request):
+    try:
+        scripts = CodeInterpreterScript.objects.filter(
+            project=request.auth['project']
+        ).order_by('-created_at', 'snippet_index')
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    scripts_data = []
+    for script in scripts:
+        scripts_data.append({
+            'id': script.id,
+            'assistant_id': script.assistant_id,
+            'thread_id': script.thread_id,
+            'run_id': script.run_id,
+            'run_step_id': script.run_step_id,
+            'tool_call_id': script.tool_call_id,
+            'created_at': script.created_at.isoformat() if script.created_at else None,
+            'snippet_index': script.snippet_index,
+            'code': script.code,
+        })
+
+    return JsonResponse({"scripts": scripts_data})
 
 
 class FunctionCreateSchema(Schema):

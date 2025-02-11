@@ -107,7 +107,7 @@
     /* Functions Table */
     async function fetchFunctions() {
         try {
-            const functionsResponse = await fetch("{% url 'function_calls:list_local_functions' %}", {
+            const functionsResponse = await fetch("{% url 'functions-api:list_local_functions' %}", {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
@@ -125,7 +125,7 @@
     }
 
     async function fetchExecutions(functionSlug) {
-        const fetchExecutionsUrlTemplate = "{% url 'function_calls:get_function_executions' slug='FUNCTION_SLUG_PLACEHOLDER' %}";
+        const fetchExecutionsUrlTemplate = "{% url 'functions-api:get_function_executions' slug='FUNCTION_SLUG_PLACEHOLDER' %}";
         const fetchExecutionsUrl = fetchExecutionsUrlTemplate.replace('FUNCTION_SLUG_PLACEHOLDER', functionSlug);
 
         try {
@@ -361,7 +361,7 @@
     async function fetchScripts() {
         toggleLoading('scripts', true);
         try {
-            const response = await fetch("{% url 'function_calls:list_scripts' %}", {
+            const response = await fetch("{% url 'functions-api:list_scripts' %}", {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
