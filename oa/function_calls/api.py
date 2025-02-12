@@ -54,7 +54,7 @@ async def list_functions(request):
 def list_local_functions(request):
     try:
         functions = LocalAPIFunction.objects.filter(
-            project=request.auth['project'],
+            projects=request.auth['project'],
         ).order_by('-created_at')
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -62,7 +62,7 @@ def list_local_functions(request):
     functions_data = []
     for func in functions:
         functions_data.append({
-            'id': func.id,
+            'id': func.uuid,
             'name': func.name,
             'slug': func.slug,
             'description': func.description,
@@ -88,7 +88,7 @@ def get_function_executions(request, slug: str):
 
     # If the function is a LocalAPIFunction, verify that it belongs to the authorized project.
     if hasattr(function_instance, 'localapifunction'):
-        if function_instance.localapifunction.project.uuid != request.auth['project'].uuid:
+        if function_instance.localapifunction.projects.uuid != request.auth['project'].uuid:
             return JsonResponse({"executions": []})
 
     executions = FunctionExecution.objects.filter(function=function_instance).order_by('-time')

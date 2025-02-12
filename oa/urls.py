@@ -26,6 +26,7 @@ urlpatterns = [
 
     path('<uuid:project_uuid>/manage/', main_views.manage_overview, name='manage_overview'),
     path('<uuid:project_uuid>/manage/assistants', main_views.manage_assistants, name='manage_assistants'),
+    path('<uuid:project_uuid>/manage/tools', main_views.manage_tools, name='manage_tools'),
 
     path('<uuid:project_uuid>/analytics/', main_views.analytics, name='analytics'),
     path('<uuid:project_uuid>/tools/', main_views.tools, name='tools'),
