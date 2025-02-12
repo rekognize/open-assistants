@@ -9,6 +9,23 @@
     .custom-popover {
       --bs-popover-max-width: 400px;
     }
+
+    /* Ensure header background and border remain white */
+    .accordion-button {
+        background-color: white !important;
+        color: black !important; /* Always black text */
+    }
+
+    /* Maintain header styles when opened */
+    .accordion-button:not(.collapsed) {
+        background-color: white !important; /* White background when opened */
+        color: black !important; /* Always black text */
+    }
+
+    /* Remove focus highlight box-shadow */
+    .accordion-button:focus {
+        box-shadow: none !important;
+    }
 </style>
 
 {% endblock %}
@@ -231,7 +248,6 @@
             collapseElement.addEventListener('show.bs.collapse', async function () {
                 const tbody = document.getElementById(`executionsTable-${func.id}`);
                 if (tbody.dataset.loaded !== "true") {
-                    // Insert loading indicator in the table using your existing style
                     tbody.innerHTML = `<tr><td colspan="5" class="text-center">
                         <div class="spinner-border spinner-border-sm" role="status">
                           <span class="visually-hidden">Loading...</span>
