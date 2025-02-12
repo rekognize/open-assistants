@@ -87,8 +87,7 @@ def get_function_executions(request, slug: str):
         return JsonResponse({"executions": []})
 
     if hasattr(function_instance, 'localapifunction'):
-        if not any(proj.uuid == request.auth['project'].uuid for proj in
-                   function_instance.localapifunction.projects.all()):
+        if not function_instance.localapifunction.projects.filter(uuid=request.auth['project'].uuid).exists():
             return JsonResponse({"executions": []})
 
     executions = FunctionExecution.objects.filter(function=function_instance).order_by('-time')
