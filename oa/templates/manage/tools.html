@@ -310,6 +310,22 @@
                 }
             });
         });
+
+        // Listen for tab activation events so we can update the background classes
+        document.querySelectorAll('#functionTabs a[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                // Loop through all tabs and update classes accordingly
+                document.querySelectorAll('#functionTabs a[data-bs-toggle="tab"]').forEach(t => {
+                    if (t === event.target) {
+                        t.classList.remove('bg-white', 'text-secondary');
+                        t.classList.add('bg-secondary', 'text-white');
+                    } else {
+                        t.classList.remove('bg-secondary', 'text-white');
+                        t.classList.add('bg-white', 'text-secondary');
+                    }
+                });
+            });
+        });
     }
 
     /* Initialize Page */

@@ -86,9 +86,9 @@ def get_function_executions(request, slug: str):
     except BaseAPIFunction.DoesNotExist:
         return JsonResponse({"executions": []})
 
-    # If the function is a LocalAPIFunction, verify that it belongs to the authorized project.
     if hasattr(function_instance, 'localapifunction'):
-        if function_instance.localapifunction.projects.uuid != request.auth['project'].uuid:
+        if not any(proj.uuid == request.auth['project'].uuid for proj in
+                   function_instance.localapifunction.projects.all()):
             return JsonResponse({"executions": []})
 
     executions = FunctionExecution.objects.filter(function=function_instance).order_by('-time')
