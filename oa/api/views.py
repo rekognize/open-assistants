@@ -695,6 +695,7 @@ async def cancel_run(request, thread_id, run_id):
 def log_function_execution(function, thread, arguments, result, status_code, error_message):
     return FunctionExecution.objects.create(
         function=function,
+        executed_version=function.version,
         thread=thread,
         arguments=arguments,
         result=result,

@@ -161,6 +161,8 @@ class FunctionExecution(models.Model):
     status_code = models.CharField(max_length=5, blank=True, null=True)
     error_message = models.TextField(blank=True, null=True)
 
+    executed_version = models.PositiveIntegerField(null=True, blank=True)
+
     time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

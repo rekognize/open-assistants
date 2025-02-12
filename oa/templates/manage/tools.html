@@ -214,6 +214,7 @@
                                     <th>Thread ID</th>
                                     <th>Time</th>
                                     <th>Status Code</th>
+                                    <th>Version</th>
                                     <th>Arguments</th>
                                     <th>Assistant</th>
                                   </tr>
@@ -284,6 +285,10 @@
                                 }
                                 row.appendChild(statusTd);
 
+                                const versionTd = document.createElement('td');
+                                versionTd.textContent = exec.executed_version || 'N/A';
+                                row.appendChild(versionTd);
+
                                 // Arguments (stringified JSON)
                                 const argsTd = document.createElement('td');
                                 argsTd.textContent = JSON.stringify(exec.arguments);
@@ -313,13 +318,13 @@
                         } else {
                             const row = document.createElement('tr');
                             const td = document.createElement('td');
-                            td.setAttribute('colspan', '5');
+                            td.setAttribute('colspan', '6');
                             td.textContent = 'No executions found.';
                             row.appendChild(td);
                             tbody.appendChild(row);
                         }
                     } catch (error) {
-                        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading executions.</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading executions.</td></tr>`;
                     } finally {
                         tbody.dataset.loaded = "true";
                     }

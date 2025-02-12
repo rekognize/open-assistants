@@ -99,6 +99,7 @@ def get_function_executions(request, slug: str):
             'time': execution.time.isoformat() if execution.time else None,
             'arguments': execution.arguments,
             'status_code': execution.status_code,
+            'executed_version': execution.executed_version,
             'error_message': execution.error_message,
             'thread_id': execution.thread.openai_id if execution.thread else None,
             'thread_metadata': execution.thread.metadata if execution.thread else None,
