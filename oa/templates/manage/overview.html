@@ -1,11 +1,13 @@
-{% extends "base.html" %}
+{% extends "manage/base_manage.html" %}
+
 
 {% load static %}
 
 
 {% block title %}Manage - {{ SITE_NAME }}{% endblock %}
 
-{% block extra_head %}
+
+{% block extra_head %}{{ block.super }}
 <style>
     .content-section {
         height: 90vh;
@@ -84,7 +86,7 @@
 {% endblock %}
 
 
-{% block content %}
+{% block content %}{{ block.super }}
 
 {% with active='overview' %}
     {% include "manage/nav.html" %}
@@ -436,23 +438,14 @@
 
 {% include "modals/file_upload_modal.html" %}
 {% include "modals/deletion_confirmation_modals.html" %}
-
 {% include "modals/share_assistant_modal.html" %}
-{% include "modals/share_assistant_js.html" %}
-
-{% include "modals/get_started_modal.html" %}
-{% include "modals/get_started_js.html" %}
-
-{% include "partials/utils_js.html" %}
 
 {% endblock %}
 
 
-{% block extra_scripts %}
-
+{% block extra_scripts %}{{ block.super }}
 <script>
 
-    const API_KEY = "{{ selected_project.uuid }}";
     const functionDefinitions = {{ function_definitions_json|safe }};
     const CSRF_TOKEN = "{{ csrf_token }}";
 
@@ -480,8 +473,8 @@
     {% include "manage/assistant_item.html" %}
 </script>
 
-
 <script src="{% static '/js/manage.js' %}"></script>
 
+{% include "modals/share_assistant_js.html" %}
 
 {% endblock %}

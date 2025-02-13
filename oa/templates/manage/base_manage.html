@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+
+{% block extra_head %}
+<style>
+    .custom-popover {
+      --bs-popover-max-width: 400px;
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+{% include "modals/get_started_modal.html" %}
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+
+    const API_KEY = "{{ selected_project.uuid }}";
+
+    /* Utility functions */
+
+    function initializePopovers() {
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
+    }
+
+</script>
+
+{% include "modals/get_started_js.html" %}
+{% include "partials/utils_js.html" %}
+
+{% endblock %}

@@ -1,15 +1,11 @@
-{% extends "base.html" %}
+{% extends "manage/base_manage.html" %}
 
 
 {% block title %}Tools - {{ SITE_NAME }}{% endblock %}
 
-{% block extra_head %}
 
+{% block extra_head %}{{ block.super }}
 <style>
-    .custom-popover {
-      --bs-popover-max-width: 400px;
-    }
-
     /* Ensure header background and border remain white */
     .accordion-button {
         background-color: white !important;
@@ -27,72 +23,62 @@
         box-shadow: none !important;
     }
 </style>
-
 {% endblock %}
 
-{% block content %}
 
-    {% with active='tools' %}
-        {% include "manage/nav.html" %}
-    {% endwith %}
+{% block content %}{{ block.super }}
 
-    <!-- Tools Tables -->
-    <div class="container mt-4 mb-4">
-        <!-- Functions Table (visible by default) -->
-        <div id="functions-container" class="my-4">
-            {% include 'partials/loading_indicator.html' with content_id='functions' content_name='functions' %}
-            <div class="row">
-                <div class="col-3">
-                    <ul class="nav nav-pills flex-column" role="tablist" id="functionTabs">
-                    </ul>
-                </div>
-                <div class="col-9">
-                    <div class="tab-content" id="functionContent">
-                    </div>
-                </div>
+{% with active='tools' %}
+    {% include "manage/nav.html" %}
+{% endwith %}
+
+<!-- Tools Tables -->
+<div class="container mt-4 mb-4">
+    <!-- Functions Table (visible by default) -->
+    <div id="functions-container" class="my-4">
+        {% include 'partials/loading_indicator.html' with content_id='functions' content_name='functions' %}
+        <div class="row">
+            <div class="col-3">
+                <ul class="nav nav-pills flex-column" role="tablist" id="functionTabs">
+                </ul>
             </div>
-            <div id="no-functions" class="text-center text-secondary d-none">
-                <p>No functions available.</p>
-                <span class="text-secondary">
-                    You can create functions <a href="#" class="text-decoration-none">here</a>.
-                </span>
+            <div class="col-9">
+                <div class="tab-content" id="functionContent">
+                </div>
             </div>
         </div>
-
-        <!-- Code Interpreter Scripts Table (hidden by default) -->
-        <div id="scripts-container" class="my-4 d-none">
-            {% include 'partials/loading_indicator.html' with content_id='scripts' content_name='scripts' %}
-            <div class="row">
-                <div class="col-3">
-                    <ul class="nav nav-pills flex-column" role="tablist" id="scriptsTabs"></ul>
-                </div>
-                <div class="col-9">
-                    <div class="tab-content" id="scriptsContent"></div>
-                </div>
-            </div>
-            <div id="no-scripts" class="text-center text-secondary d-none">
-                <p>No Code Interpreter Scripts available.</p>
-            </div>
+        <div id="no-functions" class="text-center text-secondary d-none">
+            <p>No functions available.</p>
+            <span class="text-secondary">
+                You can create functions <a href="#" class="text-decoration-none">here</a>.
+            </span>
         </div>
     </div>
 
-{% include "modals/get_started_modal.html" %}
+    <!-- Code Interpreter Scripts Table (hidden by default) -->
+    <div id="scripts-container" class="my-4 d-none">
+        {% include 'partials/loading_indicator.html' with content_id='scripts' content_name='scripts' %}
+        <div class="row">
+            <div class="col-3">
+                <ul class="nav nav-pills flex-column" role="tablist" id="scriptsTabs"></ul>
+            </div>
+            <div class="col-9">
+                <div class="tab-content" id="scriptsContent"></div>
+            </div>
+        </div>
+        <div id="no-scripts" class="text-center text-secondary d-none">
+            <p>No Code Interpreter Scripts available.</p>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
-{% block extra_scripts %}
+
+{% block extra_scripts %}{{ block.super }}
 <script>
-    const API_KEY = "{{ selected_project.uuid }}";
+    /* Functions*/
 
-    /* Utility functions */
-    function initializePopovers() {
-        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-        popoverTriggerList.map(function (popoverTriggerEl) {
-            return new bootstrap.Popover(popoverTriggerEl);
-        });
-    }
-
-    /* Functions Table */
     async function fetchFunctions() {
         try {
             const functionsResponse = await fetch("{% url 'functions-api:list_local_functions' %}", {
@@ -357,8 +343,4 @@
 
     initializePage();
 </script>
-
-{% include "modals/get_started_js.html" %}
-{% include "partials/utils_js.html" %}
-
 {% endblock %}
