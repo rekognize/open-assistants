@@ -82,8 +82,8 @@ let folderFilters = {
     status: '',
     hasExpiration: ''
 };
-let fileSortField = 'created_at'; // default sort field
-let fileSortOrder = 'desc';       // default sort order
+let functionSortField = 'created_at'; // default sort field
+let functionSortOrder = 'desc';       // default sort order
 let functionFilters = {
     name: '',
     functionType: ''
@@ -212,7 +212,7 @@ async function refreshFunctionsList() {
     // Reset to default sorting options
     functionSortField = 'created_at';
     functionSortOrder = 'desc';
-    updateSortDropdownUI('fileSortDropdown', fileSortField, fileSortOrder);
+    updateSortDropdownUI('fileSortDropdown', functionSortField, functionSortOrder);
 
     // Close the sorting dropdown if open
     const dropdownElement = document.getElementById('fileSortDropdown');
@@ -338,11 +338,11 @@ function setFolderSort(field, order, event) {
     btnExpandAllStores.classList.add('d-none');
 }
 
-function setFileSort(field, order, event) {
+function setFunctionSort(field, order, event) {
     if (event) event.preventDefault();
 
-    fileSortField = field;
-    fileSortOrder = order;
+    functionSortField = field;
+    functionSortOrder = order;
 
     // Update the active class on the dropdown menu items
     updateSortDropdownUI('fileSortDropdown', field, order);
@@ -1004,7 +1004,6 @@ function removeAssistantCard(assistantId) {
 /* Tools */
 
 async function fetchFunctions() {
-    console.log(listFunctionsUrl);
     try {
         const response = await fetch(listFunctionsUrl, {
             method: 'GET',
@@ -1459,5 +1458,5 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize filter icons
     updateFilterIcon('assistantFilterDropdown', assistantFilters);
     updateFilterIcon('folderFilterDropdown', folderFilters);
-    updateFilterIcon('fileFilterDropdown', fileFilters);
+    updateFilterIcon('fileFilterDropdown', functionFilters);
 });

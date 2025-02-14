@@ -31,6 +31,35 @@
         });
     }
 
+    /* Tab switching for nav */
+    document.querySelectorAll('#nav-tab .nav-link').forEach(tab => {
+        tab.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            // Update active/inactive classes for all tabs
+            document.querySelectorAll('#nav-tab .nav-link').forEach(t => {
+                t.classList.remove('active');
+                t.classList.add('text-secondary');
+            });
+            this.classList.add('active');
+            this.classList.remove('text-secondary');
+
+            // Hide all tab containers (assumes containers have ids that match the pattern: [tab id minus "Tab"] + "-container")
+            const containerIds = ['overview-container', 'assistants-container', 'folders-container', 'tools-container'];
+            containerIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('d-none');
+            });
+
+            // Show the container corresponding to the clicked tab
+            const containerId = this.id.replace('Tab', '-container');
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.classList.remove('d-none');
+            }
+        });
+    });
+
 </script>
 
 {% include "modals/get_started_js.html" %}
