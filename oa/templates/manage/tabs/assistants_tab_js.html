@@ -1,47 +1,8 @@
-{% extends "manage/base_manage.html" %}
-
-
-{% block title %}Assistants - {{ SITE_NAME }}{% endblock %}
-
-
-{% block content %}{{ block.super }}
-
-{% with active='assistants' %}
-    {% include "manage/nav.html" %}
-{% endwith %}
-
-<div class="container mt-4 mb-4">
-    <!-- Assistants Table -->
-    <div id="assistants-container" class="my-4">
-        {% include 'partials/loading_indicator.html' with content_id='assistants' content_name='assistants' %}
-        <div class="row">
-            <div class="col-3">
-                <ul class="nav nav-pills flex-column" role="tablist" id="assistantTabs">
-                </ul>
-            </div>
-            <div class="col-9">
-                <div class="tab-content" id="assistantContent">
-                </div>
-            </div>
-        </div>
-        <div id="no-assistants" class="text-center text-secondary d-none">
-            <p>No assistants available.</p>
-            <span class="text-secondary">
-                You can create assistants <a href="{% url "manage_overview" project_uuid=selected_project.uuid %}" class="text-decoration-none">here</a>.
-            </span>
-        </div>
-
-    </div>
-</div>
-
-{% endblock %}
-
-
-{% block extra_scripts %}{{ block.super }}
 <script>
     /* Assistants */
 
-    async function fetchAssistants() {
+    async function fetchAssistantsTab() {
+        toggleLoading('loadingAssistantsTab', true);
         try {
             const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
                 method: 'GET',
@@ -52,20 +13,20 @@
             });
 
             const assistantsData = await assistantsResponse.json();
-            
-            console.log('assistants:', assistantsData);
+
+            console.log('assistants from assistants tab:', assistantsData);
 
             populateTabsAndContent(assistantsData.assistants);
 
         } catch (error) {
             console.error('Error fetching assistants:', error);
         } finally {
-            toggleLoading('assistants', false);
+            toggleLoading('loadingAssistantsTab', false);
         }
     }
 
     function populateTabsAndContent(assistants) {
-        const tabsContainer = document.getElementById('assistantTabs');
+        const tabsContainer = document.getElementById('assistantsNavTabs');
         const contentContainer = document.getElementById('assistantContent');
 
         tabsContainer.innerHTML = '';
@@ -113,10 +74,10 @@
         });
 
         // Listen for tab activation events so we can update the background classes
-        document.querySelectorAll('#assistantTabs a[data-bs-toggle="tab"]').forEach(tab => {
+        document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
             tab.addEventListener('shown.bs.tab', function (event) {
                 // Loop through all tabs and update classes accordingly
-                document.querySelectorAll('#assistantTabs a[data-bs-toggle="tab"]').forEach(t => {
+                document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(t => {
                     if (t === event.target) {
                         t.classList.remove('bg-white', 'text-secondary');
                         t.classList.add('bg-secondary', 'text-white');
@@ -128,15 +89,4 @@
             });
         });
     }
-
-    /* Initialize Page */
-
-    async function initializePage() {
-        toggleLoading('assistants', true);
-        fetchAssistants();
-    }
-
-    initializePage();
-
 </script>
-{% endblock %}

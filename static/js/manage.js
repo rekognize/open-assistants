@@ -823,6 +823,8 @@ async function fetchAssistants() {
 
         const data = await response.json();
 
+        console.log('assistants overview:', data);
+
         if (data.assistants) {
             // Clear the global assistants object
             assistants = {};

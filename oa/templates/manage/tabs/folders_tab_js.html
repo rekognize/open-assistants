@@ -1,47 +1,8 @@
-{% extends "manage/base_manage.html" %}
-
-
-{% block title %}Knowledge - {{ SITE_NAME }}{% endblock %}
-
-
-{% block content %}{{ block.super }}
-
-{% with active='folders' %}
-    {% include "manage/nav.html" %}
-{% endwith %}
-
-<div class="container mt-4 mb-4">
-    <!-- Folders Table -->
-    <div id="folders-container" class="my-4">
-        {% include 'partials/loading_indicator.html' with content_id='folders' content_name='folders' %}
-        <div class="row">
-            <div class="col-3">
-                <ul class="nav nav-pills flex-column" role="tablist" id="folderTabs">
-                </ul>
-            </div>
-            <div class="col-9">
-                <div class="tab-content" id="folderContent">
-                </div>
-            </div>
-        </div>
-        <div id="no-folders" class="text-center text-secondary d-none">
-            <p>No folders available.</p>
-            <span class="text-secondary">
-                You can create folders <a href="{% url "manage_overview" project_uuid=selected_project.uuid %}" class="text-decoration-none">here</a>.
-            </span>
-        </div>
-
-    </div>
-</div>
-
-{% endblock %}
-
-
-{% block extra_scripts %}{{ block.super }}
 <script>
     /* Folders */
 
-    async function fetchFolders() {
+    async function fetchFoldersTab() {
+        toggleLoading('loadingFoldersTab', true);
         try {
             const foldersResponse = await fetch("{% url 'folders-api:list_folders' %}", {
                 method: 'GET',
@@ -53,19 +14,19 @@
 
             const foldersData = await foldersResponse.json();
 
-            console.log('folders:', foldersData);
+            console.log('folders tab:', foldersData);
 
             populateTabsAndContent(foldersData.folders);
 
         } catch (error) {
             console.error('Error fetching folders:', error);
         } finally {
-            toggleLoading('folders', false);
+            toggleLoading('loadingFoldersTab', false);
         }
     }
 
     function populateTabsAndContent(folders) {
-        const tabsContainer = document.getElementById('folderTabs');
+        const tabsContainer = document.getElementById('foldersNavTabs');
         const contentContainer = document.getElementById('folderContent');
 
         tabsContainer.innerHTML = '';
@@ -114,10 +75,10 @@
         });
 
         // Listen for tab activation events so we can update the background classes
-        document.querySelectorAll('#folderTabs a[data-bs-toggle="tab"]').forEach(tab => {
+        document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
             tab.addEventListener('shown.bs.tab', function (event) {
                 // Loop through all tabs and update classes accordingly
-                document.querySelectorAll('#folderTabs a[data-bs-toggle="tab"]').forEach(t => {
+                document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(t => {
                     if (t === event.target) {
                         t.classList.remove('bg-white', 'text-secondary');
                         t.classList.add('bg-secondary', 'text-white');
@@ -129,15 +90,4 @@
             });
         });
     }
-
-    /* Initialize Page */
-
-    async function initializePage() {
-        toggleLoading('folders', true);
-        fetchFolders();
-    }
-
-    initializePage();
-
 </script>
-{% endblock %}

@@ -1,85 +1,8 @@
-{% extends "manage/base_manage.html" %}
-
-
-{% block title %}Tools - {{ SITE_NAME }}{% endblock %}
-
-
-{% block extra_head %}{{ block.super }}
-<style>
-    /* Ensure header background and border remain white */
-    .accordion-button {
-        background-color: white !important;
-        color: black !important; /* Always black text */
-    }
-
-    /* Maintain header styles when opened */
-    .accordion-button:not(.collapsed) {
-        background-color: white !important; /* White background when opened */
-        color: black !important; /* Always black text */
-    }
-
-    /* Remove focus highlight box-shadow */
-    .accordion-button:focus {
-        box-shadow: none !important;
-    }
-</style>
-{% endblock %}
-
-
-{% block content %}{{ block.super }}
-
-{% with active='tools' %}
-    {% include "manage/nav.html" %}
-{% endwith %}
-
-<!-- Tools Tables -->
-<div class="container mt-4 mb-4">
-    <!-- Functions Table (visible by default) -->
-    <div id="functions-container" class="my-4">
-        {% include 'partials/loading_indicator.html' with content_id='functions' content_name='functions' %}
-        <div class="row">
-            <div class="col-3">
-                <ul class="nav nav-pills flex-column" role="tablist" id="functionTabs">
-                </ul>
-            </div>
-            <div class="col-9">
-                <div class="tab-content" id="functionContent">
-                </div>
-            </div>
-        </div>
-        <div id="no-functions" class="text-center text-secondary d-none">
-            <p>No functions available.</p>
-            <span class="text-secondary">
-                You can create functions <a href="#" class="text-decoration-none">here</a>.
-            </span>
-        </div>
-    </div>
-
-    <!-- Code Interpreter Scripts Table (hidden by default) -->
-    <div id="scripts-container" class="my-4 d-none">
-        {% include 'partials/loading_indicator.html' with content_id='scripts' content_name='scripts' %}
-        <div class="row">
-            <div class="col-3">
-                <ul class="nav nav-pills flex-column" role="tablist" id="scriptsTabs"></ul>
-            </div>
-            <div class="col-9">
-                <div class="tab-content" id="scriptsContent"></div>
-            </div>
-        </div>
-        <div id="no-scripts" class="text-center text-secondary d-none">
-            <p>No Code Interpreter Scripts available.</p>
-        </div>
-    </div>
-</div>
-
-{% endblock %}
-
-
-{% block extra_scripts %}{{ block.super }}
 <script>
     /* Functions*/
 
-    async function fetchFunctions() {
+    async function fetchFunctionsTab() {
+        toggleLoading('loadingToolsTab', true);
         try {
             const functionsResponse = await fetch("{% url 'functions-api:list_local_functions' %}", {
                 method: 'GET',
@@ -89,12 +12,14 @@
                 }
             });
             const functionsData = await functionsResponse.json();
-            console.log('functions:', functionsData);
+
+            console.log('tools tab functions:', functionsData);
+
             populateTabsAndContent(functionsData.functions);
         } catch (error) {
             console.error('Error fetching functions:', error);
         } finally {
-            toggleLoading('functions', false);
+            toggleLoading('loadingToolsTab', false);
         }
     }
 
@@ -141,7 +66,7 @@
     }
 
     function populateTabsAndContent(functions) {
-        const tabsContainer = document.getElementById('functionTabs');
+        const tabsContainer = document.getElementById('functionNavTabs');
         const contentContainer = document.getElementById('functionContent');
 
         // Clear any existing content
@@ -319,10 +244,10 @@
         });
 
         // Listen for tab activation events so we can update the background classes
-        document.querySelectorAll('#functionTabs a[data-bs-toggle="tab"]').forEach(tab => {
+        document.querySelectorAll('#functionNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
             tab.addEventListener('shown.bs.tab', function (event) {
                 // Loop through all tabs and update classes accordingly
-                document.querySelectorAll('#functionTabs a[data-bs-toggle="tab"]').forEach(t => {
+                document.querySelectorAll('#functionNavTabs a[data-bs-toggle="tab"]').forEach(t => {
                     if (t === event.target) {
                         t.classList.remove('bg-white', 'text-secondary');
                         t.classList.add('bg-secondary', 'text-white');
@@ -334,13 +259,4 @@
             });
         });
     }
-
-    /* Initialize Page */
-    async function initializePage() {
-        toggleLoading('functions', true);
-        fetchFunctions();
-    }
-
-    initializePage();
 </script>
-{% endblock %}
