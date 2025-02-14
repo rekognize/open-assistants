@@ -1,0 +1,93 @@
+<script>
+    /* Folders */
+
+    async function fetchFoldersTab() {
+        toggleLoading('loadingFoldersTab', true);
+        try {
+            const foldersResponse = await fetch("{% url 'folders-api:list_folders' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const foldersData = await foldersResponse.json();
+
+            console.log('folders tab:', foldersData);
+
+            populateFoldersTabsAndContent(foldersData.folders);
+
+        } catch (error) {
+            console.error('Error fetching folders:', error);
+        } finally {
+            toggleLoading('loadingFoldersTab', false);
+        }
+    }
+
+    function populateFoldersTabsAndContent(folders) {
+        const tabsContainer = document.getElementById('foldersNavTabs');
+        const contentContainer = document.getElementById('folderContent');
+
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        if (!folders || folders.length === 0) {
+            document.getElementById('no-folders').classList.remove('d-none');
+            return;
+        }
+
+        folders.forEach((folder, index) => {
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            const tabLink = document.createElement('a');
+            tabLink.className = index === 0
+                ? 'nav-link py-1 px-2 bg-secondary text-white active'
+                : 'nav-link py-1 px-2 bg-white text-secondary';
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#folder-${folder.id}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `folder-${folder.id}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.id = `folder-${folder.id}-tab`;
+            tabLink.textContent = folder.name || 'Untitled Folder';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `folder-${folder.id}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `folder-${folder.id}-tab`);
+
+            contentPane.innerHTML = `
+                <h4>${folder.name || 'Untitled Folder'}</h4>
+
+                <div>
+                  <pre>${JSON.stringify(folder, null, 2)}</pre>
+                </div>
+            `;
+
+            contentContainer.appendChild(contentPane);
+
+        });
+
+        // Listen for tab activation events so we can update the background classes
+        document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                // Loop through all tabs and update classes accordingly
+                document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(t => {
+                    if (t === event.target) {
+                        t.classList.remove('bg-white', 'text-secondary');
+                        t.classList.add('bg-secondary', 'text-white');
+                    } else {
+                        t.classList.remove('bg-secondary', 'text-white');
+                        t.classList.add('bg-white', 'text-secondary');
+                    }
+                });
+            });
+        });
+    }
+</script>

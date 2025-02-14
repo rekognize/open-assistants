@@ -6,19 +6,19 @@ import os
 import httpx
 from asgiref.sync import sync_to_async
 from django.urls import reverse
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from ninja import NinjaAPI, File, Form
 from ninja.errors import AuthenticationError
 from ninja.security import HttpBearer
 from ninja.files import UploadedFile
 from typing import List
 from openai import AsyncOpenAI, OpenAIError
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
     AssistantSharedLink
 from .utils import serialize_to_dict, APIError, EventHandler
+from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction, FunctionExecution
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
-from ..tools import FUNCTION_IMPLEMENTATIONS
 
 
 api = NinjaAPI()
@@ -691,12 +691,26 @@ async def cancel_run(request, thread_id, run_id):
 
 # Chat
 
+@sync_to_async
+def log_function_execution(function, thread, arguments, result, status_code, error_message):
+    return FunctionExecution.objects.create(
+        function=function,
+        executed_version=function.version,
+        thread=thread,
+        arguments=arguments,
+        result=result,
+        status_code=status_code,
+        error_message=error_message,
+    )
+
 @api.get("/stream/{assistant_id}/{thread_id}", auth=BearerAuth())
 async def stream_responses(request, assistant_id: str, thread_id: str):
     async def event_stream():
         shared_data = []
         event_handler = EventHandler(request=request, shared_data=shared_data)
         try:
+            thread = await Thread.objects.filter(openai_id=thread_id).afirst()
+
             async with request.auth['client'].beta.threads.runs.stream(
                 thread_id=thread_id,
                 assistant_id=assistant_id,
@@ -713,34 +727,57 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                             tool_outputs = []
 
                             for tool_call in tool_calls:
-                                tool_call_id = tool_call.id
-                                function_name = tool_call.function.name
-                                function_args_json = tool_call.function.arguments
-                                function_args = json.loads(function_args_json)
+                                # function = await ExternalAPIFunction.objects.filter(slug=tool_call.function.name).afirst()
+                                function = await LocalAPIFunction.objects.filter(slug=tool_call.function.name).afirst()
 
-                                # Execute the function and get the output
-                                if function_name in FUNCTION_IMPLEMENTATIONS:
-                                    function_class = FUNCTION_IMPLEMENTATIONS[function_name]
-                                    try:
-                                        # Instantiate the class with the arguments
-                                        function_instance = function_class(**function_args)
-                                        # If 'main' is synchronous, run it in a thread
-                                        output = await asyncio.to_thread(function_instance.main)
-                                        # Ensure the output is JSON-serializable
-                                        output_json = json.dumps(output)
-                                    except Exception as e:
-                                        output = f"Error executing function {function_name}: {str(e)}"
-                                        output_json = json.dumps({"error": output})
-                                else:
-                                    output = f"Function {function_name} not found"
-                                    output_json = json.dumps({"error": output})
+                                if not function:
+                                    tool_outputs.append({
+                                        "tool_call_id": tool_call.id,
+                                        "output": json.dumps(
+                                            {"error": f"No function named '{tool_call.function.name}'"}
+                                        ),
+                                    })
+                                    continue
 
-                                tool_outputs.append({"tool_call_id": tool_call_id, "output": output_json})
+                                try:
+                                    args_dict = json.loads(tool_call.function.arguments or "{}")
+                                except Exception as e:
+                                    tool_outputs.append({
+                                        "tool_call_id": tool_call.id,
+                                        "output": json.dumps(
+                                            {"error": f"Invalid arguments JSON: {str(e)}"}
+                                        ),
+                                    })
+                                    continue
 
-                            # Create a new EventHandler instance for the submit_tool_outputs_stream
-                            tool_output_event_handler = EventHandler(request=request, shared_data=shared_data)
+                                try:
+                                    result = await function.execute(**args_dict)
+                                    status_code = "200"
+                                    error_message = None
+                                except Exception as e:
+                                    result = {"error": str(e)}
+                                    status_code = "400"
+                                    error_message = str(e)
 
-                            # Submit tool outputs
+                                # Log the execution
+                                await log_function_execution(
+                                    function=function,
+                                    thread=thread,
+                                    arguments=args_dict,
+                                    result=result,
+                                    status_code=status_code,
+                                    error_message=error_message
+                                )
+
+                                # Prepare output for the assistant
+                                tool_outputs.append({
+                                    "tool_call_id": tool_call.id,
+                                    "output": json.dumps(result)
+                                })
+
+                            tool_output_event_handler = EventHandler(
+                                request=request, shared_data=shared_data
+                            )
                             async with request.auth['client'].beta.threads.runs.submit_tool_outputs_stream(
                                 thread_id=thread_id,
                                 run_id=run_id,

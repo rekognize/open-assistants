@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+
+{% block title %}Tools - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4 mb-4">
+        <!-- Nav tabs -->
+        <ul class="nav nav-underline border-bottom mb-md-2">
+            <li class="nav-item small me-1 mb-1">
+                <a href="#" class="nav-link py-1 px-2 active" id="functionsTab">
+                    Functions
+                </a>
+            </li>
+            <li class="nav-item small me-1 mb-1">
+                <a href="#" class="nav-link py-1 px-2 text-secondary" id="scriptsTab">
+                    Code Interpreter Scripts
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tools Tables -->
+    <div class="container mt-4 mb-4">
+        <!-- Functions Table (visible by default) -->
+        <div id="functions-container" class="my-4">
+            {% include 'partials/loading_indicator.html' with content_id='functions' content_name='functions' %}
+            <div class="row">
+                <div class="col-3">
+                    <ul class="nav nav-pills flex-column" role="tablist" id="functionTabs">
+                    </ul>
+                </div>
+                <div class="col-9">
+                    <div class="tab-content" id="functionContent">
+                    </div>
+                </div>
+            </div>
+            <div id="no-functions" class="text-center text-secondary d-none">
+                <p>No functions available.</p>
+                <span class="text-secondary">
+                    You can create functions <a href="#" class="text-decoration-none">here</a>.
+                </span>
+            </div>
+        </div>
+
+        <!-- Code Interpreter Scripts Table (hidden by default) -->
+        <div id="scripts-container" class="my-4 d-none">
+            {% include 'partials/loading_indicator.html' with content_id='scripts' content_name='scripts' %}
+            <div class="row">
+                <div class="col-3">
+                    <ul class="nav nav-pills flex-column" role="tablist" id="scriptsTabs"></ul>
+                </div>
+                <div class="col-9">
+                    <div class="tab-content" id="scriptsContent"></div>
+                </div>
+            </div>
+            <div id="no-scripts" class="text-center text-secondary d-none">
+                <p>No Code Interpreter Scripts available.</p>
+            </div>
+        </div>
+    </div>
+
+{% include "modals/get_started_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const API_KEY = "{{ selected_project.uuid }}";
+
+    /* Utility functions */
+    function initializePopovers() {
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
+    }
+
+    /* Tab switching between Functions and Code Interpreter Scripts */
+    document.getElementById('functionsTab').addEventListener('click', function (e) {
+        e.preventDefault();
+        // Set classes for active/inactive tabs
+        this.classList.add('active');
+        this.classList.remove('text-secondary');
+        document.getElementById('scriptsTab').classList.remove('active');
+        document.getElementById('scriptsTab').classList.add('text-secondary');
+        // Show/hide appropriate containers
+        document.getElementById('functions-container').classList.remove('d-none');
+        document.getElementById('scripts-container').classList.add('d-none');
+    });
+
+    document.getElementById('scriptsTab').addEventListener('click', function (e) {
+        e.preventDefault();
+        // Set classes for active/inactive tabs
+        this.classList.add('active');
+        this.classList.remove('text-secondary');
+        document.getElementById('functionsTab').classList.remove('active');
+        document.getElementById('functionsTab').classList.add('text-secondary');
+        // Show/hide appropriate containers
+        document.getElementById('scripts-container').classList.remove('d-none');
+        document.getElementById('functions-container').classList.add('d-none');
+        // Fetch scripts if not already loaded
+        if (!document.getElementById('scriptsTabs').dataset.loaded) {
+            fetchScripts();
+            document.getElementById('scriptsTabs').dataset.loaded = "true";
+        }
+    });
+
+    /* Functions Table */
+    async function fetchFunctions() {
+        try {
+            const functionsResponse = await fetch("{% url 'functions-api:list_local_functions' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+            const functionsData = await functionsResponse.json();
+            console.log('functions:', functionsData);
+            populateTabsAndContent(functionsData.functions);
+        } catch (error) {
+            console.error('Error fetching functions:', error);
+        } finally {
+            toggleLoading('functions', false);
+        }
+    }
+
+    async function fetchExecutions(functionSlug) {
+        const fetchExecutionsUrlTemplate = "{% url 'functions-api:get_function_executions' slug='FUNCTION_SLUG_PLACEHOLDER' %}";
+        const fetchExecutionsUrl = fetchExecutionsUrlTemplate.replace('FUNCTION_SLUG_PLACEHOLDER', functionSlug);
+
+        try {
+            const response = await fetch(fetchExecutionsUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            console.log(data);
+
+            return data.executions || [];
+        } catch (error) {
+            console.error('Error fetching executions for function ', error);
+            return [];
+        }
+    }
+
+    async function fetchAssistantName(assistantId) {
+        const retrieveAssistantUrlTemplate = "{% url 'api-1.0.0:retrieve_assistant' assistant_id='ASST_ID_PLACEHOLDER' %}";
+        const retrieveAssistantUrl = retrieveAssistantUrlTemplate.replace('ASST_ID_PLACEHOLDER', assistantId);
+
+        try {
+            const response = await fetch(retrieveAssistantUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            return data.name || 'N/A';
+        } catch (error) {
+            console.error('Error fetching assistant info:', error);
+            return 'N/A';
+        }
+    }
+
+    function populateTabsAndContent(functions) {
+        const tabsContainer = document.getElementById('functionTabs');
+        const contentContainer = document.getElementById('functionContent');
+
+        // Clear any existing content
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        if (!functions || functions.length === 0) {
+            document.getElementById('no-functions').classList.remove('d-none');
+            return;
+        }
+
+        functions.forEach((func, index) => {
+            // Create tab item with secondary styling
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            const tabLink = document.createElement('a');
+            tabLink.className = index === 0
+                ? 'nav-link py-1 px-2 bg-secondary text-white active'
+                : 'nav-link py-1 px-2 bg-white text-secondary';
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#function-${func.id}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `function-${func.id}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.id = `function-${func.id}-tab`;
+            tabLink.textContent = func.name || 'Untitled Function';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            // Create content pane with executions accordion
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `function-${func.id}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `function-${func.id}-tab`);
+
+            contentPane.innerHTML = `
+                <div class="mb-3">
+                    <h4>${func.name || 'Untitled Function'}</h4>
+                    <!-- Executions Accordion -->
+                    <div class="accordion mb-4" id="executionsAccordion-${func.id}">
+                      <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-${func.id}">
+                          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${func.id}" aria-expanded="false" aria-controls="collapse-${func.id}">
+                            Executions
+                          </button>
+                        </h2>
+                        <div id="collapse-${func.id}" class="accordion-collapse collapse" aria-labelledby="heading-${func.id}" data-bs-parent="#executionsAccordion-${func.id}">
+                          <div class="accordion-body">
+                            <div class="table-responsive">
+                              <table class="table table-sm">
+                                <thead>
+                                  <tr>
+                                    <th>Thread ID</th>
+                                    <th>Time</th>
+                                    <th>Status Code</th>
+                                    <th>Arguments</th>
+                                    <th>Assistant</th>
+                                  </tr>
+                                </thead>
+                                <tbody id="executionsTable-${func.id}">
+                                  <!-- Execution rows will be appended here -->
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- End of Executions Accordion -->
+                    <p><strong>Description:</strong> ${func.description || 'No description provided'}</p>
+                    <p><strong>Result Type:</strong> ${func.result_type || 'N/A'}</p>
+                    <p><strong>Created At:</strong> ${func.created_at ? formatDbDate(func.created_at) : 'N/A'}</p>
+                    <p><strong>Version:</strong> ${func.version || 'N/A'}</p>
+                    <p><strong>Argument Schema:</strong></p>
+                    <pre class="bg-light p-2"><code>${JSON.stringify(func.argument_schema, null, 2)}</code></pre>
+                    <p><strong>Code:</strong></p>
+                    <pre class="bg-light p-2"><code>${func.code || 'No code provided'}</code></pre>
+                    <p><strong>Extra Context:</strong></p>
+                    <pre class="bg-light p-2"><code>${JSON.stringify(func.extra_context, null, 2)}</code></pre>
+                </div>
+            `;
+
+            contentContainer.appendChild(contentPane);
+
+            // Add an event listener to fetch and populate executions when the accordion is expanded
+            const collapseElement = document.getElementById(`collapse-${func.id}`);
+            collapseElement.addEventListener('show.bs.collapse', async function () {
+                const tbody = document.getElementById(`executionsTable-${func.id}`);
+                if (tbody.dataset.loaded !== "true") {
+                    // Insert loading indicator in the table using your existing style
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div> Loading executions...
+                    </td></tr>`;
+                    try {
+                        const executions = await fetchExecutions(func.slug);
+                        tbody.innerHTML = ''; // Clear the loading indicator
+                        if (executions && executions.length > 0) {
+                            executions.forEach(exec => {
+                                const row = document.createElement('tr');
+
+                                // Thread ID
+                                const threadTd = document.createElement('td');
+                                if (exec.thread_id) {
+                                    threadTd.textContent = '...' + exec.thread_id.slice(-5);
+                                } else {
+                                    threadTd.textContent = 'N/A';
+                                }
+                                row.appendChild(threadTd);
+
+                                // Time
+                                const timeTd = document.createElement('td');
+                                timeTd.textContent = exec.time ? formatDbDate(exec.time) : 'N/A';
+                                row.appendChild(timeTd);
+
+                                // Status Code
+                                const statusTd = document.createElement('td');
+                                statusTd.textContent = exec.status_code || 'N/A';
+                                if (exec.error_message) {
+                                    statusTd.classList.add('text-danger');
+                                } else {
+                                    statusTd.classList.add('text-success');
+                                }
+                                row.appendChild(statusTd);
+
+                                // Arguments (stringified JSON)
+                                const argsTd = document.createElement('td');
+                                argsTd.textContent = JSON.stringify(exec.arguments);
+                                row.appendChild(argsTd);
+
+                                // Assistant
+                                const assistantTd = document.createElement('td');
+                                assistantTd.textContent = 'Loading...';
+                                row.appendChild(assistantTd);
+
+                                // Fetch the assistant's name
+                                if (exec.thread_metadata && exec.thread_metadata._asst) {
+                                    const assistantId = exec.thread_metadata._asst;
+                                    fetchAssistantName(assistantId)
+                                        .then(name => {
+                                            assistantTd.textContent = name;
+                                        })
+                                        .catch(() => {
+                                            assistantTd.textContent = 'N/A';
+                                        });
+                                } else {
+                                    assistantTd.textContent = 'N/A';
+                                }
+
+                                tbody.appendChild(row);
+                            });
+                        } else {
+                            const row = document.createElement('tr');
+                            const td = document.createElement('td');
+                            td.setAttribute('colspan', '5');
+                            td.textContent = 'No executions found.';
+                            row.appendChild(td);
+                            tbody.appendChild(row);
+                        }
+                    } catch (error) {
+                        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading executions.</td></tr>`;
+                    } finally {
+                        tbody.dataset.loaded = "true";
+                    }
+                }
+            });
+        });
+
+        // Listen for tab activation events so we can update the background classes
+        document.querySelectorAll('#functionTabs a[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                // Loop through all tabs and update classes accordingly
+                document.querySelectorAll('#functionTabs a[data-bs-toggle="tab"]').forEach(t => {
+                    if (t === event.target) {
+                        t.classList.remove('bg-white', 'text-secondary');
+                        t.classList.add('bg-secondary', 'text-white');
+                    } else {
+                        t.classList.remove('bg-secondary', 'text-white');
+                        t.classList.add('bg-white', 'text-secondary');
+                    }
+                });
+            });
+        });
+    }
+
+    /* Code Interpreter Scripts Table */
+    async function fetchScripts() {
+        toggleLoading('scripts', true);
+        try {
+            const response = await fetch("{% url 'functions-api:list_scripts' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            console.log('scripts:', data);
+            populateScripts(data.scripts);
+        } catch (error) {
+            console.error('Error fetching scripts:', error);
+        } finally {
+            toggleLoading('scripts', false);
+        }
+    }
+
+    function populateScripts(scripts) {
+        // Group scripts by run_id
+        const grouped = {};
+        scripts.forEach(script => {
+            if (!grouped[script.run_id]) {
+                grouped[script.run_id] = [];
+            }
+            grouped[script.run_id].push(script);
+        });
+        // Sort each group by snippet_index (ascending)
+        for (const run_id in grouped) {
+            grouped[run_id].sort((a, b) => a.snippet_index - b.snippet_index);
+        }
+        // Populate left navigation and right content
+        const scriptsTabs = document.getElementById('scriptsTabs');
+        const scriptsContent = document.getElementById('scriptsContent');
+        scriptsTabs.innerHTML = '';
+        scriptsContent.innerHTML = '';
+        const runIds = Object.keys(grouped);
+        if (runIds.length === 0) {
+            document.getElementById('no-scripts').classList.remove('d-none');
+            return;
+        } else {
+            document.getElementById('no-scripts').classList.add('d-none');
+        }
+        runIds.forEach((run_id, index) => {
+            // Left side tab item shows the last 5 characters of run_id
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+            const tabLink = document.createElement('a');
+            tabLink.className = index === 0
+                ? 'nav-link py-1 px-2 bg-secondary text-white active'
+                : 'nav-link py-1 px-2 bg-white text-secondary';
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#script-${run_id}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `script-${run_id}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.textContent = '...' + run_id.slice(-5);
+            tabItem.appendChild(tabLink);
+            scriptsTabs.appendChild(tabItem);
+
+            // Right side content pane: show snippets in order (snippet_index 1 at top)
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `script-${run_id}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            // Render each snippet as a separate box (using Bootstrap cards)
+            grouped[run_id].forEach(snippet => {
+                const snippetBox = document.createElement('div');
+                snippetBox.className = 'card mb-3';
+                snippetBox.innerHTML = `
+      <div class="card-body">
+        <pre class="bg-light p-2"><code>${snippet.code}</code></pre>
+      </div>
+    `;
+                contentPane.appendChild(snippetBox);
+            });
+            scriptsContent.appendChild(contentPane);
+        });
+
+        // Update nav styling on tab change for scripts
+        document.querySelectorAll('#scriptsTabs a[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                document.querySelectorAll('#scriptsTabs a[data-bs-toggle="tab"]').forEach(t => {
+                    if (t === event.target) {
+                        t.classList.remove('bg-white', 'text-secondary');
+                        t.classList.add('bg-secondary', 'text-white');
+                    } else {
+                        t.classList.remove('bg-secondary', 'text-white');
+                        t.classList.add('bg-white', 'text-secondary');
+                    }
+                });
+            });
+        });
+    }
+
+    /* Initialize Page */
+    async function initializePage() {
+        toggleLoading('functions', true);
+        fetchFunctions();
+    }
+
+    initializePage();
+</script>
+
+{% include "modals/get_started_js.html" %}
+{% include "partials/utils_js.html" %}
+{% endblock %}

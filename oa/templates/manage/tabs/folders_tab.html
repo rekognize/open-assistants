@@ -1,0 +1,20 @@
+<!-- Folders Table -->
+<div id="folders-tab-container" class="my-4">
+    {% include 'partials/loading_indicator.html' with content_id='loadingFoldersTab' content_name='folders' %}
+    <div class="row">
+        <div class="col-3">
+            <ul class="nav nav-pills flex-column" role="tablist" id="foldersNavTabs">
+            </ul>
+        </div>
+        <div class="col-9">
+            <div class="tab-content" id="folderContent">
+            </div>
+        </div>
+    </div>
+    <div id="no-folders" class="text-center text-secondary d-none">
+        <p>No folders available.</p>
+        <span class="text-secondary">
+            You can create folders <a href="{% url "manage_overview" project_uuid=selected_project.uuid %}" class="text-decoration-none">here</a>.
+        </span>
+    </div>
+</div>

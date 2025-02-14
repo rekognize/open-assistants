@@ -1,0 +1,20 @@
+<!-- Assistants Table -->
+<div id="assistants-tab-container" class="my-4">
+    {% include 'partials/loading_indicator.html' with content_id='loadingAssistantsTab' content_name='assistants' %}
+    <div class="row">
+        <div class="col-3">
+            <ul class="nav nav-pills flex-column" role="tablist" id="assistantsNavTabs">
+            </ul>
+        </div>
+        <div class="col-9">
+            <div class="tab-content" id="assistantContent">
+            </div>
+        </div>
+    </div>
+    <div id="no-assistants" class="text-center text-secondary d-none">
+        <p>No assistants available.</p>
+        <span class="text-secondary">
+            You can create assistants <a href="{% url "manage_overview" project_uuid=selected_project.uuid %}" class="text-decoration-none">here</a>.
+        </span>
+    </div>
+</div>

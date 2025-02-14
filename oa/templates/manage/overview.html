@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+
+
+{% load static %}
+
+
+{% block title %}Manage - {{ SITE_NAME }}{% endblock %}
+
+
+{% block extra_head %}{{ block.super }}
+<style>
+    .custom-popover {
+      --bs-popover-max-width: 400px;
+    }
+
+    /* Ensure header background and border remain white */
+    .accordion-button {
+        background-color: white !important;
+        color: black !important; /* Always black text */
+    }
+
+    /* Maintain header styles when opened */
+    .accordion-button:not(.collapsed) {
+        background-color: white !important; /* White background when opened */
+        color: black !important; /* Always black text */
+    }
+
+    /* Remove focus highlight box-shadow */
+    .accordion-button:focus {
+        box-shadow: none !important;
+    }
+
+    .content-section {
+        height: 90vh;
+        overflow-x: clip;
+        overflow-y: auto;
+    }
+
+    .sticky-top {
+        z-index: 10;
+    }
+
+    .info-box {
+        position: relative;
+        margin-top: 1rem;
+    }
+
+    .info-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        position: absolute;
+        top: -12px;
+    }
+
+    .info-value {
+        padding: 0.5rem 0;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    #dropZone {
+        border: 2px dotted #cfe2ff;
+        border-radius: 8px;
+        background: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        color: #007bff;
+        cursor: pointer;
+    }
+
+    #dropZone.hover {
+        background-color: #cfe2ff;
+    }
+
+    #dropZone.disabled {
+        pointer-events: none;
+        opacity: 0.6;
+    }
+
+    #uploaded-files-list {
+        list-style-type: none;
+        padding: 0;
+    }
+
+    #uploaded-files-list li {
+        padding: 5px 0;
+    }
+
+    .function-list-container,
+    .folder-list-container {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e5e5e5;
+        padding: 10px;
+        border-radius: 5px;
+    }
+
+    .filename {
+        max-width: 300px; /* Set the maximum width */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: inline-block;
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}{{ block.super }}
+
+{% with active='overview' %}
+    {% include "manage/nav.html" %}
+{% endwith %}
+
+<div class="container mt-4 mb-4">
+
+    <div class="row" id="overview-tab-container">
+
+        <!-- Assistants Column -->
+        <div class="col-md-4">
+
+            <div class="sticky-top">
+                <div class="mb-2 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <h5 class="lead mb-0">Assistants</h5>
+                            <span id="assistants-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                        </div>
+                        <div>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-assistants"
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllAssistants('collapse');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-assistants"
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllAssistants('expand');"></a>
+
+                            <!-- Sorting Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="assistantSortDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="assistantSortDropdown">
+                                    <li class="dropdown-header">Sort by</li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('created_at', 'desc', event);">
+                                            Created Time (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('created_at', 'asc', event);">
+                                            Created Time (Oldest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('name', 'asc', event);">
+                                            Name (A to Z)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setAssistantSort('name', 'desc', event);">
+                                            Name (Z to A)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Filter Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="assistantFilterDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <div class="dropdown-menu p-3" aria-labelledby="assistantFilterDropdown">
+                                    <form id="assistantFilterForm">
+                                        <!-- Name Filter -->
+                                        <div class="mb-2">
+                                            <label for="filterName" class="form-label">Name</label>
+                                            <input type="text" class="form-control form-control-sm" id="filterName" placeholder="Search by name">
+                                        </div>
+                                        <!-- Creation Date Filter -->
+                                        <div class="mb-2">
+                                            <label class="form-label">Creation Date</label>
+                                            <div class="d-flex">
+                                                <input type="date" class="form-control form-control-sm me-1" id="filterStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="filterEndDate">
+                                            </div>
+                                        </div>
+                                        <!-- Vector Store Filter -->
+                                        <div class="mb-2">
+                                            <label for="filterFolder" class="form-label">Folder</label>
+                                            <select class="form-select form-select-sm" id="filterFolder">
+                                                <option value="">All</option>
+                                                <!-- Options will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <!-- Model Filter -->
+                                        <div class="mb-2">
+                                            <label for="filterModel" class="form-label">Model</label>
+                                            <select class="form-select form-select-sm" id="filterModel">
+                                                <option value="">All</option>
+                                                <option value="gpt-4o">gpt-4o</option>
+                                                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                            </select>
+                                        </div>
+                                        <!-- Filter Buttons -->
+                                        <div class="d-flex justify-content-between mt-3">
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyAssistantFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetAssistantFilters()">Reset</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
+                                onclick="hideTooltip(this); refreshAssistantsList();"
+                                data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
+                            <a href="#" class="text-light-emphasis bi bi-plus-lg ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Create a new assistant"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="content-assistants" class="content-section pt-2">
+                <div id="assistants-list" class="row row-cols-1 g-4">
+                    <!-- Assistants will be populated here -->
+                </div>
+                {% include 'partials/loading_indicator.html' with content_id='assistants' content_name='assistants' %}
+            </div>
+
+        </div>
+
+        <!-- Folders Column -->
+        <div class="col-md-4">
+
+            <div class="sticky-top">
+                <div class="mb-2 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <h5 class="lead mb-0">Knowledge</h5>
+                            <span id="folders-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                        </div>
+                        <div>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-folders"
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllFolders('collapse');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-folders"
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllFolders('expand');"></a>
+
+                            <!-- Sorting Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="folderSortDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="folderSortDropdown">
+                                    <li class="dropdown-header">Sort by</li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('created_at', 'desc', event);">
+                                            Created Time (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('created_at', 'asc', event);">
+                                            Created Time (Oldest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('name', 'asc', event);">
+                                            Name (A to Z)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('name', 'desc', event);">
+                                            Name (Z to A)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('last_active_at', 'desc', event);">
+                                            Last Active (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('last_active_at', 'asc', event);">
+                                            Last Active (Oldest First)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Filter Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="folderFilterDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <div class="dropdown-menu p-3" aria-labelledby="folderFilterDropdown">
+                                    <form id="folderFilterForm">
+                                        <!-- Name Filter -->
+                                        <div class="mb-2">
+                                            <label for="vsFilterName" class="form-label">Name</label>
+                                            <input type="text" class="form-control form-control-sm" id="vsFilterName" placeholder="Search by name">
+                                        </div>
+                                        <!-- Creation Date Filter -->
+                                        <div class="mb-2">
+                                            <label class="form-label">Creation Date</label>
+                                            <div class="d-flex">
+                                                <input type="date" class="form-control form-control-sm me-1" id="vsFilterStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="vsFilterEndDate">
+                                            </div>
+                                        </div>
+                                        <!-- Status Filter -->
+                                        <div class="mb-2">
+                                            <label for="vsFilterStatus" class="form-label">Status</label>
+                                            <select class="form-select form-select-sm" id="vsFilterStatus">
+                                                <option value="">All</option>
+                                                <option value="completed">Completed</option>
+                                                <option value="in_progress">In Progress</option>
+                                                <option value="expired">Expired</option>
+                                            </select>
+                                        </div>
+                                        <!-- Expiration Filter -->
+                                        <div class="mb-2">
+                                            <label for="vsFilterHasExpiration" class="form-label">Has Expiration</label>
+                                            <select class="form-select form-select-sm" id="vsFilterHasExpiration">
+                                                <option value="">All</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </select>
+                                        </div>
+                                        <!-- Filter Buttons -->
+                                        <div class="d-flex justify-content-between mt-3">
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyFolderFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetFolderFilters()">Reset</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
+                                onclick="hideTooltip(this); refreshFolderList();"
+                                data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
+                            <a href="#" class="text-light-emphasis bi bi-plus-lg ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Create a new folder"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="content-folders" class="content-section pt-2">
+                <div id="folders-list" class="row row-cols-1 g-4">
+                    <!-- Folders will be populated here -->
+                </div>
+                {% include 'partials/loading_indicator.html' with content_id='folders' content_name='folders' %}
+            </div>
+        </div>
+
+        <!-- Tools Column -->
+        <div class="col-md-4">
+
+            <div class="sticky-top">
+                <div class="mb-2 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                        <h5 class="lead mb-0">Tools</h5>
+                            <span id="functions-count" class="text-secondary small ms-2" style="align-self: flex-end; display: none;"></span>
+                        </div>
+                        <div>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-collapse ms-2" id="collapse-all-functions"
+                                data-bs-toggle="tooltip" data-bs-title="Collapse all" onclick="hideTooltip(this); toggleAllFunctions('collapse');"></a>
+                            <a href="#" class="text-light-emphasis bi bi-arrows-expand d-none ms-2" id="expand-all-functions"
+                                data-bs-toggle="tooltip" data-bs-title="Expand all" onclick="hideTooltip(this); toggleAllFunctions('expand');"></a>
+
+                            <!-- Sorting Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-sort-down ms-2" id="functionSortDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="functionSortDropdown">
+                                    <li class="dropdown-header">Sort by</li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('created_at', 'desc', event);">
+                                            Created Time (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('created_at', 'asc', event);">
+                                            Created Time (Oldest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('name', 'asc', event);">
+                                            Name (A to Z)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('name', 'desc', event);">
+                                            Name (Z to A)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Filter Dropdown -->
+                            <div class="dropdown d-inline">
+                                <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="functionFilterDropdown" data-bs-toggle="dropdown"
+                                   aria-expanded="false"></a>
+                                <div class="dropdown-menu p-3" aria-labelledby="functionFilterDropdown">
+                                    <form id="functionFilterForm">
+                                        <!-- Name Filter -->
+                                        <div class="mb-2">
+                                            <label for="functionFilterName" class="form-label">Name</label>
+                                            <input type="text" class="form-control form-control-sm" id="functionFilterName" placeholder="Search by name">
+                                        </div>
+                                        <!-- Creation Date Filter -->
+                                        <div class="mb-2">
+                                            <label class="form-label">Creation Date</label>
+                                            <div class="d-flex">
+                                                <input type="date" class="form-control form-control-sm me-1" id="functionFilterStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="functionFilterEndDate">
+                                            </div>
+                                        </div>
+                                        <!-- Assistant Filter -->
+                                        <div class="mb-2">
+                                            <label for="functionFilterAssistant" class="form-label">Assistant</label>
+                                            <select class="form-select form-select-sm" id="functionFilterAssistant">
+                                                <option value="">All</option>
+                                                <!-- List of assistants will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <!-- Function Type Filter -->
+                                        <div class="mb-2">
+                                            <label for="functionFilterType" class="form-label">Function Type</label>
+                                            <select class="form-select form-select-sm" id="functionFilterType">
+                                                <option value="">All</option>
+                                                <option value="local">Local</option>
+                                                <option value="external">External</option>
+                                            </select>
+                                        </div>
+                                        <!-- Filter Buttons -->
+                                        <div class="d-flex justify-content-between mt-3">
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="hideTooltip(this); applyFunctionFilters()">Apply</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="hideTooltip(this); resetFunctionFilters()">Reset</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <a href="#" class="text-light-emphasis bi bi-arrow-clockwise ms-2"
+                                onclick="hideTooltip(this); refreshFunctionsList();"
+                                data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
+                            <a href="#" class="text-light-emphasis bi bi-plus-lg ms-2"
+                                data-bs-toggle="tooltip" data-bs-title="Add function"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="content-functions" class="content-section pt-2">
+                <div id="functions-list" class="row row-cols-1 g-4">
+                    <!-- Functions will be populated here -->
+                </div>
+                {% include 'partials/loading_indicator.html' with content_id='functions' content_name='functions' %}
+            </div>
+        </div>
+
+    </div>
+
+    {% include "manage/tabs/assistants_tab.html" %}
+    {% include "manage/tabs/folders_tab.html" %}
+    {% include "manage/tabs/tools_tab.html" %}
+
+</div>
+
+{% include "modals/file_upload_modal.html" %}
+{% include "modals/deletion_confirmation_modals.html" %}
+{% include "modals/share_assistant_modal.html" %}
+{% include "modals/get_started_modal.html" %}
+
+{% endblock %}
+
+
+{% block extra_scripts %}{{ block.super }}
+<script>
+
+    const API_KEY = "{{ selected_project.uuid }}";
+    const functionDefinitions = {{ function_definitions_json|safe }};
+    const CSRF_TOKEN = "{{ csrf_token }}";
+
+    // URLs and URL templates
+    const listAssistantsUrl = "{% url 'api-1.0.0:list_assistants' %}";
+    const listFunctionsUrl = '{% url "functions-api:list_functions" %}';
+    const listFoldersUrl = '{% url "folders-api:list_folders" %}';
+    const listFolderFilesUrlTemplate = "{% url 'folders-api:list_files' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
+
+    const deleteFileUrlTemplate = "{% url 'api-1.0.0:delete_file' file_id='FILE_ID_PLACEHOLDER' %}";
+    const uploadFilesUrl = '{% url "api-1.0.0:upload_files" %}';
+    const retrieveVectorStoreUrlTemplate = "{% url 'api-1.0.0:retrieve_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}";
+
+    /* Utility functions */
+
+    function initializePopovers() {
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
+    }
+
+    /* Tab switching for nav */
+    document.querySelectorAll('#nav-tab .nav-link').forEach(tab => {
+        tab.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            // Update active/inactive classes for all tabs
+            document.querySelectorAll('#nav-tab .nav-link').forEach(t => {
+                t.classList.remove('active');
+                t.classList.add('text-secondary');
+            });
+            this.classList.add('active');
+            this.classList.remove('text-secondary');
+
+            // Hide all tab containers
+            const containerIds = ['overview-tab-container', 'assistants-tab-container', 'folders-tab-container', 'tools-tab-container'];
+            containerIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('d-none');
+            });
+
+            // Show the container corresponding to the clicked tab
+            // This replaces "Tab" with "-container" so the tab id "toolsTab" becomes "tools-container"
+            const containerId = this.id.replace('Tab', '-tab-container');
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.classList.remove('d-none');
+            }
+
+            // Load data for each tab only once if not loaded yet
+            if (this.id === 'assistantsTab' && container && !container.dataset.loaded) {
+                fetchAssistantsTab();
+                container.dataset.loaded = "true";
+            } else if (this.id === 'foldersTab' && container && !container.dataset.loaded) {
+                fetchFoldersTab();
+                container.dataset.loaded = "true";
+            } else if (this.id === 'toolsTab' && container && !container.dataset.loaded) {
+                fetchFunctionsTab();
+                container.dataset.loaded = "true";
+            }
+        });
+    });
+</script>
+
+<script id="function-item-template" type="text/template">
+    {% include "manage/function_item.html" %}
+</script>
+
+<script id="folder-item-template" type="text/template">
+    {% include "manage/folder_item.html" %}
+</script>
+
+<script id="assistant-item-template" type="text/template">
+    {% include "manage/assistant_item.html" %}
+</script>
+
+<script src="{% static '/js/manage.js' %}"></script>
+
+{% include "manage/tabs/assistants_tab_js.html" %}
+{% include "manage/tabs/folders_tab_js.html" %}
+{% include "manage/tabs/tools_tab_js.html" %}
+
+{% include "modals/share_assistant_js.html" %}
+{% include "modals/get_started_js.html" %}
+{% include "partials/utils_js.html" %}
+
+{% endblock %}

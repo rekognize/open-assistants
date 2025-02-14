@@ -8,7 +8,7 @@ load_dotenv()
 # Override in .env file
 SECRET_KEY = os.environ.get('SECRET_KEY', 'insecure-key')
 SITE_NAME = os.environ.get('SITE_NAME', 'AI Assistants')
-SITE_HOST = os.environ.get('SITE_HOST', 'local.host')
+SITE_HOST = os.environ.get('SITE_HOST', 'localhost')
 
 IS_LOCAL = os.getenv("IS_LOCAL", "false").lower() == "true"
 
@@ -32,8 +32,11 @@ INSTALLED_APPS = [
 
     'storages',
     'widget_tweaks',
+    'django_json_widget',
 
     'oa.main',
+    'oa.function_calls',
+    'oa.folders',
 ]
 
 MIDDLEWARE = [
@@ -153,7 +156,7 @@ if IS_LOCAL:
     }
 
 else:
-    BRANCH_NAME = os.getenv("BRANCH_NAME")
+    BRANCH_NAME = os.getenv("BRANCH_NAME", "main")
 
     STORAGES = {
         "default": {  # user uploaded media files

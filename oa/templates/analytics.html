@@ -41,7 +41,7 @@
             <div id="no-assistants" class="text-center text-secondary d-none">
                 <p>No assistants available.</p>
                 <span class="text-secondary">
-                    You can create assistants <a href="{% url "manage_assistants" project_uuid=selected_project.uuid %}" class="text-decoration-none">here</a>.
+                    You can create assistants <a href="{% url "manage_overview" project_uuid=selected_project.uuid %}" class="text-decoration-none">here</a>.
                 </span>
             </div>
 
@@ -65,50 +65,6 @@
         popoverTriggerList.map(function (popoverTriggerEl) {
             return new bootstrap.Popover(popoverTriggerEl);
         });
-    }
-
-    function formatDbDate(dateString) {
-        if (!dateString) return '<span class="text-secondary">No threads</span>';
-        const date = new Date(dateString);
-        // Extract day, month, year, hours, and minutes
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-
-        return `${day}/${month}/${year}, ${hours}:${minutes}`;
-    }
-
-    function formatUnixTimestamp(unixTimestamp) {
-        const date = new Date(unixTimestamp * 1000); // Convert seconds to milliseconds
-        const day = String(date.getDate()).padStart(2, '0'); // Ensure 2 digits for the day
-        const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-        const year = date.getFullYear();
-        const hours = String(date.getHours()).padStart(2, '0'); // 24-hour format
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-
-        return `${day}/${month}/${year}, ${hours}:${minutes}`;
-    }
-
-    function formatExpireTime(expireString) {
-        let icon = '';
-
-        if (expireString === 'Expired') {
-            icon = '<i class="bi bi-exclamation-circle text-danger"></i> ';
-        } else {
-            const parts = expireString.split(' ');
-            if (parts.length === 2) {
-                const unit = parts[1]; // yrs, mos, days, hrs, mins, secs
-
-                const soonUnits = ['hrs', 'mins', 'secs'];
-                if (soonUnits.includes(unit)) {
-                    icon = ' <i class="bi bi-exclamation-triangle text-warning"></i> ';
-                }
-            }
-        }
-
-        return icon + expireString;
     }
 
 
@@ -229,10 +185,11 @@
                 }
             });
 
-            // Sort testThreads by date
-            testThreads.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            // Sort sharedThreads by date
-            sharedThreads.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            // Sort testThreads by date in reverse order
+            testThreads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            // Sort sharedThreads by date in reverse order
+            sharedThreads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
             let htmlOutput = '';
             
@@ -240,8 +197,8 @@
 
             htmlOutput += `<h5>Test threads:</h5>`;
             if (testThreads.length > 0) {
-                const firstTestDate = new Date(testThreads[0].created_at).toLocaleString();
-                const lastTestDate = new Date(testThreads[testThreads.length - 1].created_at).toLocaleString();
+                const lastTestDate = formatDbDate(testThreads[0].created_at);
+                const firstTestDate = formatDbDate(testThreads[testThreads.length - 1].created_at);
                 htmlOutput += `<p>${testThreads.length} test threads run between ${firstTestDate} & ${lastTestDate}</p>`;
 
                 // Group test threads by user
@@ -264,6 +221,7 @@
                     const sectionId = `collapse-test-${assistantId}-${userIndex}`;
                     const progressId = `progress-test-${assistantId}-${userIndex}`;
                     const tableId = `table-test-${assistantId}-${userIndex}`;
+                    const iconId = `icon-test-${assistantId}-${userIndex}`;
 
                     htmlOutput += `
                     <div class="accordion-item">
@@ -275,7 +233,10 @@
                                     aria-controls="${sectionId}"
                                     disabled>
                                 <div class="d-flex w-100 justify-content-between align-items-center">
-                                    <span>Test threads by <strong>${userName}</strong> (${groupThreads.length} threads)</span>
+                                    <span>
+                                        Test threads by <strong>${userName}</strong> (${groupThreads.length} threads)
+                                        <i id="${iconId}" class="bi bi-0-circle-fill text-danger d-none"></i> 
+                                    </span>
                                     <div class="progress w-50 me-3">
                                         <div id="${progressId}" class="progress-bar" role="progressbar" 
                                              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
@@ -307,7 +268,7 @@
                     `;
 
                     // Fetch runs for these threads
-                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId);
+                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId, iconId);
                     userIndex++;
                 }
 
@@ -320,8 +281,8 @@
 
             htmlOutput += `<h5>Shared threads:</h5>`;
             if (sharedThreads.length > 0) {
-                const firstSharedDate = new Date(sharedThreads[0].created_at).toLocaleString();
-                const lastSharedDate = new Date(sharedThreads[sharedThreads.length - 1].created_at).toLocaleString();
+                const lastSharedDate = formatDbDate(sharedThreads[0].created_at);
+                const firstSharedDate = formatDbDate(sharedThreads[sharedThreads.length - 1].created_at);
                 htmlOutput += `<p>${sharedThreads.length} shared threads run between ${firstSharedDate} & ${lastSharedDate}</p>`;
 
                 // Group shared threads by "share + share_user"
@@ -348,6 +309,7 @@
                     const sectionId = `collapse-shared-${assistantId}-${shareIndex}`;
                     const progressId = `progress-shared-${assistantId}-${shareIndex}`;
                     const tableId = `table-shared-${assistantId}-${shareIndex}`;
+                    const iconId = `icon-shared-${assistantId}-${shareIndex}`;
 
                     htmlOutput += `
                     <div class="accordion-item">
@@ -359,7 +321,10 @@
                                     aria-controls="${sectionId}"
                                     disabled>
                                 <div class="d-flex w-100 justify-content-between align-items-center">
-                                    <span>Shared: <strong>${share}</strong> by <strong>${shareUser}</strong> (${groupThreads.length} threads)</span>
+                                    <span>
+                                        Shared: <strong>${share}</strong> by <strong>${shareUser}</strong> (${groupThreads.length} threads)
+                                        <i id="${iconId}" class="bi bi-0-circle-fill text-danger d-none"></i>
+                                    </span>
                                     <div class="progress w-50 me-3">
                                         <div id="${progressId}" class="progress-bar" role="progressbar"
                                              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
@@ -391,7 +356,7 @@
                     `;
 
                     // Fetch runs for these threads
-                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId);
+                    fetchThreadRuns(groupThreads, progressId, tableId, sectionId, iconId);
                     shareIndex++;
                 }
 
@@ -407,9 +372,11 @@
             document.getElementById(`stats-${assistantId}`).innerHTML = `<strong>Error loading stats.</strong>`;
         }
     }
-    
-    async function fetchThreadRuns(threads, progressId, tableId, sectionId) {
+
+    async function fetchThreadRuns(threads, progressId, tableId, sectionId, iconId) {
         let completedThreads = 0;
+        let totalFailedCount = 0;
+        
         const totalThreads = threads.length;
 
         for (const thread of threads) {
@@ -426,49 +393,153 @@
                 });
                 const runsData = await runsResponse.json();
 
+                // Calculate token usage
                 const tokensTotal = runsData.runs.reduce((sum, run) => sum + run.usage.total_tokens, 0);
                 const tokensPrompt = runsData.runs.reduce((sum, run) => sum + run.usage.prompt_tokens, 0);
                 const tokensCompletion = runsData.runs.reduce((sum, run) => sum + run.usage.completion_tokens, 0);
+
+                // Calculate tool usage
                 const toolsUsed = runsData.runs.reduce((tools, run) => {
                     run.tools.forEach(tool => {
                         tools[tool.type] = (tools[tool.type] || 0) + 1;
                     });
                     return tools;
                 }, {});
-
                 const toolsUsedString = Object.entries(toolsUsed)
                     .map(([tool, count]) => `${tool} (${count})`)
                     .join(', ');
 
-                const cancelledRuns = runsData.runs.filter(run => run.cancelled_at !== null).length;
-                const failedRuns = runsData.runs.filter(run => run.failed_at !== null).length;
+                // Runs count
+                const totalRunsCount = runsData.runs.length;
 
-                let runsSummary = `${runsData.runs.length}`;
-                if (cancelledRuns > 0 || failedRuns > 0) {
-                    const details = [];
-                    if (cancelledRuns > 0) details.push(`${cancelledRuns} cancelled`);
-                    if (failedRuns > 0) details.push(`${failedRuns} failed`);
-                    runsSummary += ` (${details.join(', ')})`;
+                // Identify special runs
+                const incompleteRuns = runsData.runs.filter(run => run.status === 'incomplete');
+                const failedRuns = runsData.runs.filter(run => run.failed_at !== null);
+                const cancelledRuns = runsData.runs.filter(run => run.cancelled_at !== null);
+
+                function buildPopoverContent(listItems) {
+                    const html = `<ul class="mb-0">${listItems.join('')}</ul>`;
+                    // Escape double quotes so the string won't break the data-bs-content attribute
+                    return html.replace(/"/g, '&quot;');
                 }
 
+                // Build popover for incomplete runs
+                const incompleteCount = incompleteRuns.length;
+                let incompleteSpan = '';
+                if (incompleteCount > 0) {
+                    // Group by reason and count occurrences
+                    const groupedReasons = incompleteRuns.reduce((acc, run) => {
+                        const reason = run.incomplete_details?.reason ?? 'No details';
+                        acc[reason] = (acc[reason] || 0) + 1; // Increment the count for this reason
+                        return acc;
+                    }, {});
+                
+                    // Prepare the aggregated list for the popover
+                    const incompleteList = Object.entries(groupedReasons).map(([reason, count]) => {
+                        return `<li>${count} ${reason}</li>`;
+                    });
+                
+                    const incompleteHTML = buildPopoverContent(incompleteList);
+                
+                    incompleteSpan = `<span
+                        class="text-decoration-underline text-danger-emphasis"
+                        data-bs-toggle="popover"
+                        data-bs-trigger="hover"
+                        data-bs-html="true"
+                        data-bs-content="${incompleteHTML}"
+                        >${incompleteCount} incomplete</span>`;
+                }
+
+                // Build popover for failed runs
+                const failedCount = failedRuns.length;
+                let failedSpan = '';
+                if (failedCount > 0) {
+                    // Increment totalFailedCount by failedCount
+                    totalFailedCount += failedCount;
+    
+                    // Group by error code and count occurrences
+                    const groupedErrors = failedRuns.reduce((acc, run) => {
+                        const code = run.last_error?.code ?? 'unknown_code';
+                
+                        if (!acc[code]) {
+                            acc[code] = 0;
+                        }
+                
+                        acc[code] += 1; // Increment the count for this code
+                        return acc;
+                    }, {});
+                
+                    // Prepare the aggregated list for the popover
+                    const failedList = Object.entries(groupedErrors).map(([code, count]) => {
+                        return `<li>${count} ${code}</li>`;
+                    });
+                
+                    const failedHTML = buildPopoverContent(failedList);
+                
+                    failedSpan = `<span
+                        class="text-decoration-underline text-danger"
+                        data-bs-toggle="popover"
+                        data-bs-trigger="hover"
+                        data-bs-html="true"
+                        data-bs-content="${failedHTML}"
+                        >${failedCount} failed</span>`;
+                }
+
+                // Build popover for cancelled runs
+                const cancelledCount = cancelledRuns.length;
+                let cancelledSpan = '';
+                if (cancelledCount > 0) {
+                    const cancelledHTML = `<span>${cancelledCount} cancelled by user</span>`;
+                
+                    cancelledSpan = `<span
+                        class="text-decoration-underline text-warning"
+                        data-bs-toggle="popover"
+                        data-bs-trigger="hover"
+                        data-bs-html="true"
+                        data-bs-content="${cancelledHTML}"
+                        >${cancelledCount} cancelled</span>`;
+                }
+
+                // Build the runs summary "X (details...)"
+                let runsSummary = `${totalRunsCount}`;
+                const subDetails = [];
+                // Add incomplete, failed, cancelled if they exist
+                if (incompleteCount > 0) subDetails.push(incompleteSpan);
+                if (failedCount > 0) subDetails.push(failedSpan);
+                if (cancelledCount > 0) subDetails.push(cancelledSpan);
+
+                if (subDetails.length > 0) {
+                    runsSummary += ` (`;
+                    runsSummary += subDetails.join(', ');
+                    runsSummary += `)`;
+                }
+
+                // Build tokens summary "X (prompt, completion)"
                 let tokensSummary = `${tokensTotal}`;
                 if (tokensTotal > 0) {
                     tokensSummary += ` (${tokensPrompt} prompt, ${tokensCompletion} completion)`;
                 }
 
-                // Add a "User" column — thread.user.username or 'anonymous'
+                // Determine user name
                 const userName = (thread.user && thread.user.username) ? thread.user.username : 'anonymous';
 
-                const threadRow = `<tr>
-                    <td>...${thread.id.slice(-5)}</td>
-                    <td>${new Date(thread.created_at).toLocaleString()}</td>
-                    <td>${runsSummary}</td>
-                    <td>${tokensSummary}</td>
-                    <td>${toolsUsedString}</td>
-                    <td>${userName}</td>
-                </tr>`;
+                // Build row
+                const threadRow = `
+                    <tr>
+                        <td>...${thread.id.slice(-5)}</td>
+                        <td>${formatDbDate(thread.created_at)}</td>
+                        <td>${runsSummary}</td>
+                        <td>${tokensSummary}</td>
+                        <td>${toolsUsedString}</td>
+                        <td>${userName}</td>
+                    </tr>
+                `;
 
+                // Append row to the table body
                 document.querySelector(`#${tableId} tbody`).innerHTML += threadRow;
+
+                initializePopovers();
+
             } catch (error) {
                 console.error(`Error fetching runs for thread ${thread.id}:`, error);
             } finally {
@@ -480,6 +551,12 @@
 
                 // Enable expand button once all threads in this group are loaded
                 if (progress === 100) {
+                    const icon = document.getElementById(iconId);
+                    if (totalFailedCount > 0) {
+                        icon.classList.remove('bi-0-circle-fill');
+                        icon.classList.add(`bi-${totalFailedCount}-circle-fill`);
+                        icon.classList.remove('d-none');  // Reveal the icon
+                    }
                     document.querySelector(`[data-bs-target="#${sectionId}"]`).removeAttribute('disabled');
                 }
             }

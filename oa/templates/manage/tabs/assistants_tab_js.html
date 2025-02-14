@@ -1,0 +1,92 @@
+<script>
+    /* Assistants */
+
+    async function fetchAssistantsTab() {
+        toggleLoading('loadingAssistantsTab', true);
+        try {
+            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const assistantsData = await assistantsResponse.json();
+
+            console.log('assistants from assistants tab:', assistantsData);
+
+            populateAssistantsTabsAndContent(assistantsData.assistants);
+
+        } catch (error) {
+            console.error('Error fetching assistants:', error);
+        } finally {
+            toggleLoading('loadingAssistantsTab', false);
+        }
+    }
+
+    function populateAssistantsTabsAndContent(assistants) {
+        const tabsContainer = document.getElementById('assistantsNavTabs');
+        const contentContainer = document.getElementById('assistantContent');
+
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        if (!assistants || assistants.length === 0) {
+            document.getElementById('no-assistants').classList.remove('d-none');
+            return;
+        }
+
+        assistants.forEach((assistant, index) => {
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            const tabLink = document.createElement('a');
+            tabLink.className = index === 0
+                ? 'nav-link py-1 px-2 bg-secondary text-white active'
+                : 'nav-link py-1 px-2 bg-white text-secondary';
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#assistant-${assistant.id}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `assistant-${assistant.id}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.id = `assistant-${assistant.id}-tab`;
+            tabLink.textContent = assistant.name || 'Untitled Assistant';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `assistant-${assistant.id}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `assistant-${assistant.id}-tab`);
+
+            contentPane.innerHTML = `
+                <h4>${assistant.name || 'Untitled Assistant'}</h4>
+                <p><strong>Model:</strong> ${assistant.model}</p>
+                <p><strong>Tools:</strong> ${assistant.tools.map(tool => tool.type).join(', ') || 'None'}</p>
+                <div id="stats-${assistant.id}"></div>
+            `;
+
+            contentContainer.appendChild(contentPane);
+
+        });
+
+        // Listen for tab activation events so we can update the background classes
+        document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                // Loop through all tabs and update classes accordingly
+                document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(t => {
+                    if (t === event.target) {
+                        t.classList.remove('bg-white', 'text-secondary');
+                        t.classList.add('bg-secondary', 'text-white');
+                    } else {
+                        t.classList.remove('bg-secondary', 'text-white');
+                        t.classList.add('bg-white', 'text-secondary');
+                    }
+                });
+            });
+        });
+    }
+</script>

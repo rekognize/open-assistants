@@ -8,10 +8,9 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import TemplateView
-
+from ..function_calls.models import ExternalAPIFunction, LocalAPIFunction
 from .models import Project, SharedLink, Thread
 from .utils import format_time
-from ..tools import FUNCTION_DEFINITIONS
 
 logger = logging.getLogger(__name__)
 
@@ -58,14 +57,17 @@ class HomeView(TemplateView):
 
 
 @login_required
-def manage_assistants(request, project_uuid):
+def manage_overview(request, project_uuid):
     if request.user.is_staff:
         selected_project = get_object_or_404(Project, uuid=project_uuid)
     else:
         selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
 
-    return render(request, "manage.html", {
-        'function_definitions_json': json.dumps(FUNCTION_DEFINITIONS),
+    function_definitions = ([f.get_definition() for f in LocalAPIFunction.objects.all()] +
+                            [f.get_definition() for f in ExternalAPIFunction.objects.all()])
+
+    return render(request, "manage/overview.html", {
+        'function_definitions_json': json.dumps(function_definitions),
         'active_nav': 'manage',
         'selected_project': selected_project,
     })
@@ -80,6 +82,19 @@ def analytics(request, project_uuid):
 
     return render(request, "analytics.html", {
         'active_nav': 'analytics',
+        'selected_project': selected_project,
+    })
+
+
+@login_required
+def tools(request, project_uuid):
+    if request.user.is_staff:
+        selected_project = get_object_or_404(Project, uuid=project_uuid)
+    else:
+        selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
+
+    return render(request, "tools.html", {
+        'active_nav': 'tools',
         'selected_project': selected_project,
     })
 
