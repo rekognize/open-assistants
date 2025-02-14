@@ -8,7 +8,7 @@
             <a class="nav-link px-2 {% if active == 'assistants' %}active{% else %}text-secondary{% endif %}" href="{% url 'manage_assistants' project_uuid=selected_project.uuid %}">Assistants</a>
         </li>
         <li class="nav-item small me-1">
-            <a class="nav-link px-2 {% if active == 'folders' %}active{% else %}text-secondary{% endif %}" href="#">Knowledge</a>
+            <a class="nav-link px-2 {% if active == 'folders' %}active{% else %}text-secondary{% endif %}" href="{% url 'manage_folders' project_uuid=selected_project.uuid %}">Knowledge</a>
         </li>
         <li class="nav-item small me-1">
             <a class="nav-link px-2 {% if active == 'tools' %}active{% else %}text-secondary{% endif %}" href="{% url 'manage_tools' project_uuid=selected_project.uuid %}">Tools</a>

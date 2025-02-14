@@ -1,0 +1,143 @@
+{% extends "manage/base_manage.html" %}
+
+
+{% block title %}Knowledge - {{ SITE_NAME }}{% endblock %}
+
+
+{% block content %}{{ block.super }}
+
+{% with active='folders' %}
+    {% include "manage/nav.html" %}
+{% endwith %}
+
+<div class="container mt-4 mb-4">
+    <!-- Folders Table -->
+    <div id="folders-container" class="my-4">
+        {% include 'partials/loading_indicator.html' with content_id='folders' content_name='folders' %}
+        <div class="row">
+            <div class="col-3">
+                <ul class="nav nav-pills flex-column" role="tablist" id="folderTabs">
+                </ul>
+            </div>
+            <div class="col-9">
+                <div class="tab-content" id="folderContent">
+                </div>
+            </div>
+        </div>
+        <div id="no-folders" class="text-center text-secondary d-none">
+            <p>No folders available.</p>
+            <span class="text-secondary">
+                You can create folders <a href="{% url "manage_overview" project_uuid=selected_project.uuid %}" class="text-decoration-none">here</a>.
+            </span>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_scripts %}{{ block.super }}
+<script>
+    /* Folders */
+
+    async function fetchFolders() {
+        try {
+            const foldersResponse = await fetch("{% url 'folders-api:list_folders' %}", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const foldersData = await foldersResponse.json();
+
+            console.log('folders:', foldersData);
+
+            populateTabsAndContent(foldersData.folders);
+
+        } catch (error) {
+            console.error('Error fetching folders:', error);
+        } finally {
+            toggleLoading('folders', false);
+        }
+    }
+
+    function populateTabsAndContent(folders) {
+        const tabsContainer = document.getElementById('folderTabs');
+        const contentContainer = document.getElementById('folderContent');
+
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        if (!folders || folders.length === 0) {
+            document.getElementById('no-folders').classList.remove('d-none');
+            return;
+        }
+
+        folders.forEach((folder, index) => {
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            const tabLink = document.createElement('a');
+            tabLink.className = index === 0
+                ? 'nav-link py-1 px-2 bg-secondary text-white active'
+                : 'nav-link py-1 px-2 bg-white text-secondary';
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#folder-${folder.id}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `folder-${folder.id}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.id = `folder-${folder.id}-tab`;
+            tabLink.textContent = folder.name || 'Untitled Folder';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `folder-${folder.id}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `folder-${folder.id}-tab`);
+
+            contentPane.innerHTML = `
+                <h4>${folder.name || 'Untitled Folder'}</h4>
+
+                <div>
+                  <pre>${JSON.stringify(folder, null, 2)}</pre>
+                </div>
+            `;
+
+            contentContainer.appendChild(contentPane);
+
+        });
+
+        // Listen for tab activation events so we can update the background classes
+        document.querySelectorAll('#folderTabs a[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                // Loop through all tabs and update classes accordingly
+                document.querySelectorAll('#folderTabs a[data-bs-toggle="tab"]').forEach(t => {
+                    if (t === event.target) {
+                        t.classList.remove('bg-white', 'text-secondary');
+                        t.classList.add('bg-secondary', 'text-white');
+                    } else {
+                        t.classList.remove('bg-secondary', 'text-white');
+                        t.classList.add('bg-white', 'text-secondary');
+                    }
+                });
+            });
+        });
+    }
+
+    /* Initialize Page */
+
+    async function initializePage() {
+        toggleLoading('folders', true);
+        fetchFolders();
+    }
+
+    initializePage();
+
+</script>
+{% endblock %}

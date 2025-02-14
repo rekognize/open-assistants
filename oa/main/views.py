@@ -90,6 +90,19 @@ def manage_assistants(request, project_uuid):
 
 
 @login_required
+def manage_folders(request, project_uuid):
+    if request.user.is_staff:
+        selected_project = get_object_or_404(Project, uuid=project_uuid)
+    else:
+        selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
+
+    return render(request, "manage/folders.html", {
+        'active_nav': 'manage',
+        'selected_project': selected_project,
+    })
+
+
+@login_required
 def manage_tools(request, project_uuid):
     if request.user.is_staff:
         selected_project = get_object_or_404(Project, uuid=project_uuid)

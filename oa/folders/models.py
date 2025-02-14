@@ -10,7 +10,7 @@ class FolderAssistant(models.Model):
     assistant_id = models.CharField(max_length=100)
 
     def __str__(self):
-        return f"{self.folder.name} - {self.vector_store_id}"
+        return f"{self.folder.name} - {self.assistant_id}"
 
 
 class Folder(models.Model):
