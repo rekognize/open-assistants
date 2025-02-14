@@ -15,7 +15,7 @@
 
             console.log('tools tab functions:', functionsData);
 
-            populateTabsAndContent(functionsData.functions);
+            populateFunctionsTabsAndContent(functionsData.functions);
         } catch (error) {
             console.error('Error fetching functions:', error);
         } finally {
@@ -65,7 +65,7 @@
         }
     }
 
-    function populateTabsAndContent(functions) {
+    function populateFunctionsTabsAndContent(functions) {
         const tabsContainer = document.getElementById('functionNavTabs');
         const contentContainer = document.getElementById('functionContent');
 
