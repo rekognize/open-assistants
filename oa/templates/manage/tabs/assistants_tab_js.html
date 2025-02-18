@@ -46,11 +46,11 @@
                 ? 'nav-link py-1 px-2 bg-secondary text-white active'
                 : 'nav-link py-1 px-2 bg-white text-secondary';
             tabLink.setAttribute('data-bs-toggle', 'tab');
-            tabLink.setAttribute('href', `#assistant-${assistant.id}`);
+            tabLink.setAttribute('href', `#assistants-tab-${assistant.id}`);
             tabLink.setAttribute('role', 'tab');
-            tabLink.setAttribute('aria-controls', `assistant-${assistant.id}`);
+            tabLink.setAttribute('aria-controls', `assistants-tab-${assistant.id}`);
             tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-            tabLink.id = `assistant-${assistant.id}-tab`;
+            tabLink.id = `assistants-tab-${assistant.id}-tab`;
             tabLink.textContent = assistant.name || 'Untitled Assistant';
 
             tabItem.appendChild(tabLink);
@@ -58,9 +58,9 @@
 
             const contentPane = document.createElement('div');
             contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
-            contentPane.setAttribute('id', `assistant-${assistant.id}`);
+            contentPane.setAttribute('id', `assistants-tab-${assistant.id}`);
             contentPane.setAttribute('role', 'tabpanel');
-            contentPane.setAttribute('aria-labelledby', `assistant-${assistant.id}-tab`);
+            contentPane.setAttribute('aria-labelledby', `assistants-tab-${assistant.id}-tab`);
 
             contentPane.innerHTML = `
                 <h4>${assistant.name || 'Untitled Assistant'}</h4>
