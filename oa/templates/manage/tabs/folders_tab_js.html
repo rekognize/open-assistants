@@ -46,11 +46,11 @@
                 ? 'nav-link py-1 px-2 bg-secondary text-white active'
                 : 'nav-link py-1 px-2 bg-white text-secondary';
             tabLink.setAttribute('data-bs-toggle', 'tab');
-            tabLink.setAttribute('href', `#folder-${folder.id}`);
+            tabLink.setAttribute('href', `#folder-${folder.uuid}`);
             tabLink.setAttribute('role', 'tab');
-            tabLink.setAttribute('aria-controls', `folder-${folder.id}`);
+            tabLink.setAttribute('aria-controls', `folder-${folder.uuid}`);
             tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-            tabLink.id = `folder-${folder.id}-tab`;
+            tabLink.id = `folder-${folder.uuid}-tab`;
             tabLink.textContent = folder.name || 'Untitled Folder';
 
             tabItem.appendChild(tabLink);
@@ -58,9 +58,9 @@
 
             const contentPane = document.createElement('div');
             contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
-            contentPane.setAttribute('id', `folder-${folder.id}`);
+            contentPane.setAttribute('id', `folder-${folder.uuid}`);
             contentPane.setAttribute('role', 'tabpanel');
-            contentPane.setAttribute('aria-labelledby', `folder-${folder.id}-tab`);
+            contentPane.setAttribute('aria-labelledby', `folder-${folder.uuid}-tab`);
 
             contentPane.innerHTML = `
                 <h4>${folder.name || 'Untitled Folder'}</h4>
