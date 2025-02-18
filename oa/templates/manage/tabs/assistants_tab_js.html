@@ -66,7 +66,9 @@
                 <h4>${assistant.name || 'Untitled Assistant'}</h4>
                 <p><strong>Model:</strong> ${assistant.model}</p>
                 <p><strong>Tools:</strong> ${assistant.tools.map(tool => tool.type).join(', ') || 'None'}</p>
-                <div id="stats-${assistant.id}"></div>
+                <div>
+                  <pre>${JSON.stringify(assistant, null, 2)}</pre>
+                </div>
             `;
 
             contentContainer.appendChild(contentPane);

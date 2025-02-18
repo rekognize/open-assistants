@@ -46,9 +46,9 @@
 
             <div>
 
-                <!-- Edit Mode Toggle Buttons -->
+                <!-- Edit Button -->
                 <div class="brief-info">
-                    <a href="#"
+                    <a href="#" onclick="editAssistant('${assistant.id}')"
                         class="btn btn-sm btn-outline-secondary"
                         data-bs-toggle="tooltip" data-bs-title="Edit">
                         <i class="bi bi-pencil"></i>
@@ -57,26 +57,18 @@
 
             </div>
 
-            <!-- Action Buttons to Hide in Edit Mode -->
+            <!-- Action Buttons -->
             <div class="brief-info">
-                <a class="btn btn-sm btn-outline-secondary"
-                   href="{% url 'thread_detail' project_uuid=selected_project.uuid %}?a=${assistant.id}" target="_blank"
-                   data-bs-toggle="tooltip" data-bs-title="Start a conversation">
-                    <i class="bi bi-chat"></i>
-                </a>
                 <button type="button" class="btn btn-sm btn-outline-secondary share-assistant-button"
                         data-assistant-id="${assistant.id}" data-bs-toggle="modal" data-bs-target="#shareAssistantModal"
                         data-assistant-name="${assistantName}">
                     <i class="bi bi-share"></i>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary"
-                        data-bs-toggle="tooltip" data-bs-title="Duplicate this assistant">
-                    <i class="bi bi-copy"></i>
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-danger"
-                        data-bs-toggle="tooltip" data-bs-title="Delete" onclick="deleteAssistant('${assistant.id}')">
-                    <i class="bi bi-trash"></i>
-                </button>
+                <a class="btn btn-sm btn-outline-secondary"
+                   href="{% url 'thread_detail' project_uuid=selected_project.uuid %}?a=${assistant.id}" target="_blank"
+                   data-bs-toggle="tooltip" data-bs-title="Start a conversation">
+                    <i class="bi bi-chat"></i>
+                </a>
             </div>
 
         </div>
