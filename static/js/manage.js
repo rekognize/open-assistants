@@ -1481,10 +1481,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize sorting dropdowns
     new bootstrap.Dropdown(document.getElementById('assistantSortDropdown'));
     new bootstrap.Dropdown(document.getElementById('folderSortDropdown'));
-    new bootstrap.Dropdown(document.getElementById('fileSortDropdown'));
+    new bootstrap.Dropdown(document.getElementById('functionSortDropdown'));
 
     // Initialize filter icons
     updateFilterIcon('assistantFilterDropdown', assistantFilters);
     updateFilterIcon('folderFilterDropdown', folderFilters);
-    updateFilterIcon('fileFilterDropdown', functionFilters);
+    updateFilterIcon('functionFilterDropdown', functionFilters);
 });
