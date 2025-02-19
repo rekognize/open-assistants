@@ -479,7 +479,7 @@ function applyFunctionFilters() {
     displayFunctions();
 
     // Update button styles and icons
-    updateFolderFunctionsButtonStyles();
+    updateFolderFilesButtonStyles();
 
     // Update the filter icon
     updateFilterIcon('functionFilterDropdown', functionFilters);
@@ -502,7 +502,7 @@ function resetFunctionFilters() {
     displayFunctions();
 
     // Update button styles and icons
-    updateFolderFunctionsButtonStyles();
+    updateFolderFilesButtonStyles();
 
     // Update the filter icon
     updateFilterIcon('functionFilterDropdown', functionFilters);
@@ -528,29 +528,14 @@ function populateAssistantFilterOptions() {
 }
 
 function populateFunctionFilterOptions() {
-    const filterFolder = document.getElementById('fileFilterFolder');
-    filterFolder.innerHTML = '<option value="">All</option>'; // Reset options
+    const filterAssistant = document.getElementById('functionFilterAssistant');
+    filterAssistant.innerHTML = '<option value="">All</option>'; // Reset options
 
-    for (const [folderId, folder] of Object.entries(folders)) {
+    for (const [assistantId, assistant] of Object.entries(assistants)) {
         const option = document.createElement('option');
-        option.value = folderId;
-        option.textContent = folder.name ?? 'Untitled store';
-        filterFolder.appendChild(option);
-    }
-
-    // Populate file types
-    const filterFileType = document.getElementById('fileFilterType');
-    filterFileType.innerHTML = '<option value="">All</option>'; // Reset options
-
-    const fileTypes = new Set();
-    for (const file of Object.values(files)) {
-        fileTypes.add(getFileType(file.filename));
-    }
-    for (const fileType of fileTypes) {
-        const option = document.createElement('option');
-        option.value = fileType;
-        option.textContent = fileType.toUpperCase();
-        filterFileType.appendChild(option);
+        option.value = assistantId;
+        option.textContent = assistant.name ?? 'Untitled assistant';
+        filterAssistant.appendChild(option);
     }
 }
 
@@ -600,11 +585,6 @@ function areFiltersActive(filters) {
             return value !== '' && value !== null && value !== undefined;
         }
     });
-}
-
-function getFileType(filename) {
-    const extension = filename.split('.').pop().toLowerCase();
-    return extension;
 }
 
 
@@ -701,7 +681,7 @@ function displayFolders() {
 
     foldersList.innerHTML = '';
 
-    const totalStores = Object.values(folders).length;
+    const totalFolders = Object.values(folders).length;
 
     // Convert to array
     let foldersArray = Object.values(folders);
@@ -723,19 +703,19 @@ function displayFolders() {
         return true;
     });
 
-    const filteredStoresCount = foldersArray.length;
+    const filteredFoldersCount = foldersArray.length;
 
     // Update the folder count display only if filters are active
     const folderCountElement = document.getElementById('folders-count');
     if (areFiltersActive(folderFilters)) {
-        folderCountElement.textContent = `${filteredStoresCount} results (${totalStores} total)`;
+        folderCountElement.textContent = `${filteredFoldersCount} results (${totalFolders} total)`;
         folderCountElement.style.display = 'inline';
     } else {
         folderCountElement.style.display = 'none';
     }
 
     // Handle different cases based on total folders and filtered folders
-    if (totalStores === 0) {
+    if (totalFolders === 0) {
         // No folders exist at all
         const messageDiv = document.createElement('div');
         messageDiv.className = 'text-center mt-4 no-folders-message';
@@ -766,7 +746,7 @@ function displayFolders() {
         let compareResult = 0;
 
         if (folderSortField === 'name') {
-            compareResult = (a.name || 'Untitled store').localeCompare(b.name || 'Untitled store');
+            compareResult = (a.name || 'Untitled folder').localeCompare(b.name || 'Untitled folder');
         } else if (folderSortField === 'created_at') {
             compareResult = a.created_at - b.created_at;
         } else if (folderSortField === 'last_active_at') {
@@ -777,8 +757,8 @@ function displayFolders() {
     });
 
     // Display
-    for (const store of foldersArray) {
-        const folderItem = renderFolder(store);
+    for (const folder of foldersArray) {
+        const folderItem = renderFolder(folder);
         foldersList.appendChild(folderItem);
     }
 
@@ -786,13 +766,13 @@ function displayFolders() {
 }
 
 
-function updateFolderFunctionsButtonStyles() {
-    const buttons = document.querySelectorAll('.folder-functions-button');
+function updateFolderFilesButtonStyles() {
+    const buttons = document.querySelectorAll('.folder-files-button');
     buttons.forEach(button => {
-        const storeId = button.getAttribute('data-store-id');
+        const folderId = button.getAttribute('data-folder-uuid');
         const iconElement = button.querySelector('i');
 
-        if (functionFilters.folderId === storeId && functionFilters.folderId !== '') {
+        if (functionFilters.folderId === folderId && functionFilters.folderId !== '') {
             // The filter is active for this store
             button.classList.remove('btn-outline-secondary');
             button.classList.add('btn-secondary');
@@ -1143,7 +1123,7 @@ async function showUploadFileModal() {
             const label = document.createElement('label');
             label.classList.add('form-check-label');
             label.setAttribute('for', `folder-${folderId}`);
-            label.textContent = folder.name ?? 'Untitled store';
+            label.textContent = folder.name ?? 'Untitled folder';
 
             checkbox.appendChild(input);
             checkbox.appendChild(label);
