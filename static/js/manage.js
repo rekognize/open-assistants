@@ -57,7 +57,7 @@ function renderFunctionCheckboxes(assistantId) {
 
 let folders = {};
 let assistants = {};
-let files = {};
+let functions = {};
 let folderFiles = {};  // {folderId: [file1, file2, ...]}
 let fileFolders = {};  // {fileId: [folder1, folder2, ...]}
 let selectedFiles = [];
@@ -113,7 +113,7 @@ async function initializePage() {
     // Show loading indicator initially for all
     toggleLoading('folders', true);
     toggleLoading('assistants', true);
-    toggleLoading('files', true);
+    toggleLoading('functions', true);
 
     folders = await loadAndDisplayFolders();
     populateAssistantFilterOptions();
@@ -128,9 +128,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     setTimeout(() => {
         const isFoldersEmpty = Object.keys(folders).length === 0;
         const isAssistantsEmpty = Object.keys(assistants).length === 0;
-        const isFilesEmpty = Object.keys(files).length === 0;
+        const isFunctionsEmpty = Object.keys(functions).length === 0;
 
-        if (isFoldersEmpty && isAssistantsEmpty && isFilesEmpty) {
+        if (isFoldersEmpty && isAssistantsEmpty && isFunctionsEmpty) {
             const getStartedModalElement = document.getElementById('getStartedModal');
             const getStartedModal = new bootstrap.Modal(getStartedModalElement, {
                 backdrop: 'static',
@@ -194,40 +194,40 @@ async function refreshFolderList() {
     populateAssistantFilterOptions();
 
     // Refresh collapse all button
-    const btnCollapseAllStores = document.getElementById('collapse-all-folders');
-    const btnExpandAllStores = document.getElementById('expand-all-folders');
-    btnCollapseAllStores.classList.remove('d-none');
-    btnExpandAllStores.classList.add('d-none');
+    const btnCollapseAllFolders = document.getElementById('collapse-all-folders');
+    const btnExpandAllFolders = document.getElementById('expand-all-folders');
+    btnCollapseAllFolders.classList.remove('d-none');
+    btnExpandAllFolders.classList.add('d-none');
 }
 
 async function refreshFunctionsList() {
     const functionsList = document.getElementById('functions-list');
 
-    // Dispose of existing tooltips within the files list
-    disposeTooltips(filesList);
+    // Dispose of existing tooltips within the functions list
+    disposeTooltips(functionsList);
 
-    filesList.innerHTML = ''; // Clear any existing files
-    toggleLoading('files', true);
+    functionsList.innerHTML = ''; // Clear any existing functions
+    toggleLoading('functions', true);
 
     // Reset to default sorting options
     functionSortField = 'created_at';
     functionSortOrder = 'desc';
-    updateSortDropdownUI('fileSortDropdown', functionSortField, functionSortOrder);
+    updateSortDropdownUI('functionSortDropdown', functionSortField, functionSortOrder);
 
     // Close the sorting dropdown if open
-    const dropdownElement = document.getElementById('fileSortDropdown');
+    const dropdownElement = document.getElementById('functionSortDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
 
-    loadAndDisplayFiles();
+    loadAndDisplayFunctions();
 
     // Refresh collapse all button
-    const btnCollapseAllFiles = document.getElementById('collapse-all-files');
-    const btnExpandAllFiles = document.getElementById('expand-all-files');
-    btnCollapseAllFiles.classList.remove('d-none');
-    btnExpandAllFiles.classList.add('d-none');
+    const btnCollapseAllFunctions = document.getElementById('collapse-all-functions');
+    const btnExpandAllFunctions = document.getElementById('expand-all-functions');
+    btnCollapseAllFunctions.classList.remove('d-none');
+    btnExpandAllFunctions.classList.add('d-none');
 }
 
 function toggleAllAssistants(action) {
@@ -250,9 +250,9 @@ function toggleAllAssistants(action) {
     }
 }
 
-function toggleAllStores(action) {
-    const btnCollapseAllStores = document.getElementById('collapse-all-folders');
-    const btnExpandAllStores = document.getElementById('expand-all-folders');
+function toggleAllFolders(action) {
+    const btnCollapseAllFolders = document.getElementById('collapse-all-folders');
+    const btnExpandAllFolders = document.getElementById('expand-all-folders');
     const collapsibleItems = document.querySelectorAll('#folders-list .collapse');
     collapsibleItems.forEach(item => {
         const bsCollapse = new bootstrap.Collapse(item, {
@@ -262,18 +262,18 @@ function toggleAllStores(action) {
         else bsCollapse.show();
     });
     if (action === 'collapse') {
-        btnCollapseAllStores.classList.add('d-none');
-        btnExpandAllStores.classList.remove('d-none');
+        btnCollapseAllFolders.classList.add('d-none');
+        btnExpandAllFolders.classList.remove('d-none');
     } else {  // expand
-        btnCollapseAllStores.classList.remove('d-none');
-        btnExpandAllStores.classList.add('d-none');
+        btnCollapseAllFolders.classList.remove('d-none');
+        btnExpandAllFolders.classList.add('d-none');
     }
 }
 
-function toggleAllFiles(action) {
-    const btnCollapseAllFiles = document.getElementById('collapse-all-files');
-    const btnExpandAllFiles = document.getElementById('expand-all-files');
-    const collapsibleItems = document.querySelectorAll('#files-list .collapse');
+function toggleAllFunctions(action) {
+    const btnCollapseAllFunctions = document.getElementById('collapse-all-functions');
+    const btnExpandAllFunctions = document.getElementById('expand-all-functions');
+    const collapsibleItems = document.querySelectorAll('#functions-list .collapse');
     collapsibleItems.forEach(item => {
         const bsCollapse = new bootstrap.Collapse(item, {
             toggle: false
@@ -282,11 +282,11 @@ function toggleAllFiles(action) {
         else bsCollapse.show();
     });
     if (action === 'collapse') {
-        btnCollapseAllFiles.classList.add('d-none');
-        btnExpandAllFiles.classList.remove('d-none');
+        btnCollapseAllFunctions.classList.add('d-none');
+        btnExpandAllFunctions.classList.remove('d-none');
     } else {  // expand
-        btnCollapseAllFiles.classList.remove('d-none');
-        btnExpandAllFiles.classList.add('d-none');
+        btnCollapseAllFunctions.classList.remove('d-none');
+        btnExpandAllFunctions.classList.add('d-none');
     }
 }
 
@@ -332,10 +332,10 @@ function setFolderSort(field, order, event) {
     }
 
     // Refresh collapse all button
-    const btnCollapseAllStores = document.getElementById('collapse-all-stores');
-    const btnExpandAllStores = document.getElementById('expand-all-stores');
-    btnCollapseAllStores.classList.remove('d-none');
-    btnExpandAllStores.classList.add('d-none');
+    const btnCollapseAllFolders = document.getElementById('collapse-all-folders');
+    const btnExpandAllFolders = document.getElementById('expand-all-folders');
+    btnCollapseAllFolders.classList.remove('d-none');
+    btnExpandAllFolders.classList.add('d-none');
 }
 
 function setFunctionSort(field, order, event) {
@@ -345,22 +345,22 @@ function setFunctionSort(field, order, event) {
     functionSortOrder = order;
 
     // Update the active class on the dropdown menu items
-    updateSortDropdownUI('fileSortDropdown', field, order);
+    updateSortDropdownUI('functionSortDropdown', field, order);
 
-    displayFiles(); // Re-display files with new sort order
+    displayFunctions(); // Re-display functions with new sort order
 
     // Close the dropdown menu
-    const dropdownElement = document.getElementById('fileSortDropdown');
+    const dropdownElement = document.getElementById('functionSortDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
 
     // Refresh collapse all button
-    const btnCollapseAllFiles = document.getElementById('collapse-all-files');
-    const btnExpandAllFiles = document.getElementById('expand-all-files');
-    btnCollapseAllFiles.classList.remove('d-none');
-    btnExpandAllFiles.classList.add('d-none');
+    const btnCollapseAllFunctions = document.getElementById('collapse-all-functions');
+    const btnExpandAllFunctions = document.getElementById('expand-all-functions');
+    btnCollapseAllFunctions.classList.remove('d-none');
+    btnExpandAllFunctions.classList.add('d-none');
 }
 
 function applyAssistantFilters() {
@@ -455,60 +455,60 @@ function resetFolderFilters() {
     updateFilterIcon('folderFilterDropdown', folderFilters);
 }
 
-function applyFileFilters() {
+function applyFunctionFilters() {
     // Read filter values
-    fileFilters.name = document.getElementById('fileFilterName').value.toLowerCase();
-    fileFilters.startDate = document.getElementById('fileFilterStartDate').value
-        ? new Date(document.getElementById('fileFilterStartDate').value)
+    functionFilters.name = document.getElementById('functionFilterName').value.toLowerCase();
+    functionFilters.startDate = document.getElementById('functionFilterStartDate').value
+        ? new Date(document.getElementById('functionFilterStartDate').value)
         : null;
-    fileFilters.endDate = document.getElementById('fileFilterEndDate').value
-        ? new Date(document.getElementById('fileFilterEndDate').value)
+    functionFilters.endDate = document.getElementById('functionFilterEndDate').value
+        ? new Date(document.getElementById('functionFilterEndDate').value)
         : null;
 
     // Adjust dates
-    if (fileFilters.startDate) {
-        fileFilters.startDate.setHours(0, 0, 0, 0);
+    if (functionFilters.startDate) {
+        functionFilters.startDate.setHours(0, 0, 0, 0);
     }
-    if (fileFilters.endDate) {
-        fileFilters.endDate.setHours(23, 59, 59, 999);
+    if (functionFilters.endDate) {
+        functionFilters.endDate.setHours(23, 59, 59, 999);
     }
 
-    fileFilters.folderId = document.getElementById('fileFilterFolder').value;
-    fileFilters.fileType = document.getElementById('fileFilterType').value;
+    functionFilters.folderId = document.getElementById('functionFilterFolder').value;
+    functionFilters.functionType = document.getElementById('functionFilterType').value;
 
-    displayFiles();
+    displayFunctions();
 
     // Update button styles and icons
-    updateFolderFilesButtonStyles();
+    updateFolderFunctionsButtonStyles();
 
     // Update the filter icon
-    updateFilterIcon('fileFilterDropdown', fileFilters);
+    updateFilterIcon('functionFilterDropdown', functionFilters);
 
     // Close the dropdown menu
-    const dropdownElement = document.getElementById('fileFilterDropdown');
+    const dropdownElement = document.getElementById('functionFilterDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
 }
 
-function resetFileFilters() {
-    document.getElementById('fileFilterForm').reset();
+function resetFunctionFilters() {
+    document.getElementById('functionFilterForm').reset();
     functionFilters = {
         name: '',
         functionType: ''
     };
 
-    displayFiles();
+    displayFunctions();
 
     // Update button styles and icons
-    updateFolderFilesButtonStyles();
+    updateFolderFunctionsButtonStyles();
 
     // Update the filter icon
-    updateFilterIcon('fileFilterDropdown', fileFilters);
+    updateFilterIcon('functionFilterDropdown', functionFilters);
 
     // Close the dropdown menu
-    const dropdownElement = document.getElementById('fileFilterDropdown');
+    const dropdownElement = document.getElementById('functionFilterDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
@@ -568,7 +568,7 @@ function updateSortDropdownUI(dropdownId, field, order) {
     // Update the sort icon
     const sortIcon = document.getElementById(dropdownId);
     sortIcon.className = 'text-light-emphasis bi ms-2';
-    if (field === 'name' || field === 'filename') {
+    if (field === 'name') {
         sortIcon.classList.add(order === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-down-alt');
     } else if (field === 'created_at') {
         sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
@@ -786,13 +786,13 @@ function displayFolders() {
 }
 
 
-function updateFolderFilesButtonStyles() {
-    const buttons = document.querySelectorAll('.folder-files-button');
+function updateFolderFunctionsButtonStyles() {
+    const buttons = document.querySelectorAll('.folder-functions-button');
     buttons.forEach(button => {
         const storeId = button.getAttribute('data-store-id');
         const iconElement = button.querySelector('i');
 
-        if (fileFilters.folderId === storeId && fileFilters.folderId !== '') {
+        if (functionFilters.folderId === storeId && functionFilters.folderId !== '') {
             // The filter is active for this store
             button.classList.remove('btn-outline-secondary');
             button.classList.add('btn-secondary');
@@ -978,31 +978,6 @@ function displayAssistants() {
 }
 
 
-function removeAssistantCard(assistantId) {
-    // Remove the assistant card
-    const assistantCard = document.getElementById(`temp-card-${assistantId}`) || document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
-    if (assistantCard) {
-        assistantCard.remove();
-    }
-
-    // Check if the assistants list is empty
-    const assistantsList = document.getElementById('assistants-list');
-    const assistantItems = assistantsList.querySelectorAll('.assistant-item');
-    if (assistantItems.length === 0) {
-        // Display the "No assistants found." message
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'text-center mt-4 no-assistants-message';
-        messageDiv.innerHTML = `
-            <p class="text-secondary">No assistants found.</p>
-            <span class="text-secondary">
-                <a href="#" class="text-decoration-none"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
-            </span>
-        `;
-        assistantsList.appendChild(messageDiv);
-    }
-}
-
-
 /* Tools */
 
 async function fetchFunctions() {
@@ -1108,13 +1083,13 @@ function displayFunctions() {
         functionsList.appendChild(messageDiv);
         return;
     } else if (functionsArray.length === 0) {
-        // Files exist, but none match the filters
+        // Functions exist, but none match the filters
         const messageDiv = document.createElement('div');
         messageDiv.className = 'text-center mt-4';
         messageDiv.innerHTML = `
             <p class="text-secondary">No functions match your filters.</p>
             <span class="text-secondary">You can
-            <a href="#" class="text-decoration-none" onclick="resetFileFilters()">reset the filters</a>
+            <a href="#" class="text-decoration-none" onclick="resetFunctionFilters()">reset the filters</a>
             to see all functions.</span>
         `;
         functionsList.appendChild(messageDiv);
@@ -1406,7 +1381,7 @@ async function uploadFiles() {
             displayFiles();
 
             displayFolders(); // Re-render folder cards to reflect updated files
-            populateFileFilterOptions(); // Update file filters to reflect new files
+            populateFunctionFilterOptions(); // Update file filters to reflect new files
 
             // Hide the modal after successful upload
             const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
