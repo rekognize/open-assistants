@@ -8,6 +8,33 @@ function compileTemplate(templateString) {
     return new Function("data", "with(data) { return `" + templateString + "`; }");
 }
 
+// Helper function that waits until a container is loaded
+async function waitForContainerAndTarget(containerId, targetPrefix, targetId, callback) {
+    const container = document.getElementById(containerId);
+    if (container && container.dataset.loaded === "true") {
+        // Container is marked as loaded. Now check for the target tab.
+        const targetTabLink = document.querySelector(`#${targetPrefix}-${targetId}-tab`);
+        if (targetTabLink) {
+            callback(targetTabLink);
+        } else {
+            // The container is loaded but the target tab isn't in the DOM yet.
+            // Use a MutationObserver to detect when the target tab is added.
+            const observer = new MutationObserver((mutations, obs) => {
+                const target = document.querySelector(`#${targetPrefix}-${targetId}-tab`);
+                if (target) {
+                    obs.disconnect();
+                    callback(target);
+                }
+            });
+            observer.observe(container, { childList: true, subtree: true });
+        }
+    } else {
+        // Container isn't loaded yet; try again after a short delay.
+        setTimeout(function() {
+            waitForContainerAndTarget(containerId, targetPrefix, targetId, callback);
+        }, 100);
+    }
+}
 
 function toggleAssistantFileSearch(assistantId) {
     const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${assistantId}`);
@@ -765,6 +792,21 @@ function displayFolders() {
     initializeTooltips();
 }
 
+// Redirect to Knowledge tab
+async function editFolder(folderId) {
+    console.log("Editing folder:", folderId);
+    const foldersTabTrigger = document.getElementById('foldersTab');
+    if (foldersTabTrigger && !foldersTabTrigger.classList.contains('active')) {
+        foldersTabTrigger.click();
+    }
+    await waitForContainerAndTarget('folders-tab-container', 'folders-tab', folderId, function(targetTabLink) {
+        let tabInstance = bootstrap.Tab.getInstance(targetTabLink);
+        if (!tabInstance) {
+            tabInstance = new bootstrap.Tab(targetTabLink);
+        }
+        tabInstance.show();
+    });
+}
 
 function updateFolderFilesButtonStyles() {
     const buttons = document.querySelectorAll('.folder-files-button');
@@ -830,7 +872,6 @@ async function fetchAssistants() {
         toggleLoading('assistants', false);
     }
 }
-
 
 const assistantItemTemplate = document.getElementById("assistant-item-template").innerHTML;
 
@@ -957,6 +998,22 @@ function displayAssistants() {
     initializeTooltips();
 }
 
+// Redirect to Assistants tab
+async function editAssistant(assistantId) {
+    console.log("Editing assistant:", assistantId);
+    const assistantsTabTrigger = document.getElementById('assistantsTab');
+    if (assistantsTabTrigger && !assistantsTabTrigger.classList.contains('active')) {
+        assistantsTabTrigger.click();
+    }
+    await waitForContainerAndTarget('assistants-tab-container', 'assistants-tab', assistantId, function(targetTabLink) {
+        let tabInstance = bootstrap.Tab.getInstance(targetTabLink);
+        if (!tabInstance) {
+            tabInstance = new bootstrap.Tab(targetTabLink);
+        }
+        tabInstance.show();
+    });
+}
+
 
 /* Tools */
 
@@ -998,7 +1055,6 @@ async function fetchFunctions() {
     }
 }
 
-
 const functionItemTemplate = document.getElementById("function-item-template").innerHTML;
 
 function renderFunction(func) {
@@ -1019,7 +1075,6 @@ function renderFunction(func) {
 
     return functionItem;
 }
-
 
 function displayFunctions() {
     const functionsList = document.getElementById('functions-list');
@@ -1097,6 +1152,22 @@ function displayFunctions() {
 
     // Re-initialize tooltips after updating the DOM
     initializeTooltips();
+}
+
+// Redirect to Tools tab
+async function editFunction(funcId) {
+    console.log("Editing function:", funcId);
+    const functionsTabTrigger = document.getElementById('toolsTab');
+    if (functionsTabTrigger && !functionsTabTrigger.classList.contains('active')) {
+        functionsTabTrigger.click();
+    }
+    await waitForContainerAndTarget('tools-tab-container', 'functions-tab', funcId, function(targetTabLink) {
+        let tabInstance = bootstrap.Tab.getInstance(targetTabLink);
+        if (!tabInstance) {
+            tabInstance = new bootstrap.Tab(targetTabLink);
+        }
+        tabInstance.show();
+    });
 }
 
 
