@@ -4,22 +4,21 @@
     async function fetchAssistantsTab() {
         toggleLoading('loadingAssistantsTab', true);
         try {
-            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
+            // Wait until assistants are loaded or an error occurs
+            while (!assistantsLoaded) {
+                if (assistantsError) {
+                    throw new Error(assistantsError);
                 }
-            });
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
 
-            const assistantsData = await assistantsResponse.json();
-
-            console.log('assistants from assistants tab:', assistantsData);
-
-            populateAssistantsTabsAndContent(assistantsData.assistants);
+            populateAssistantsTabsAndContent(assistants);
 
         } catch (error) {
-            console.error('Error fetching assistants:', error);
+            const contentContainer = document.getElementById('assistants-tab-container');
+            contentContainer.innerHTML = `
+                <div class="text-center text-danger">Failed to load assistants!</div>
+            `;
         } finally {
             toggleLoading('loadingAssistantsTab', false);
         }
@@ -32,12 +31,16 @@
         tabsContainer.innerHTML = '';
         contentContainer.innerHTML = '';
 
-        if (!assistants || assistants.length === 0) {
+        // Check if the global dict is empty
+        if (!assistants || Object.keys(assistants).length === 0) {
             document.getElementById('no-assistants').classList.remove('d-none');
             return;
         }
 
-        assistants.forEach((assistant, index) => {
+        // Convert the assistants object into an array of assistant objects
+        const assistantsArr = Object.values(assistants);
+
+        assistantsArr.forEach((assistant, index) => {
             const tabItem = document.createElement('li');
             tabItem.className = 'nav-item';
 

@@ -89,6 +89,9 @@ let folderFiles = {};  // {folderId: [file1, file2, ...]}
 let fileFolders = {};  // {fileId: [folder1, folder2, ...]}
 let selectedFiles = [];
 
+let assistantsLoaded = false;
+let assistantsError = null;
+
 // Global variables for sorting and filtering
 
 let assistantSortField = 'created_at'; // default sort field
@@ -856,10 +859,14 @@ async function fetchAssistants() {
                 assistants[assistant.id] = assistant;
             });
 
+            // Set the global data as loaded
+            assistantsLoaded = true;
+
             // Return the global assistants object
             return assistants;
         } else {
             const parsedError = parseErrorText(data.error);
+            assistantsError = parsedError.errorMessage;
             showToast("Failed to fetch assistants!", parsedError.errorMessage);
             console.error('Failed to fetch assistants!', parsedError);
             return {};
@@ -867,6 +874,7 @@ async function fetchAssistants() {
     } catch (error) {
         showToast("Error fetching assistants:", error);
         console.error('Error fetching assistants:', error);
+        assistantsError = error;
         return {};
     } finally {
         toggleLoading('assistants', false);
