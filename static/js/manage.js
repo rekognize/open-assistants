@@ -87,6 +87,7 @@ let assistants = {};
 let functions = {};
 let folderFiles = {};  // {folderId: [file1, file2, ...]}
 let fileFolders = {};  // {fileId: [folder1, folder2, ...]}
+let assistantFoldersMapping = {}; // { assistantId: [folderUUID, ...], ... }
 let selectedFiles = [];
 
 let assistantsLoaded = false;
@@ -128,6 +129,7 @@ async function loadAndDisplayFolders() {
 
 async function loadAndDisplayAssistants() {
     const assistants = await fetchAssistants();
+    await fetchAssistantFoldersMapping();
     displayAssistants();
     return assistants;
 }
@@ -881,6 +883,29 @@ async function fetchAssistants() {
     }
 }
 
+async function fetchAssistantFoldersMapping() {
+    try {
+        const response = await fetch(listFolderAssistantsUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+
+        if (data.assistant_folders) {
+            assistantFoldersMapping = data.assistant_folders;
+        } else {
+            showToast("Failed to fetch assistant folders!", 'No assistant_folders key in response.');
+            console.error("No assistant_folders key in response:", data);
+        }
+    } catch (error) {
+        showToast("Failed to fetch assistant folders:", error);
+        console.error('Error fetching assistant folders mapping:', error);
+    }
+}
+
 const assistantItemTemplate = document.getElementById("assistant-item-template").innerHTML;
 
 function renderAssistant(assistant) {
@@ -891,13 +916,22 @@ function renderAssistant(assistant) {
     // Get the assistant name
     const assistantName = assistant.name || 'Untitled assistant';
 
+    // Find matching folders using the assistantFoldersMapping and folders global dict
+    let matchingFolders = [];
+    if (assistantFoldersMapping && assistantFoldersMapping[assistant.id]) {
+        matchingFolders = assistantFoldersMapping[assistant.id]
+            .map(folderUUID => folders[folderUUID])
+            .filter(folder => folder !== undefined);
+    }
+
     // The template context
-    // TODO: Get the folders; can be [{name: ..., uuid: ...]
     const data = {
         assistant: assistant,
         assistantName: assistantName,
-        folders: []
+        folders: matchingFolders
     };
+
+    console.log(data);
 
     // Compile the template into a function
     const renderTemplate = compileTemplate(assistantItemTemplate);

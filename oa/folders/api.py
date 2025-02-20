@@ -4,8 +4,7 @@ from ninja.errors import AuthenticationError
 from openai import AsyncOpenAI
 from django.http import JsonResponse
 from ..main.models import Project
-from .models import Folder, FolderFile
-
+from .models import Folder, FolderFile, FolderAssistant
 
 api = NinjaAPI(urls_namespace="folders-api")
 
@@ -60,6 +59,17 @@ async def list_folders(request):
             "file_ids": [ff.file_id for ff in folder.folderfile_set.all()],
         })
     return {"folders": folders}
+
+
+@api.get("/folder_assistants", auth=BearerAuth())
+async def list_folder_assistants(request):
+    project = request.auth['project']
+    qs = FolderAssistant.objects.filter(folder__projects=project).select_related("folder")
+    mapping = {}
+    async for fa in qs:
+        # Use the assistant_id as key and collect folder UUIDs
+        mapping.setdefault(fa.assistant_id, []).append(str(fa.folder.uuid))
+    return {"assistant_folders": mapping}
 
 
 @api.get("/{folder_uuid}/list/")

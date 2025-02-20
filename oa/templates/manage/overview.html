@@ -483,6 +483,8 @@
     const listFoldersUrl = '{% url "folders-api:list_folders" %}';
     const listFolderFilesUrlTemplate = "{% url 'folders-api:list_files' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
 
+    const listFolderAssistantsUrl = "{% url 'folders-api:list_folder_assistants' %}";
+
     const deleteFileUrlTemplate = "{% url 'api-1.0.0:delete_file' file_id='FILE_ID_PLACEHOLDER' %}";
     const uploadFilesUrl = '{% url "api-1.0.0:upload_files" %}';
     const retrieveVectorStoreUrlTemplate = "{% url 'api-1.0.0:retrieve_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}";
