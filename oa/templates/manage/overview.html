@@ -483,7 +483,7 @@
     const listFoldersUrl = '{% url "folders-api:list_folders" %}';
     const listFolderFilesUrlTemplate = "{% url 'folders-api:list_files' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
 
-    const listFolderAssistantsUrl = "{% url 'folders-api:list_folder_assistants' %}";
+    const listAssistantFoldersUrl = "{% url 'folders-api:list_assistant_folders' %}";
 
     const deleteFileUrlTemplate = "{% url 'api-1.0.0:delete_file' file_id='FILE_ID_PLACEHOLDER' %}";
     const uploadFilesUrl = '{% url "api-1.0.0:upload_files" %}';

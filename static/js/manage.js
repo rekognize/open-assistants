@@ -891,7 +891,7 @@ async function fetchAssistants() {
 
 async function fetchAssistantFoldersMapping() {
     try {
-        const response = await fetch(listFolderAssistantsUrl, {
+        const response = await fetch(listAssistantFoldersUrl, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,

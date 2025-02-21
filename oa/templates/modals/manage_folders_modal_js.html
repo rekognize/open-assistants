@@ -1,0 +1,53 @@
+<script>
+// Global variable to store current assistant ID for which folders are being managed
+let currentAssistantIdManageFolders = null;
+
+/**
+ * Opens the modal and populates the folder checkboxes.
+ * Called when the user clicks the "Manage" button for an assistant.
+ */
+function manageAssistantFolders(assistantId, assistantName) {
+    currentAssistantIdManageFolders = assistantId;
+
+    document.getElementById('manageFoldersAssistantNameInfo').textContent = assistantName;
+
+    const container = document.getElementById('foldersCheckboxesContainer');
+    container.innerHTML = ''; // Clear any previous content
+
+    // Iterate over global folders object to create checkboxes
+    for (const [folderId, folder] of Object.entries(folders)) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'form-check';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'form-check-input';
+        checkbox.id = `folder-checkbox-${folderId}`;
+        checkbox.value = folderId;
+
+        // Check if this folder is already assigned to the assistant
+        const assistantFolderIds = (assistantFoldersMapping && assistantFoldersMapping[assistantId]) || [];
+        if (assistantFolderIds.includes(folderId)) {
+            checkbox.checked = true;
+        }
+
+        const label = document.createElement('label');
+        label.className = 'form-check-label ms-2';
+        label.htmlFor = checkbox.id;
+        label.textContent = folder.name;
+
+        wrapper.appendChild(checkbox);
+        wrapper.appendChild(label);
+        container.appendChild(wrapper);
+    }
+
+    // Show the modal
+    const modalEl = document.getElementById('manageFoldersModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+async function saveAssistantFolders() {
+
+}
+</script>

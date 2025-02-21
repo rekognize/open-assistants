@@ -61,8 +61,8 @@ async def list_folders(request):
     return {"folders": folders}
 
 
-@api.get("/folder_assistants", auth=BearerAuth())
-async def list_folder_assistants(request):
+@api.get("/assistant_folders", auth=BearerAuth())
+async def list_assistant_folders(request):
     project = request.auth['project']
     qs = FolderAssistant.objects.filter(folder__projects=project).select_related("folder")
     mapping = {}
