@@ -850,7 +850,7 @@ async function fetchAssistants() {
 
         const data = await response.json();
 
-        console.log('assistants overview:', data);
+        console.log('fetchAssistants:', data);
 
         if (data.assistants) {
             // Clear the global assistants object
@@ -916,22 +916,23 @@ function renderAssistant(assistant) {
     // Get the assistant name
     const assistantName = assistant.name || 'Untitled assistant';
 
-    // Find matching folders using the assistantFoldersMapping and folders global dict
-    let matchingFolders = [];
+    // Prepare folder names string using the global mapping and folders dict
+    let folderNames = 'No folders assigned';
     if (assistantFoldersMapping && assistantFoldersMapping[assistant.id]) {
-        matchingFolders = assistantFoldersMapping[assistant.id]
+        const matchingFolders = assistantFoldersMapping[assistant.id]
             .map(folderUUID => folders[folderUUID])
             .filter(folder => folder !== undefined);
+        if (matchingFolders.length > 0) {
+            folderNames = matchingFolders.map(folder => folder.name).join(', ');
+        }
     }
 
     // The template context
     const data = {
         assistant: assistant,
         assistantName: assistantName,
-        folders: matchingFolders
+        folderNames: folderNames
     };
-
-    console.log(data);
 
     // Compile the template into a function
     const renderTemplate = compileTemplate(assistantItemTemplate);
