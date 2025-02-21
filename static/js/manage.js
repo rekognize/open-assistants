@@ -551,6 +551,12 @@ function populateAssistantFilterOptions() {
     const filterFolder = document.getElementById('filterFolder');
     filterFolder.innerHTML = '<option value="">All</option>'; // Reset options
 
+    // Add option for "None" (assistants without any folders)
+    const noneOption = document.createElement('option');
+    noneOption.value = "none";
+    noneOption.textContent = "None";
+    filterFolder.appendChild(noneOption);
+
     for (const [folderId, folder] of Object.entries(folders)) {
         const option = document.createElement('option');
         option.value = folderId;
@@ -970,9 +976,19 @@ function displayAssistants() {
         if (assistantFilters.endDate && assistantDate > assistantFilters.endDate) {
             return false;
         }
-
-        // TODO: Filter by folder
-
+        // Filter by folder
+        if (assistantFilters.folderId) {
+            const folderUUIDs = (assistantFoldersMapping && assistantFoldersMapping[assistant.id]) || [];
+            if (assistantFilters.folderId === "none") {
+                if (folderUUIDs.length > 0) {
+                    return false;
+                }
+            } else {
+                if (!folderUUIDs.includes(assistantFilters.folderId)) {
+                    return false;
+                }
+            }
+        }
         // Filter by model
         if (assistantFilters.model && assistant.model !== assistantFilters.model) {
             return false;
