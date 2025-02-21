@@ -128,8 +128,8 @@ async function loadAndDisplayFolders() {
 }
 
 async function loadAndDisplayAssistants() {
-    const assistants = await fetchAssistants();
     await fetchAssistantFoldersMapping();
+    const assistants = await fetchAssistants();
     displayAssistants();
     return assistants;
 }
