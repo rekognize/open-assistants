@@ -16,7 +16,7 @@
                     <div>
                         <small class="small text-secondary"
                                data-bs-toggle="tooltip"
-                               data-bs-title="created at ${new Date(assistant.created_at * 1000).toLocaleString()}">
+                               data-bs-title="created at ${formatUnixTimestamp(assistant.created_at)}">
                             ${timeSince(assistant.created_at * 1000)} ago
                         </small>
                     </div>
