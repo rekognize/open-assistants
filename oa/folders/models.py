@@ -12,6 +12,9 @@ class FolderAssistant(models.Model):
     def __str__(self):
         return f"{self.folder.name} - {self.assistant_id}"
 
+    class Meta:
+        unique_together = ('folder', 'assistant_id')
+
 
 class Folder(models.Model):
     # Folders are M2M related to Assistants through Vector Stores

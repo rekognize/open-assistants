@@ -48,6 +48,46 @@ function manageAssistantFolders(assistantId, assistantName) {
 }
 
 async function saveAssistantFolders() {
+    const checkboxes = document.querySelectorAll('#foldersCheckboxesContainer input[type="checkbox"]');
+    let selectedFolderIds = [];
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            selectedFolderIds.push(checkbox.value);
+        }
+    });
 
+    console.log("Saving folders for assistant", currentAssistantIdManageFolders, selectedFolderIds);
+
+    const url = modifyAssistantFoldersUrl.replace('ASSISTANT_ID_PLACEHOLDER', currentAssistantIdManageFolders);
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({ folder_ids: selectedFolderIds })
+        });
+        const data = await response.json();
+        if (data.success) {
+
+            console.log("success", data);
+
+            // TODO: update global dicts and template
+            // TODO: trigger folder-assistant related api views for openai-api (vs, file etc.)
+            // assistantFoldersMapping[currentAssistantIdManageFolders] = selectedFolderIds;
+        } else {
+            throw new Error("Failed to update folders");
+        }
+
+        // Hide the modal:
+        const modalEl = document.getElementById('manageFoldersModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        modal.hide();
+    } catch (error) {
+        console.error("Error saving assistant folders:", error);
+        showToast("Error saving assistant folders:", error);
+    }
 }
 </script>
