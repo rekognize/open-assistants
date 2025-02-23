@@ -4,22 +4,21 @@
     async function fetchAssistantsTab() {
         toggleLoading('loadingAssistantsTab', true);
         try {
-            const assistantsResponse = await fetch("{% url 'api-1.0.0:list_assistants' %}", {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
+            // Wait until assistants are loaded or an error occurs
+            while (!assistantsLoaded) {
+                if (assistantsError) {
+                    throw new Error(assistantsError);
                 }
-            });
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
 
-            const assistantsData = await assistantsResponse.json();
-
-            console.log('assistants from assistants tab:', assistantsData);
-
-            populateAssistantsTabsAndContent(assistantsData.assistants);
+            populateAssistantsTabsAndContent(assistants);
 
         } catch (error) {
-            console.error('Error fetching assistants:', error);
+            const contentContainer = document.getElementById('assistants-tab-container');
+            contentContainer.innerHTML = `
+                <div class="text-center text-danger">Failed to load assistants!</div>
+            `;
         } finally {
             toggleLoading('loadingAssistantsTab', false);
         }
@@ -32,12 +31,16 @@
         tabsContainer.innerHTML = '';
         contentContainer.innerHTML = '';
 
-        if (!assistants || assistants.length === 0) {
+        // Check if the global dict is empty
+        if (!assistants || Object.keys(assistants).length === 0) {
             document.getElementById('no-assistants').classList.remove('d-none');
             return;
         }
 
-        assistants.forEach((assistant, index) => {
+        // Convert the assistants object into an array of assistant objects
+        const assistantsArr = Object.values(assistants);
+
+        assistantsArr.forEach((assistant, index) => {
             const tabItem = document.createElement('li');
             tabItem.className = 'nav-item';
 
@@ -46,11 +49,11 @@
                 ? 'nav-link py-1 px-2 bg-secondary text-white active'
                 : 'nav-link py-1 px-2 bg-white text-secondary';
             tabLink.setAttribute('data-bs-toggle', 'tab');
-            tabLink.setAttribute('href', `#assistant-${assistant.id}`);
+            tabLink.setAttribute('href', `#assistants-tab-${assistant.id}`);
             tabLink.setAttribute('role', 'tab');
-            tabLink.setAttribute('aria-controls', `assistant-${assistant.id}`);
+            tabLink.setAttribute('aria-controls', `assistants-tab-${assistant.id}`);
             tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-            tabLink.id = `assistant-${assistant.id}-tab`;
+            tabLink.id = `assistants-tab-${assistant.id}-tab`;
             tabLink.textContent = assistant.name || 'Untitled Assistant';
 
             tabItem.appendChild(tabLink);
@@ -58,15 +61,72 @@
 
             const contentPane = document.createElement('div');
             contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
-            contentPane.setAttribute('id', `assistant-${assistant.id}`);
+            contentPane.setAttribute('id', `assistants-tab-${assistant.id}`);
             contentPane.setAttribute('role', 'tabpanel');
-            contentPane.setAttribute('aria-labelledby', `assistant-${assistant.id}-tab`);
+            contentPane.setAttribute('aria-labelledby', `assistants-tab-${assistant.id}-tab`);
 
+            // Get folder names for the assistant
+            const folderNames = (assistantFoldersMapping && assistantFoldersMapping[assistant.id]
+                ? assistantFoldersMapping[assistant.id]
+                      .map(uuid => folders[uuid] ? folders[uuid].name : null)
+                      .filter(name => name)
+                      .join(', ')
+                : `<span>No folders assigned</span>`);
+
+            // Set the inner HTML
             contentPane.innerHTML = `
-                <h4>${assistant.name || 'Untitled Assistant'}</h4>
-                <p><strong>Model:</strong> ${assistant.model}</p>
-                <p><strong>Tools:</strong> ${assistant.tools.map(tool => tool.type).join(', ') || 'None'}</p>
-                <div id="stats-${assistant.id}"></div>
+                <div class="card border-0">
+
+                    <div class="card-body px-0 py-0" id="tab-card-${assistant.id}">
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4 class="card-title">${assistant.name || 'Untitled Assistant'}</h4>
+                            <a class="small text-secondary text-decoration-none ms-auto me-2" href="#">
+                                <i class="bi bi-bar-chart"></i></i> Threads
+                            </a>
+                            <a class="small text-secondary text-decoration-none" href="#">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </div>
+                        <p class="text-secondary small">
+                            Created: ${formatUnixTimestamp(assistant.created_at)}
+                            (${timeSince(assistant.created_at * 1000)} ago)
+                        </p>
+
+                        <div class="accordion mt-4" id="foldersAccordion-${assistant.id}">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading-${assistant.id}">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${assistant.id}" aria-expanded="false" aria-controls="collapse-${assistant.id}">
+                                        <span class="text-secondary small">Folders</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse-${assistant.id}" class="accordion-collapse collapse show" aria-labelledby="heading-${assistant.id}" data-bs-parent="#foldersAccordion-${assistant.id}">
+                                    <div class="accordion-body d-flex justify-content-between align-items-center">
+                                        ${folderNames}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="manageAssistantFolders('${assistant.id}', '${assistant.name || 'Untitled Assistant'}')">
+                                            Manage
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box mt-4">
+                            <span class="info-label">Description</span>
+                            <p class="info-value" id="info-description-${assistant.id}">${assistant.description || 'No description given'}</p>
+                        </div>
+
+                        <div class="info-box mt-4">
+                            <span class="info-label">Instructions</span>
+                            <p class="info-value" id="info-instructions-${assistant.id}">${assistant.instructions || 'No instructions'}</p>
+                        </div>
+
+                        <div class="info-box mt-4">
+                            <span class="info-label">Model</span>
+                            <p class="info-value" id="info-model-${assistant.id}">${assistant.model}</p>
+                        </div>
+                    </div>
+                </div>
             `;
 
             contentContainer.appendChild(contentPane);
@@ -90,3 +150,5 @@
         });
     }
 </script>
+
+{% include "modals/manage_folders_modal_js.html" %}

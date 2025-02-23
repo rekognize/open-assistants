@@ -66,7 +66,7 @@
     }
 
     function populateFunctionsTabsAndContent(functions) {
-        const tabsContainer = document.getElementById('functionNavTabs');
+        const tabsContainer = document.getElementById('functionsNavTabs');
         const contentContainer = document.getElementById('functionContent');
 
         // Clear any existing content
@@ -88,11 +88,11 @@
                 ? 'nav-link py-1 px-2 bg-secondary text-white active'
                 : 'nav-link py-1 px-2 bg-white text-secondary';
             tabLink.setAttribute('data-bs-toggle', 'tab');
-            tabLink.setAttribute('href', `#function-${func.id}`);
+            tabLink.setAttribute('href', `#functions-tab-${func.id}`);
             tabLink.setAttribute('role', 'tab');
-            tabLink.setAttribute('aria-controls', `function-${func.id}`);
+            tabLink.setAttribute('aria-controls', `functions-tab-${func.id}`);
             tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-            tabLink.id = `function-${func.id}-tab`;
+            tabLink.id = `functions-tab-${func.id}-tab`;
             tabLink.textContent = func.name || 'Untitled Function';
 
             tabItem.appendChild(tabLink);
@@ -101,9 +101,9 @@
             // Create content pane with executions accordion
             const contentPane = document.createElement('div');
             contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
-            contentPane.setAttribute('id', `function-${func.id}`);
+            contentPane.setAttribute('id', `functions-tab-${func.id}`);
             contentPane.setAttribute('role', 'tabpanel');
-            contentPane.setAttribute('aria-labelledby', `function-${func.id}-tab`);
+            contentPane.setAttribute('aria-labelledby', `functions-tab-${func.id}-tab`);
 
             contentPane.innerHTML = `
                 <div class="mb-3">
@@ -244,10 +244,10 @@
         });
 
         // Listen for tab activation events so we can update the background classes
-        document.querySelectorAll('#functionNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
+        document.querySelectorAll('#functionsNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
             tab.addEventListener('shown.bs.tab', function (event) {
                 // Loop through all tabs and update classes accordingly
-                document.querySelectorAll('#functionNavTabs a[data-bs-toggle="tab"]').forEach(t => {
+                document.querySelectorAll('#functionsNavTabs a[data-bs-toggle="tab"]').forEach(t => {
                     if (t === event.target) {
                         t.classList.remove('bg-white', 'text-secondary');
                         t.classList.add('bg-secondary', 'text-white');

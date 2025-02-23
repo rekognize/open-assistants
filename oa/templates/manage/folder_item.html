@@ -44,7 +44,7 @@
 
                 <!-- Edit Button -->
                 <div class="brief-info">
-                    <a href="#"
+                    <a href="#" onclick="hideTooltip(this); editFolder('${folder.uuid}');"
                             class="btn btn-sm btn-outline-secondary"
                             data-bs-toggle="tooltip" data-bs-title="Edit">
                         <i class="bi bi-pencil"></i>
@@ -53,17 +53,13 @@
 
             </div>
 
-            <!-- Action Buttons to Hide in Edit Mode -->
+            <!-- Action Buttons -->
             <div class="brief-info">
                 <button type="button" class="btn btn-sm btn-outline-secondary folder-files-button"
                         data-bs-toggle="tooltip" data-bs-title="Files"
                         data-folder-uuid="${folder.uuid}"
                         onclick="hideTooltip(this); toggleAssistantFilterByFolder('${folder.uuid}', this)">
                     <i class="bi bi-archive"></i>
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-danger"
-                        data-bs-toggle="tooltip" data-bs-title="Delete" onclick="deleteFolder('${folder.uuid}')">
-                    <i class="bi bi-trash"></i>
                 </button>
             </div>
 

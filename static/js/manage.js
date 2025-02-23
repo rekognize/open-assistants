@@ -8,6 +8,33 @@ function compileTemplate(templateString) {
     return new Function("data", "with(data) { return `" + templateString + "`; }");
 }
 
+// Helper function that waits until a container is loaded
+async function waitForContainerAndTarget(containerId, targetPrefix, targetId, callback) {
+    const container = document.getElementById(containerId);
+    if (container && container.dataset.loaded === "true") {
+        // Container is marked as loaded. Now check for the target tab.
+        const targetTabLink = document.querySelector(`#${targetPrefix}-${targetId}-tab`);
+        if (targetTabLink) {
+            callback(targetTabLink);
+        } else {
+            // The container is loaded but the target tab isn't in the DOM yet.
+            // Use a MutationObserver to detect when the target tab is added.
+            const observer = new MutationObserver((mutations, obs) => {
+                const target = document.querySelector(`#${targetPrefix}-${targetId}-tab`);
+                if (target) {
+                    obs.disconnect();
+                    callback(target);
+                }
+            });
+            observer.observe(container, { childList: true, subtree: true });
+        }
+    } else {
+        // Container isn't loaded yet; try again after a short delay.
+        setTimeout(function() {
+            waitForContainerAndTarget(containerId, targetPrefix, targetId, callback);
+        }, 100);
+    }
+}
 
 function toggleAssistantFileSearch(assistantId) {
     const fileSearchSwitch = document.getElementById(`fileSearchSwitch-${assistantId}`);
@@ -57,10 +84,14 @@ function renderFunctionCheckboxes(assistantId) {
 
 let folders = {};
 let assistants = {};
-let files = {};
+let functions = {};
 let folderFiles = {};  // {folderId: [file1, file2, ...]}
 let fileFolders = {};  // {fileId: [folder1, folder2, ...]}
+let assistantFoldersMapping = {}; // { assistantId: [folderUUID, ...], ... }
 let selectedFiles = [];
+
+let assistantsLoaded = false;
+let assistantsError = null;
 
 // Global variables for sorting and filtering
 
@@ -97,6 +128,7 @@ async function loadAndDisplayFolders() {
 }
 
 async function loadAndDisplayAssistants() {
+    await fetchAssistantFoldersMapping();
     const assistants = await fetchAssistants();
     displayAssistants();
     return assistants;
@@ -113,7 +145,7 @@ async function initializePage() {
     // Show loading indicator initially for all
     toggleLoading('folders', true);
     toggleLoading('assistants', true);
-    toggleLoading('files', true);
+    toggleLoading('functions', true);
 
     folders = await loadAndDisplayFolders();
     populateAssistantFilterOptions();
@@ -128,9 +160,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     setTimeout(() => {
         const isFoldersEmpty = Object.keys(folders).length === 0;
         const isAssistantsEmpty = Object.keys(assistants).length === 0;
-        const isFilesEmpty = Object.keys(files).length === 0;
+        const isFunctionsEmpty = Object.keys(functions).length === 0;
 
-        if (isFoldersEmpty && isAssistantsEmpty && isFilesEmpty) {
+        if (isFoldersEmpty && isAssistantsEmpty && isFunctionsEmpty) {
             const getStartedModalElement = document.getElementById('getStartedModal');
             const getStartedModal = new bootstrap.Modal(getStartedModalElement, {
                 backdrop: 'static',
@@ -194,40 +226,40 @@ async function refreshFolderList() {
     populateAssistantFilterOptions();
 
     // Refresh collapse all button
-    const btnCollapseAllStores = document.getElementById('collapse-all-folders');
-    const btnExpandAllStores = document.getElementById('expand-all-folders');
-    btnCollapseAllStores.classList.remove('d-none');
-    btnExpandAllStores.classList.add('d-none');
+    const btnCollapseAllFolders = document.getElementById('collapse-all-folders');
+    const btnExpandAllFolders = document.getElementById('expand-all-folders');
+    btnCollapseAllFolders.classList.remove('d-none');
+    btnExpandAllFolders.classList.add('d-none');
 }
 
 async function refreshFunctionsList() {
     const functionsList = document.getElementById('functions-list');
 
-    // Dispose of existing tooltips within the files list
-    disposeTooltips(filesList);
+    // Dispose of existing tooltips within the functions list
+    disposeTooltips(functionsList);
 
-    filesList.innerHTML = ''; // Clear any existing files
-    toggleLoading('files', true);
+    functionsList.innerHTML = ''; // Clear any existing functions
+    toggleLoading('functions', true);
 
     // Reset to default sorting options
     functionSortField = 'created_at';
     functionSortOrder = 'desc';
-    updateSortDropdownUI('fileSortDropdown', functionSortField, functionSortOrder);
+    updateSortDropdownUI('functionSortDropdown', functionSortField, functionSortOrder);
 
     // Close the sorting dropdown if open
-    const dropdownElement = document.getElementById('fileSortDropdown');
+    const dropdownElement = document.getElementById('functionSortDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
 
-    loadAndDisplayFiles();
+    loadAndDisplayFunctions();
 
     // Refresh collapse all button
-    const btnCollapseAllFiles = document.getElementById('collapse-all-files');
-    const btnExpandAllFiles = document.getElementById('expand-all-files');
-    btnCollapseAllFiles.classList.remove('d-none');
-    btnExpandAllFiles.classList.add('d-none');
+    const btnCollapseAllFunctions = document.getElementById('collapse-all-functions');
+    const btnExpandAllFunctions = document.getElementById('expand-all-functions');
+    btnCollapseAllFunctions.classList.remove('d-none');
+    btnExpandAllFunctions.classList.add('d-none');
 }
 
 function toggleAllAssistants(action) {
@@ -250,9 +282,9 @@ function toggleAllAssistants(action) {
     }
 }
 
-function toggleAllStores(action) {
-    const btnCollapseAllStores = document.getElementById('collapse-all-folders');
-    const btnExpandAllStores = document.getElementById('expand-all-folders');
+function toggleAllFolders(action) {
+    const btnCollapseAllFolders = document.getElementById('collapse-all-folders');
+    const btnExpandAllFolders = document.getElementById('expand-all-folders');
     const collapsibleItems = document.querySelectorAll('#folders-list .collapse');
     collapsibleItems.forEach(item => {
         const bsCollapse = new bootstrap.Collapse(item, {
@@ -262,18 +294,18 @@ function toggleAllStores(action) {
         else bsCollapse.show();
     });
     if (action === 'collapse') {
-        btnCollapseAllStores.classList.add('d-none');
-        btnExpandAllStores.classList.remove('d-none');
+        btnCollapseAllFolders.classList.add('d-none');
+        btnExpandAllFolders.classList.remove('d-none');
     } else {  // expand
-        btnCollapseAllStores.classList.remove('d-none');
-        btnExpandAllStores.classList.add('d-none');
+        btnCollapseAllFolders.classList.remove('d-none');
+        btnExpandAllFolders.classList.add('d-none');
     }
 }
 
-function toggleAllFiles(action) {
-    const btnCollapseAllFiles = document.getElementById('collapse-all-files');
-    const btnExpandAllFiles = document.getElementById('expand-all-files');
-    const collapsibleItems = document.querySelectorAll('#files-list .collapse');
+function toggleAllFunctions(action) {
+    const btnCollapseAllFunctions = document.getElementById('collapse-all-functions');
+    const btnExpandAllFunctions = document.getElementById('expand-all-functions');
+    const collapsibleItems = document.querySelectorAll('#functions-list .collapse');
     collapsibleItems.forEach(item => {
         const bsCollapse = new bootstrap.Collapse(item, {
             toggle: false
@@ -282,11 +314,11 @@ function toggleAllFiles(action) {
         else bsCollapse.show();
     });
     if (action === 'collapse') {
-        btnCollapseAllFiles.classList.add('d-none');
-        btnExpandAllFiles.classList.remove('d-none');
+        btnCollapseAllFunctions.classList.add('d-none');
+        btnExpandAllFunctions.classList.remove('d-none');
     } else {  // expand
-        btnCollapseAllFiles.classList.remove('d-none');
-        btnExpandAllFiles.classList.add('d-none');
+        btnCollapseAllFunctions.classList.remove('d-none');
+        btnExpandAllFunctions.classList.add('d-none');
     }
 }
 
@@ -332,10 +364,10 @@ function setFolderSort(field, order, event) {
     }
 
     // Refresh collapse all button
-    const btnCollapseAllStores = document.getElementById('collapse-all-stores');
-    const btnExpandAllStores = document.getElementById('expand-all-stores');
-    btnCollapseAllStores.classList.remove('d-none');
-    btnExpandAllStores.classList.add('d-none');
+    const btnCollapseAllFolders = document.getElementById('collapse-all-folders');
+    const btnExpandAllFolders = document.getElementById('expand-all-folders');
+    btnCollapseAllFolders.classList.remove('d-none');
+    btnExpandAllFolders.classList.add('d-none');
 }
 
 function setFunctionSort(field, order, event) {
@@ -345,22 +377,22 @@ function setFunctionSort(field, order, event) {
     functionSortOrder = order;
 
     // Update the active class on the dropdown menu items
-    updateSortDropdownUI('fileSortDropdown', field, order);
+    updateSortDropdownUI('functionSortDropdown', field, order);
 
-    displayFiles(); // Re-display files with new sort order
+    displayFunctions(); // Re-display functions with new sort order
 
     // Close the dropdown menu
-    const dropdownElement = document.getElementById('fileSortDropdown');
+    const dropdownElement = document.getElementById('functionSortDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
 
     // Refresh collapse all button
-    const btnCollapseAllFiles = document.getElementById('collapse-all-files');
-    const btnExpandAllFiles = document.getElementById('expand-all-files');
-    btnCollapseAllFiles.classList.remove('d-none');
-    btnExpandAllFiles.classList.add('d-none');
+    const btnCollapseAllFunctions = document.getElementById('collapse-all-functions');
+    const btnExpandAllFunctions = document.getElementById('expand-all-functions');
+    btnCollapseAllFunctions.classList.remove('d-none');
+    btnExpandAllFunctions.classList.add('d-none');
 }
 
 function applyAssistantFilters() {
@@ -455,60 +487,60 @@ function resetFolderFilters() {
     updateFilterIcon('folderFilterDropdown', folderFilters);
 }
 
-function applyFileFilters() {
+function applyFunctionFilters() {
     // Read filter values
-    fileFilters.name = document.getElementById('fileFilterName').value.toLowerCase();
-    fileFilters.startDate = document.getElementById('fileFilterStartDate').value
-        ? new Date(document.getElementById('fileFilterStartDate').value)
+    functionFilters.name = document.getElementById('functionFilterName').value.toLowerCase();
+    functionFilters.startDate = document.getElementById('functionFilterStartDate').value
+        ? new Date(document.getElementById('functionFilterStartDate').value)
         : null;
-    fileFilters.endDate = document.getElementById('fileFilterEndDate').value
-        ? new Date(document.getElementById('fileFilterEndDate').value)
+    functionFilters.endDate = document.getElementById('functionFilterEndDate').value
+        ? new Date(document.getElementById('functionFilterEndDate').value)
         : null;
 
     // Adjust dates
-    if (fileFilters.startDate) {
-        fileFilters.startDate.setHours(0, 0, 0, 0);
+    if (functionFilters.startDate) {
+        functionFilters.startDate.setHours(0, 0, 0, 0);
     }
-    if (fileFilters.endDate) {
-        fileFilters.endDate.setHours(23, 59, 59, 999);
+    if (functionFilters.endDate) {
+        functionFilters.endDate.setHours(23, 59, 59, 999);
     }
 
-    fileFilters.folderId = document.getElementById('fileFilterFolder').value;
-    fileFilters.fileType = document.getElementById('fileFilterType').value;
+    functionFilters.folderId = document.getElementById('functionFilterFolder').value;
+    functionFilters.functionType = document.getElementById('functionFilterType').value;
 
-    displayFiles();
+    displayFunctions();
 
     // Update button styles and icons
     updateFolderFilesButtonStyles();
 
     // Update the filter icon
-    updateFilterIcon('fileFilterDropdown', fileFilters);
+    updateFilterIcon('functionFilterDropdown', functionFilters);
 
     // Close the dropdown menu
-    const dropdownElement = document.getElementById('fileFilterDropdown');
+    const dropdownElement = document.getElementById('functionFilterDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
 }
 
-function resetFileFilters() {
-    document.getElementById('fileFilterForm').reset();
+function resetFunctionFilters() {
+    document.getElementById('functionFilterForm').reset();
     functionFilters = {
         name: '',
         functionType: ''
     };
 
-    displayFiles();
+    displayFunctions();
 
     // Update button styles and icons
     updateFolderFilesButtonStyles();
 
     // Update the filter icon
-    updateFilterIcon('fileFilterDropdown', fileFilters);
+    updateFilterIcon('functionFilterDropdown', functionFilters);
 
     // Close the dropdown menu
-    const dropdownElement = document.getElementById('fileFilterDropdown');
+    const dropdownElement = document.getElementById('functionFilterDropdown');
     const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
     if (dropdownInstance) {
         dropdownInstance.hide();
@@ -519,6 +551,12 @@ function populateAssistantFilterOptions() {
     const filterFolder = document.getElementById('filterFolder');
     filterFolder.innerHTML = '<option value="">All</option>'; // Reset options
 
+    // Add option for "None" (assistants without any folders)
+    const noneOption = document.createElement('option');
+    noneOption.value = "none";
+    noneOption.textContent = "None";
+    filterFolder.appendChild(noneOption);
+
     for (const [folderId, folder] of Object.entries(folders)) {
         const option = document.createElement('option');
         option.value = folderId;
@@ -528,29 +566,14 @@ function populateAssistantFilterOptions() {
 }
 
 function populateFunctionFilterOptions() {
-    const filterFolder = document.getElementById('fileFilterFolder');
-    filterFolder.innerHTML = '<option value="">All</option>'; // Reset options
+    const filterAssistant = document.getElementById('functionFilterAssistant');
+    filterAssistant.innerHTML = '<option value="">All</option>'; // Reset options
 
-    for (const [folderId, folder] of Object.entries(folders)) {
+    for (const [assistantId, assistant] of Object.entries(assistants)) {
         const option = document.createElement('option');
-        option.value = folderId;
-        option.textContent = folder.name ?? 'Untitled store';
-        filterFolder.appendChild(option);
-    }
-
-    // Populate file types
-    const filterFileType = document.getElementById('fileFilterType');
-    filterFileType.innerHTML = '<option value="">All</option>'; // Reset options
-
-    const fileTypes = new Set();
-    for (const file of Object.values(files)) {
-        fileTypes.add(getFileType(file.filename));
-    }
-    for (const fileType of fileTypes) {
-        const option = document.createElement('option');
-        option.value = fileType;
-        option.textContent = fileType.toUpperCase();
-        filterFileType.appendChild(option);
+        option.value = assistantId;
+        option.textContent = assistant.name ?? 'Untitled assistant';
+        filterAssistant.appendChild(option);
     }
 }
 
@@ -568,7 +591,7 @@ function updateSortDropdownUI(dropdownId, field, order) {
     // Update the sort icon
     const sortIcon = document.getElementById(dropdownId);
     sortIcon.className = 'text-light-emphasis bi ms-2';
-    if (field === 'name' || field === 'filename') {
+    if (field === 'name') {
         sortIcon.classList.add(order === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-down-alt');
     } else if (field === 'created_at') {
         sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
@@ -600,11 +623,6 @@ function areFiltersActive(filters) {
             return value !== '' && value !== null && value !== undefined;
         }
     });
-}
-
-function getFileType(filename) {
-    const extension = filename.split('.').pop().toLowerCase();
-    return extension;
 }
 
 
@@ -701,7 +719,7 @@ function displayFolders() {
 
     foldersList.innerHTML = '';
 
-    const totalStores = Object.values(folders).length;
+    const totalFolders = Object.values(folders).length;
 
     // Convert to array
     let foldersArray = Object.values(folders);
@@ -723,19 +741,19 @@ function displayFolders() {
         return true;
     });
 
-    const filteredStoresCount = foldersArray.length;
+    const filteredFoldersCount = foldersArray.length;
 
     // Update the folder count display only if filters are active
     const folderCountElement = document.getElementById('folders-count');
     if (areFiltersActive(folderFilters)) {
-        folderCountElement.textContent = `${filteredStoresCount} results (${totalStores} total)`;
+        folderCountElement.textContent = `${filteredFoldersCount} results (${totalFolders} total)`;
         folderCountElement.style.display = 'inline';
     } else {
         folderCountElement.style.display = 'none';
     }
 
     // Handle different cases based on total folders and filtered folders
-    if (totalStores === 0) {
+    if (totalFolders === 0) {
         // No folders exist at all
         const messageDiv = document.createElement('div');
         messageDiv.className = 'text-center mt-4 no-folders-message';
@@ -766,7 +784,7 @@ function displayFolders() {
         let compareResult = 0;
 
         if (folderSortField === 'name') {
-            compareResult = (a.name || 'Untitled store').localeCompare(b.name || 'Untitled store');
+            compareResult = (a.name || 'Untitled folder').localeCompare(b.name || 'Untitled folder');
         } else if (folderSortField === 'created_at') {
             compareResult = a.created_at - b.created_at;
         } else if (folderSortField === 'last_active_at') {
@@ -777,22 +795,37 @@ function displayFolders() {
     });
 
     // Display
-    for (const store of foldersArray) {
-        const folderItem = renderFolder(store);
+    for (const folder of foldersArray) {
+        const folderItem = renderFolder(folder);
         foldersList.appendChild(folderItem);
     }
 
     initializeTooltips();
 }
 
+// Redirect to Knowledge tab
+async function editFolder(folderId) {
+    console.log("Editing folder:", folderId);
+    const foldersTabTrigger = document.getElementById('foldersTab');
+    if (foldersTabTrigger && !foldersTabTrigger.classList.contains('active')) {
+        foldersTabTrigger.click();
+    }
+    await waitForContainerAndTarget('folders-tab-container', 'folders-tab', folderId, function(targetTabLink) {
+        let tabInstance = bootstrap.Tab.getInstance(targetTabLink);
+        if (!tabInstance) {
+            tabInstance = new bootstrap.Tab(targetTabLink);
+        }
+        tabInstance.show();
+    });
+}
 
 function updateFolderFilesButtonStyles() {
     const buttons = document.querySelectorAll('.folder-files-button');
     buttons.forEach(button => {
-        const storeId = button.getAttribute('data-store-id');
+        const folderId = button.getAttribute('data-folder-uuid');
         const iconElement = button.querySelector('i');
 
-        if (fileFilters.folderId === storeId && fileFilters.folderId !== '') {
+        if (functionFilters.folderId === folderId && functionFilters.folderId !== '') {
             // The filter is active for this store
             button.classList.remove('btn-outline-secondary');
             button.classList.add('btn-secondary');
@@ -823,7 +856,7 @@ async function fetchAssistants() {
 
         const data = await response.json();
 
-        console.log('assistants overview:', data);
+        console.log('fetchAssistants:', data);
 
         if (data.assistants) {
             // Clear the global assistants object
@@ -834,10 +867,14 @@ async function fetchAssistants() {
                 assistants[assistant.id] = assistant;
             });
 
+            // Set the global data as loaded
+            assistantsLoaded = true;
+
             // Return the global assistants object
             return assistants;
         } else {
             const parsedError = parseErrorText(data.error);
+            assistantsError = parsedError.errorMessage;
             showToast("Failed to fetch assistants!", parsedError.errorMessage);
             console.error('Failed to fetch assistants!', parsedError);
             return {};
@@ -845,12 +882,35 @@ async function fetchAssistants() {
     } catch (error) {
         showToast("Error fetching assistants:", error);
         console.error('Error fetching assistants:', error);
+        assistantsError = error;
         return {};
     } finally {
         toggleLoading('assistants', false);
     }
 }
 
+async function fetchAssistantFoldersMapping() {
+    try {
+        const response = await fetch(listAssistantFoldersUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+
+        if (data.assistant_folders) {
+            assistantFoldersMapping = data.assistant_folders;
+        } else {
+            showToast("Failed to fetch assistant folders!", 'No assistant_folders key in response.');
+            console.error("No assistant_folders key in response:", data);
+        }
+    } catch (error) {
+        showToast("Failed to fetch assistant folders:", error);
+        console.error('Error fetching assistant folders mapping:', error);
+    }
+}
 
 const assistantItemTemplate = document.getElementById("assistant-item-template").innerHTML;
 
@@ -862,12 +922,22 @@ function renderAssistant(assistant) {
     // Get the assistant name
     const assistantName = assistant.name || 'Untitled assistant';
 
+    // Prepare folder names string using the global mapping and folders dict
+    let folderNames = 'No folders assigned';
+    if (assistantFoldersMapping && assistantFoldersMapping[assistant.id]) {
+        const matchingFolders = assistantFoldersMapping[assistant.id]
+            .map(folderUUID => folders[folderUUID])
+            .filter(folder => folder !== undefined);
+        if (matchingFolders.length > 0) {
+            folderNames = matchingFolders.map(folder => folder.name).join(', ');
+        }
+    }
+
     // The template context
-    // TODO: Get the folders; can be [{name: ..., uuid: ...]
     const data = {
         assistant: assistant,
         assistantName: assistantName,
-        folders: []
+        folderNames: folderNames
     };
 
     // Compile the template into a function
@@ -906,9 +976,19 @@ function displayAssistants() {
         if (assistantFilters.endDate && assistantDate > assistantFilters.endDate) {
             return false;
         }
-
-        // TODO: Filter by folder
-
+        // Filter by folder
+        if (assistantFilters.folderId) {
+            const folderUUIDs = (assistantFoldersMapping && assistantFoldersMapping[assistant.id]) || [];
+            if (assistantFilters.folderId === "none") {
+                if (folderUUIDs.length > 0) {
+                    return false;
+                }
+            } else {
+                if (!folderUUIDs.includes(assistantFilters.folderId)) {
+                    return false;
+                }
+            }
+        }
         // Filter by model
         if (assistantFilters.model && assistant.model !== assistantFilters.model) {
             return false;
@@ -977,29 +1057,20 @@ function displayAssistants() {
     initializeTooltips();
 }
 
-
-function removeAssistantCard(assistantId) {
-    // Remove the assistant card
-    const assistantCard = document.getElementById(`temp-card-${assistantId}`) || document.getElementById(`assistant-${assistantId}`).closest('.assistant-item');
-    if (assistantCard) {
-        assistantCard.remove();
+// Redirect to Assistants tab
+async function editAssistant(assistantId) {
+    console.log("Editing assistant:", assistantId);
+    const assistantsTabTrigger = document.getElementById('assistantsTab');
+    if (assistantsTabTrigger && !assistantsTabTrigger.classList.contains('active')) {
+        assistantsTabTrigger.click();
     }
-
-    // Check if the assistants list is empty
-    const assistantsList = document.getElementById('assistants-list');
-    const assistantItems = assistantsList.querySelectorAll('.assistant-item');
-    if (assistantItems.length === 0) {
-        // Display the "No assistants found." message
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'text-center mt-4 no-assistants-message';
-        messageDiv.innerHTML = `
-            <p class="text-secondary">No assistants found.</p>
-            <span class="text-secondary">
-                <a href="#" class="text-decoration-none"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
-            </span>
-        `;
-        assistantsList.appendChild(messageDiv);
-    }
+    await waitForContainerAndTarget('assistants-tab-container', 'assistants-tab', assistantId, function(targetTabLink) {
+        let tabInstance = bootstrap.Tab.getInstance(targetTabLink);
+        if (!tabInstance) {
+            tabInstance = new bootstrap.Tab(targetTabLink);
+        }
+        tabInstance.show();
+    });
 }
 
 
@@ -1043,7 +1114,6 @@ async function fetchFunctions() {
     }
 }
 
-
 const functionItemTemplate = document.getElementById("function-item-template").innerHTML;
 
 function renderFunction(func) {
@@ -1064,7 +1134,6 @@ function renderFunction(func) {
 
     return functionItem;
 }
-
 
 function displayFunctions() {
     const functionsList = document.getElementById('functions-list');
@@ -1108,13 +1177,13 @@ function displayFunctions() {
         functionsList.appendChild(messageDiv);
         return;
     } else if (functionsArray.length === 0) {
-        // Files exist, but none match the filters
+        // Functions exist, but none match the filters
         const messageDiv = document.createElement('div');
         messageDiv.className = 'text-center mt-4';
         messageDiv.innerHTML = `
             <p class="text-secondary">No functions match your filters.</p>
             <span class="text-secondary">You can
-            <a href="#" class="text-decoration-none" onclick="resetFileFilters()">reset the filters</a>
+            <a href="#" class="text-decoration-none" onclick="resetFunctionFilters()">reset the filters</a>
             to see all functions.</span>
         `;
         functionsList.appendChild(messageDiv);
@@ -1144,6 +1213,22 @@ function displayFunctions() {
     initializeTooltips();
 }
 
+// Redirect to Tools tab
+async function editFunction(funcId) {
+    console.log("Editing function:", funcId);
+    const functionsTabTrigger = document.getElementById('toolsTab');
+    if (functionsTabTrigger && !functionsTabTrigger.classList.contains('active')) {
+        functionsTabTrigger.click();
+    }
+    await waitForContainerAndTarget('tools-tab-container', 'functions-tab', funcId, function(targetTabLink) {
+        let tabInstance = bootstrap.Tab.getInstance(targetTabLink);
+        if (!tabInstance) {
+            tabInstance = new bootstrap.Tab(targetTabLink);
+        }
+        tabInstance.show();
+    });
+}
+
 
 /* File Uploads */
 
@@ -1168,7 +1253,7 @@ async function showUploadFileModal() {
             const label = document.createElement('label');
             label.classList.add('form-check-label');
             label.setAttribute('for', `folder-${folderId}`);
-            label.textContent = folder.name ?? 'Untitled store';
+            label.textContent = folder.name ?? 'Untitled folder';
 
             checkbox.appendChild(input);
             checkbox.appendChild(label);
@@ -1406,7 +1491,7 @@ async function uploadFiles() {
             displayFiles();
 
             displayFolders(); // Re-render folder cards to reflect updated files
-            populateFileFilterOptions(); // Update file filters to reflect new files
+            populateFunctionFilterOptions(); // Update file filters to reflect new files
 
             // Hide the modal after successful upload
             const modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
@@ -1455,10 +1540,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize sorting dropdowns
     new bootstrap.Dropdown(document.getElementById('assistantSortDropdown'));
     new bootstrap.Dropdown(document.getElementById('folderSortDropdown'));
-    new bootstrap.Dropdown(document.getElementById('fileSortDropdown'));
+    new bootstrap.Dropdown(document.getElementById('functionSortDropdown'));
 
     // Initialize filter icons
     updateFilterIcon('assistantFilterDropdown', assistantFilters);
     updateFilterIcon('folderFilterDropdown', folderFilters);
-    updateFilterIcon('fileFilterDropdown', functionFilters);
+    updateFilterIcon('functionFilterDropdown', functionFilters);
 });
