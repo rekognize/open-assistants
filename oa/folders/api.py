@@ -91,6 +91,13 @@ def create_folder(request):
     return {"folder_uuid": folder.uuid}
 
 
+@api.delete("/{folder_uuid}/", auth=BearerAuth())
+def delete_folder(request, folder_uuid: uuid.UUID):
+    folder = get_object_or_404(Folder, uuid=folder_uuid)
+    folder.delete()
+    return {"folder_uuid": folder_uuid}
+
+
 # Assistant - Folder relations
 
 @api.get("/assistant_folders", auth=BearerAuth())
