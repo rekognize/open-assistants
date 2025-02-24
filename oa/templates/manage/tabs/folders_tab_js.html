@@ -64,8 +64,8 @@
       tabItem.className = 'nav-item';
       const tabLink = document.createElement('a');
       tabLink.className = index === 0
-        ? 'nav-link py-1 px-2 bg-secondary text-white active'
-        : 'nav-link py-1 px-2 bg-white text-secondary';
+        ? 'nav-link bg-secondary text-white active'
+        : 'nav-link bg-white text-secondary';
       tabLink.setAttribute('data-bs-toggle', 'tab');
       tabLink.setAttribute('href', `#folders-tab-${folder.uuid}`);
       tabLink.setAttribute('role', 'tab');
