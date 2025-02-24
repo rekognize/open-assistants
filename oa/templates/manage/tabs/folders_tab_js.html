@@ -121,38 +121,46 @@
     let availableFilesForFolder = files.filter(file => !selectedFileIds.has(file.id));
     const selectedFilesForFolder = files.filter(file => selectedFileIds.has(file.id));
 
-    // Build the HTML for available files list and selected files list.
     return `
       <div class="row">
         <div class="col-md-6">
-          <h5>Available Files</h5>
-          <input type="text" class="form-control mb-2" placeholder="Filter files" id="filter-available-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
-          <div style="height: 300px; overflow-y: auto;">
-            <ul class="list-group" id="available-files-${folder.uuid}">
-              ${availableFilesForFolder.map(file => `
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                  ${file.filename}
-                  <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folder.uuid}')">
-                    <i class="bi bi-box-arrow-in-right"></i>
-                  </button>
-                </li>
-              `).join('')}
-            </ul>
+          <div class="card mb-3">
+            <div class="card-header">
+              <h5 class="card-title mb-0">Available Files</h5>
+              <input type="text" class="form-control mt-2" placeholder="Filter available files" id="filter-available-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
+            </div>
+            <div class="card-body" style="height: 300px; overflow-y: auto;">
+              <ul class="list-group" id="available-files-${folder.uuid}">
+                ${availableFilesForFolder.map(file => `
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${file.filename}
+                    <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folder.uuid}')">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                    </button>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
           </div>
         </div>
         <div class="col-md-6">
-          <h5>Selected Files</h5>
-          <div style="height: 300px; overflow-y: auto;">
-            <ul class="list-group" id="selected-files-${folder.uuid}">
-              ${selectedFilesForFolder.map(file => `
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                  ${file.filename}
-                  <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folder.uuid}')">
-                    <i class="bi bi-box-arrow-left"></i>
-                  </button>
-                </li>
-              `).join('')}
-            </ul>
+          <div class="card mb-3">
+            <div class="card-header">
+              <h5 class="card-title mb-0">Selected Files</h5>
+              <input type="text" class="form-control mt-2" placeholder="Filter selected files" id="filter-selected-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
+            </div>
+            <div class="card-body" style="height: 300px; overflow-y: auto;">
+              <ul class="list-group" id="selected-files-${folder.uuid}">
+                ${selectedFilesForFolder.map(file => `
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${file.filename}
+                    <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folder.uuid}')">
+                      <i class="bi bi-box-arrow-left"></i>
+                    </button>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -177,26 +185,33 @@
     updateFolderContent(folderUuid);
   }
 
-  // Update the dual list widget for a given folder and apply filtering to available files.
+  // Update the dual list widget for a given folder and apply filtering to both available and selected files.
   function updateFolderContent(folderUuid) {
-      const folder = allFolders.find(f => f.uuid === folderUuid);
-      if (!folder) return;
-      const selectedFileIds = new Set(folder.file_ids);
-      let availableFilesForFolder = allFiles.filter(file => !selectedFileIds.has(file.id));
-      const selectedFilesForFolder = allFiles.filter(file => selectedFileIds.has(file.id));
+    const folder = allFolders.find(f => f.uuid === folderUuid);
+    if (!folder) return;
+    const selectedFileIds = new Set(folder.file_ids);
+    let availableFilesForFolder = allFiles.filter(file => !selectedFileIds.has(file.id));
+    let selectedFilesForFolder = allFiles.filter(file => selectedFileIds.has(file.id));
 
-      // Apply filter if provided
-      const filterInput = document.getElementById(`filter-available-${folderUuid}`);
-      if (filterInput && filterInput.value) {
-          const filterValue = filterInput.value.toLowerCase();
-          availableFilesForFolder = availableFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
-      }
+    // Apply filter for available files if provided
+    const filterAvailableInput = document.getElementById(`filter-available-${folderUuid}`);
+    if (filterAvailableInput && filterAvailableInput.value) {
+      const filterValue = filterAvailableInput.value.toLowerCase();
+      availableFilesForFolder = availableFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
+    }
 
-      const availableList = document.getElementById(`available-files-${folderUuid}`);
-      const selectedList = document.getElementById(`selected-files-${folderUuid}`);
+    // Apply filter for selected files if provided
+    const filterSelectedInput = document.getElementById(`filter-selected-${folderUuid}`);
+    if (filterSelectedInput && filterSelectedInput.value) {
+      const filterValue = filterSelectedInput.value.toLowerCase();
+      selectedFilesForFolder = selectedFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
+    }
 
-      if (availableList && selectedList) {
-          availableList.innerHTML = availableFilesForFolder.map(file => `
+    const availableList = document.getElementById(`available-files-${folderUuid}`);
+    const selectedList = document.getElementById(`selected-files-${folderUuid}`);
+
+    if (availableList && selectedList) {
+      availableList.innerHTML = availableFilesForFolder.map(file => `
         <li class="list-group-item d-flex justify-content-between align-items-center">
           ${file.filename}
           <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folderUuid}')">
@@ -205,12 +220,10 @@
         </li>
       `).join('');
 
-          selectedList.innerHTML = selectedFilesForFolder.map(file => `
+      selectedList.innerHTML = selectedFilesForFolder.map(file => `
         <li class="list-group-item d-flex justify-content-between align-items-center">
           ${file.filename}
-          <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folderUuid}')">
-              <i class="bi bi-box-arrow-left"></i>
-          </button>
+          <button class="btn btn-sm btn-danger" onclick="removeFileFromFolder('${file.id}', '${folderUuid}')">Remove</button>
         </li>
       `).join('');
     }
