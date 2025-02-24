@@ -49,7 +49,8 @@
     populateFoldersTabsAndContent(allFolders, allFiles);
   }
 
-  // Build folder tabs and for each, display a dual-list widget with filter input and scrollable lists.
+  // Build folder tabs and for each, display a dual-list widget with a folder name input,
+  // filter inputs, and scrollable lists.
   function populateFoldersTabsAndContent(folders, files) {
     const tabsContainer = document.getElementById('foldersNavTabs');
     const contentContainer = document.getElementById('folderContent');
@@ -87,11 +88,13 @@
       contentPane.setAttribute('role', 'tabpanel');
       contentPane.setAttribute('aria-labelledby', `folders-tab-${folder.uuid}-tab`);
 
-      // Build the dual list widget HTML with a filter input for available files
+      // Build the dual list widget HTML along with a folder name input field
       const dualListHTML = buildDualListHTML(folder, files);
 
       contentPane.innerHTML = `
-        <h4>${folder.name || 'Untitled Folder'}</h4>
+        <div class="mb-3">
+          <input type="text" class="form-control form-control-lg" id="folder-name-${folder.uuid}" value="${folder.name || 'Untitled Folder'}" onblur="updateFolderName('${folder.uuid}')">
+        </div>
         ${dualListHTML}
       `;
       contentContainer.appendChild(contentPane);
@@ -113,7 +116,7 @@
     });
   }
 
-  // Helper: build the dual list widget for a folder with a filter input and scrollable divs.
+  // Helper: build the dual list widget for a folder with filter inputs and scrollable divs.
   function buildDualListHTML(folder, files) {
     const selectedFileIds = new Set(folder.file_ids);
     let availableFilesForFolder = files.filter(file => !selectedFileIds.has(file.id));
@@ -131,7 +134,7 @@
               </button>
             </div>
             <div class="card-header bg-white">
-                <input type="text" class="form-control form-control-sm" placeholder="Filter available files" id="filter-available-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
+              <input type="text" class="form-control form-control-sm" placeholder="Filter available files" id="filter-available-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
             </div>
             <div class="card-body p-1" style="height: 300px; overflow-y: auto;">
               <ul class="list-group list-group-flush" id="available-files-${folder.uuid}">
@@ -139,7 +142,7 @@
                   <li class="list-group-item d-flex justify-content-between align-items-center">
                     ${file.filename}
                     <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folder.uuid}')">
-                        <i class="bi bi-box-arrow-in-right"></i>
+                      <i class="bi bi-box-arrow-in-right"></i>
                     </button>
                   </li>
                 `).join('')}
@@ -151,17 +154,17 @@
           <div class="card border-success">
             <div class="card-header d-flex align-items-center justify-content-between bg-success-subtle">
               <h6 class="card-title mb-0 py-2">Selected Files</h6>
-              <div class="spinner-border spinner-border-sm text-success d-none" id="updatingSpinner" role="status">
+              <div class="spinner-border spinner-border-sm text-secondary d-none" id="updatingSpinner" role="status">
                 <span class="visually-hidden">Updating...</span>
               </div>
             </div>
             <div class="card-header bg-white">
-                <input type="text" class="form-control form-control-sm" placeholder="Filter selected files" id="filter-selected-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
+              <input type="text" class="form-control form-control-sm" placeholder="Filter selected files" id="filter-selected-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
             </div>
             <div class="card-body p-1" style="height: 300px; overflow-y: auto;">
               <ul class="list-group list-group-flush" id="selected-files-${folder.uuid}">
                 ${selectedFilesForFolder.map(file => `
-                  <li class="list-group-item d-flex justify-content-between align-items-center bg-opacity-10">
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
                     ${file.filename}
                     <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folder.uuid}')">
                       <i class="bi bi-box-arrow-left"></i>
@@ -176,7 +179,7 @@
     `;
   }
 
-  // Call the backend to update the folder's file_ids.
+  // Call the backend to update the folder's file_ids and name.
   // The spinner is shown while the update is in progress.
   async function updateFolderBackend(folder) {
     const spinner = document.getElementById('updatingSpinner');
@@ -191,7 +194,8 @@
           'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ file_ids: folder.file_ids }),
+        // Send both file_ids and name in the payload.
+        body: JSON.stringify({ file_ids: folder.file_ids, name: folder.name }),
       });
       if (!response.ok) {
         console.error("Error updating folder on backend:", response.statusText);
@@ -221,6 +225,21 @@
     folder.file_ids = folder.file_ids.filter(id => id !== fileId);
     updateFolderContent(folderUuid);
     await updateFolderBackend(folder);
+  }
+
+  // Update the folder name when the user leaves (blurs) the name input field.
+  function updateFolderName(folderUuid) {
+    const folder = allFolders.find(f => f.uuid === folderUuid);
+    if (!folder) return;
+    const nameInput = document.getElementById(`folder-name-${folderUuid}`);
+    if (!nameInput) return;
+    folder.name = nameInput.value;
+    // Update the tab label with the new folder name.
+    const tabLink = document.getElementById(`folders-tab-${folderUuid}-tab`);
+    if (tabLink) {
+      tabLink.textContent = folder.name || 'Untitled Folder';
+    }
+    updateFolderBackend(folder);
   }
 
   // Update the dual list widget for a given folder and apply filtering to both available and selected files.
@@ -253,7 +272,7 @@
         <li class="list-group-item d-flex justify-content-between align-items-center">
           ${file.filename}
           <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folderUuid}')">
-              <i class="bi bi-box-arrow-in-right"></i>
+            <i class="bi bi-box-arrow-in-right"></i>
           </button>
         </li>
       `).join('');

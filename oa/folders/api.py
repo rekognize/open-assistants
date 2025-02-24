@@ -66,24 +66,29 @@ async def list_folders(request):
     return {"folders": folders}
 
 
-class FolderFilesUpdateSchema(Schema):
-    file_ids: list[str] = Field(default=[])
+class FolderUpdateSchema(Schema):
+    file_ids: list[str] | None = Field(default=None)
+    name: str | None = None
 
 
-@api.post("/{folder_uuid}/update/")
-def update_folder(request, folder_uuid: uuid.UUID, payload: FolderFilesUpdateSchema):
+@api.post("/{folder_uuid}/files/")
+def update_folder(request, folder_uuid: uuid.UUID, payload: FolderUpdateSchema):
     folder = get_object_or_404(Folder, uuid=folder_uuid)
-    folder.file_ids = payload.file_ids
+    if payload.file_ids is not None:
+        folder.file_ids = payload.file_ids
+    if payload.name is not None:
+        folder.name = payload.name
     folder.save()
-    return {"file_ids": folder.file_ids}
+    return {"file_ids": folder.file_ids, "name": folder.name}
 
 
 @api.post("/create/")
-def create_folder_files(request, folder_uuid: uuid.UUID, payload: FolderFilesUpdateSchema):
-    folder = get_object_or_404(Folder, uuid=folder_uuid)
-    folder.file_ids = payload.file_ids
-    folder.save()
-    return {"file_ids": folder.file_ids}
+def create_folder_files(request, name: str):
+    folder = Folder.objects.create(
+        name=name,
+        created_by=request.user,
+    )
+    return {"folder_uuid": folder.uuid}
 
 
 # Assistant - Folder relations

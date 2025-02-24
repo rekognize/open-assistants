@@ -18,7 +18,7 @@ class FolderAssistant(models.Model):
 class Folder(models.Model):
     # Folders are M2M related to Assistants through Vector Stores
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, blank=True, null=True)
     projects = models.ManyToManyField('main.Project', blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
