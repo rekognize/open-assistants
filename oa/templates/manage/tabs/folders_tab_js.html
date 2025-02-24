@@ -51,7 +51,7 @@
     populateFoldersTabsAndContent(allFolders, allFiles);
   }
 
-  // Build folder tabs and for each, display a dual-list widget
+  // Build folder tabs and for each, display a dual-list widget with filter input and scrollable lists.
   function populateFoldersTabsAndContent(folders, files) {
     const tabsContainer = document.getElementById('foldersNavTabs');
     const contentContainer = document.getElementById('folderContent');
@@ -115,39 +115,45 @@
     });
   }
 
-  // Helper: build the dual list widget for a folder
+  // Helper: build the dual list widget for a folder with a filter input and scrollable divs.
   function buildDualListHTML(folder, files) {
     const selectedFileIds = new Set(folder.file_ids);
-    const availableFilesForFolder = files.filter(file => !selectedFileIds.has(file.id));
+    let availableFilesForFolder = files.filter(file => !selectedFileIds.has(file.id));
     const selectedFilesForFolder = files.filter(file => selectedFileIds.has(file.id));
 
+    // Build the HTML for available files list and selected files list.
     return `
       <div class="row">
         <div class="col-md-6">
           <h5>Available Files</h5>
-          <ul class="list-group" id="available-files-${folder.uuid}">
-            ${availableFilesForFolder.map(file => `
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                ${file.filename}
-                <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folder.uuid}')">
+          <input type="text" class="form-control mb-2" placeholder="Filter files" id="filter-available-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
+          <div style="height: 300px; overflow-y: auto;">
+            <ul class="list-group" id="available-files-${folder.uuid}">
+              ${availableFilesForFolder.map(file => `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  ${file.filename}
+                  <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folder.uuid}')">
                     <i class="bi bi-box-arrow-in-right"></i>
-                </button>
-              </li>
-            `).join('')}
-          </ul>
+                  </button>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
         </div>
         <div class="col-md-6">
           <h5>Selected Files</h5>
-          <ul class="list-group" id="selected-files-${folder.uuid}">
-            ${selectedFilesForFolder.map(file => `
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                ${file.filename}
-                <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folder.uuid}')">
+          <div style="height: 300px; overflow-y: auto;">
+            <ul class="list-group" id="selected-files-${folder.uuid}">
+              ${selectedFilesForFolder.map(file => `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  ${file.filename}
+                  <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folder.uuid}')">
                     <i class="bi bi-box-arrow-left"></i>
-                </button>
-              </li>
-            `).join('')}
-          </ul>
+                  </button>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
         </div>
       </div>
     `;
@@ -171,19 +177,26 @@
     updateFolderContent(folderUuid);
   }
 
-  // Update the dual list widget for a given folder
+  // Update the dual list widget for a given folder and apply filtering to available files.
   function updateFolderContent(folderUuid) {
-    const folder = allFolders.find(f => f.uuid === folderUuid);
-    if (!folder) return;
-    const selectedFileIds = new Set(folder.file_ids);
-    const availableFilesForFolder = allFiles.filter(file => !selectedFileIds.has(file.id));
-    const selectedFilesForFolder = allFiles.filter(file => selectedFileIds.has(file.id));
+      const folder = allFolders.find(f => f.uuid === folderUuid);
+      if (!folder) return;
+      const selectedFileIds = new Set(folder.file_ids);
+      let availableFilesForFolder = allFiles.filter(file => !selectedFileIds.has(file.id));
+      const selectedFilesForFolder = allFiles.filter(file => selectedFileIds.has(file.id));
 
-    const availableList = document.getElementById(`available-files-${folderUuid}`);
-    const selectedList = document.getElementById(`selected-files-${folderUuid}`);
+      // Apply filter if provided
+      const filterInput = document.getElementById(`filter-available-${folderUuid}`);
+      if (filterInput && filterInput.value) {
+          const filterValue = filterInput.value.toLowerCase();
+          availableFilesForFolder = availableFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
+      }
 
-    if (availableList && selectedList) {
-      availableList.innerHTML = availableFilesForFolder.map(file => `
+      const availableList = document.getElementById(`available-files-${folderUuid}`);
+      const selectedList = document.getElementById(`selected-files-${folderUuid}`);
+
+      if (availableList && selectedList) {
+          availableList.innerHTML = availableFilesForFolder.map(file => `
         <li class="list-group-item d-flex justify-content-between align-items-center">
           ${file.filename}
           <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folderUuid}')">
@@ -192,7 +205,7 @@
         </li>
       `).join('');
 
-      selectedList.innerHTML = selectedFilesForFolder.map(file => `
+          selectedList.innerHTML = selectedFilesForFolder.map(file => `
         <li class="list-group-item d-flex justify-content-between align-items-center">
           ${file.filename}
           <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folderUuid}')">
