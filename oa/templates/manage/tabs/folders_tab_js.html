@@ -58,11 +58,6 @@
     tabsContainer.innerHTML = '';
     contentContainer.innerHTML = '';
 
-    if (!folders || folders.length === 0) {
-      document.getElementById('no-folders').classList.remove('d-none');
-      return;
-    }
-
     folders.forEach((folder, index) => {
       // Create the tab element
       const tabItem = document.createElement('li');
@@ -287,6 +282,36 @@
       `).join('');
     }
   }
+
+    async function createNewFolder() {
+      try {
+        const url = "{% url 'folders-api:create_folder' %}";
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          console.error("Error creating new folder:", response.statusText);
+          return;
+        }
+        const data = await response.json();
+        const newFolderUuid = data.folder_uuid;
+        // Refresh the folder list and UI.
+        await fetchFoldersTab();
+        // After reloading, select the new folder's tab.
+        const newTabEl = document.getElementById(`folders-tab-${newFolderUuid}-tab`);
+        if (newTabEl) {
+          // Using Bootstrap 5 Tab API to show the new tab.
+          const newTab = new bootstrap.Tab(newTabEl);
+          newTab.show();
+        }
+      } catch (error) {
+        console.error("Error creating new folder:", error);
+      }
+    }
 
   // Call fetchFoldersTab on page load (or on an event)
   document.addEventListener('DOMContentLoaded', fetchFoldersTab);

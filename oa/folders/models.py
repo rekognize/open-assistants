@@ -23,14 +23,14 @@ class Folder(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    file_ids = models.JSONField(default=list)
+    file_ids = models.JSONField(default=list, blank=True)
 
     modified_at = models.DateTimeField(auto_now=True)
     public = models.BooleanField(default=False)
     sync_source = models.URLField(blank=True, null=True)
 
     def __str__(self):
-        return self.name
+        return self.name or str(self.uuid)
 
     def sync_files(self):
         # Syncs the files of the folder with the remote folder defined by sync_source

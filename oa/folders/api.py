@@ -71,7 +71,7 @@ class FolderUpdateSchema(Schema):
     name: str | None = None
 
 
-@api.post("/{folder_uuid}/files/")
+@api.post("/{folder_uuid}/files/", auth=BearerAuth())
 def update_folder(request, folder_uuid: uuid.UUID, payload: FolderUpdateSchema):
     folder = get_object_or_404(Folder, uuid=folder_uuid)
     if payload.file_ids is not None:
@@ -82,12 +82,12 @@ def update_folder(request, folder_uuid: uuid.UUID, payload: FolderUpdateSchema):
     return {"file_ids": folder.file_ids, "name": folder.name}
 
 
-@api.post("/create/")
-def create_folder_files(request, name: str):
+@api.post("/create/", auth=BearerAuth())
+def create_folder(request):
     folder = Folder.objects.create(
-        name=name,
         created_by=request.user,
     )
+    folder.projects.add(request.auth['project'])
     return {"folder_uuid": folder.uuid}
 
 
