@@ -66,6 +66,28 @@ async def list_folders(request):
     return {"folders": folders}
 
 
+class FolderFilesUpdateSchema(Schema):
+    file_ids: list[str] = Field(default=[])
+
+
+@api.post("/{folder_uuid}/update/")
+def update_folder(request, folder_uuid: uuid.UUID, payload: FolderFilesUpdateSchema):
+    folder = get_object_or_404(Folder, uuid=folder_uuid)
+    folder.file_ids = payload.file_ids
+    folder.save()
+    return {"file_ids": folder.file_ids}
+
+
+@api.post("/create/")
+def create_folder_files(request, folder_uuid: uuid.UUID, payload: FolderFilesUpdateSchema):
+    folder = get_object_or_404(Folder, uuid=folder_uuid)
+    folder.file_ids = payload.file_ids
+    folder.save()
+    return {"file_ids": folder.file_ids}
+
+
+# Assistant - Folder relations
+
 @api.get("/assistant_folders", auth=BearerAuth())
 async def list_assistant_folders(request):
     project = request.auth['project']
@@ -89,8 +111,8 @@ async def modify_assistant_folders(request, assistant_id):
     # TODO: change sync_to_async
     # Get current FolderAssistant relations for this assistant in the current project
     current_folder_ids = set(map(str, await sync_to_async(list)(
-         FolderAssistant.objects.filter(assistant_id=assistant_id, folder__projects=project)
-         .values_list('folder__uuid', flat=True)
+        FolderAssistant.objects.filter(assistant_id=assistant_id, folder__projects=project)
+        .values_list('folder__uuid', flat=True)
     )))
 
     new_folder_ids = set(folder_ids)
@@ -114,26 +136,3 @@ async def modify_assistant_folders(request, assistant_id):
 
     return JsonResponse({'success': True, 'returned_folder_ids': list(new_folder_ids)})
 
-
-@api.get("/{folder_uuid}/list/")
-async def list_files(request, folder_uuid):
-    folder = get_object_or_404(Folder, uuid=folder_uuid)
-    return {"file_ids": folder.file_ids}
-
-
-class FolderFilesUpdateSchema(Schema):
-    file_ids: list[str] = Field(default=[])
-
-
-@api.post("/{folder_uuid}/files/")
-def update_folder(request, folder_uuid: uuid.UUID, payload: FolderFilesUpdateSchema):
-    folder = get_object_or_404(Folder, uuid=folder_uuid)
-    folder.file_ids = payload.file_ids
-    folder.save()
-    return {"file_ids": folder.file_ids}
-
-
-@api.get("/{folder_uuid}/sync/")
-async def sync_folder(request, folder_uuid):
-    folder = Folder.objects.get(uuid=folder_uuid)
-    folder.sync_files()
