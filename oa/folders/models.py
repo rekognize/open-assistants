@@ -5,7 +5,6 @@ from django.conf import settings
 
 class FolderAssistant(models.Model):
     # M2M model to hold the Folder - Assistant relations
-    # FolderFiles => Vector Store are handled transparently
     folder = models.ForeignKey('Folder', on_delete=models.CASCADE)
     assistant_id = models.CharField(max_length=100)
 
@@ -23,6 +22,9 @@ class Folder(models.Model):
     projects = models.ManyToManyField('main.Project', blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    file_ids = models.JSONField(default=list)
+
     modified_at = models.DateTimeField(auto_now=True)
     public = models.BooleanField(default=False)
     sync_source = models.URLField(blank=True, null=True)
@@ -35,12 +37,3 @@ class Folder(models.Model):
         if self.sync_source:
             if self.source.startswith("s3://"):
                 pass
-
-
-class FolderFile(models.Model):
-    # M2M model to hold the Folder - File relations
-    folder = models.ForeignKey('Folder', on_delete=models.CASCADE)
-    file_id = models.CharField(max_length=100)
-
-    def __str__(self):
-        return f"{self.folder.name} - {self.file_id}"

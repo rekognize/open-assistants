@@ -176,22 +176,51 @@
     `;
   }
 
-  // Add file to folder (update local state and re-render the folder's dual list)
-  function addFileToFolder(fileId, folderUuid) {
+  // Call the backend to update the folder's file_ids.
+  // The spinner is shown while the update is in progress.
+  async function updateFolderBackend(folder) {
+    const spinner = document.getElementById('updatingSpinner');
+    spinner.classList.remove('d-none');
+    try {
+      // Construct the endpoint URL. Adjust as needed based on your backend routing.
+      const urlTemplate = "{% url 'folders-api:update_folder' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
+      const url = urlTemplate.replace('FOLDER_UUID_PLACEHOLDER', folder.uuid);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ file_ids: folder.file_ids }),
+      });
+      if (!response.ok) {
+        console.error("Error updating folder on backend:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error updating folder on backend:", error);
+    } finally {
+      spinner.classList.add('d-none');
+    }
+  }
+
+  // Add file to folder (update local state, re-render the UI, then call backend)
+  async function addFileToFolder(fileId, folderUuid) {
     const folder = allFolders.find(f => f.uuid === folderUuid);
     if (!folder) return;
     if (!folder.file_ids.includes(fileId)) {
       folder.file_ids.push(fileId);
     }
     updateFolderContent(folderUuid);
+    await updateFolderBackend(folder);
   }
 
-  // Remove file from folder
-  function removeFileFromFolder(fileId, folderUuid) {
+  // Remove file from folder (update local state, re-render the UI, then call backend)
+  async function removeFileFromFolder(fileId, folderUuid) {
     const folder = allFolders.find(f => f.uuid === folderUuid);
     if (!folder) return;
     folder.file_ids = folder.file_ids.filter(id => id !== fileId);
     updateFolderContent(folderUuid);
+    await updateFolderBackend(folder);
   }
 
   // Update the dual list widget for a given folder and apply filtering to both available and selected files.

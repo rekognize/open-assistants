@@ -484,7 +484,9 @@ async def upload_files(
 async def list_files(request):
     try:
         files = await request.auth['client'].files.list(
-            purpose='assistants'
+            purpose='assistants',
+            limit=10000,  # Default = Max = 10,000
+            order='desc',
         )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)

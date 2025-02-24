@@ -1,13 +1,15 @@
 import json
+import uuid
 
 from asgiref.sync import sync_to_async
-from ninja import NinjaAPI
+from django.shortcuts import get_object_or_404
+from ninja import NinjaAPI, Schema, Field
 from ninja.security import HttpBearer
 from ninja.errors import AuthenticationError
 from openai import AsyncOpenAI
 from django.http import JsonResponse
 from ..main.models import Project
-from .models import Folder, FolderFile, FolderAssistant
+from .models import Folder, FolderAssistant
 
 api = NinjaAPI(urls_namespace="folders-api")
 
@@ -47,7 +49,7 @@ async def list_folders(request):
     if assistant_id is not None:
         qs = qs.filter(folderassistant_set__assistant_id=assistant_id)
 
-    qs = qs.select_related("created_by").prefetch_related("folderfile_set")
+    qs = qs.select_related("created_by")
 
     folders = []
     async for folder in qs:
@@ -59,7 +61,7 @@ async def list_folders(request):
             "modified_at": folder.modified_at,
             "public": folder.public,
             "sync_source": folder.sync_source,
-            "file_ids": [ff.file_id for ff in folder.folderfile_set.all()],
+            "file_ids": folder.file_ids,
         })
     return {"folders": folders}
 
@@ -115,11 +117,20 @@ async def modify_assistant_folders(request, assistant_id):
 
 @api.get("/{folder_uuid}/list/")
 async def list_files(request, folder_uuid):
-    file_ids = [
-        file_id
-        async for file_id in FolderFile.objects.filter(folder__uuid=folder_uuid).values_list('file_id', flat=True)
-    ]
-    return {"file_ids": file_ids}
+    folder = get_object_or_404(Folder, uuid=folder_uuid)
+    return {"file_ids": folder.file_ids}
+
+
+class FolderFilesUpdateSchema(Schema):
+    file_ids: list[str] = Field(default=[])
+
+
+@api.post("/{folder_uuid}/files/")
+def update_folder(request, folder_uuid: uuid.UUID, payload: FolderFilesUpdateSchema):
+    folder = get_object_or_404(Folder, uuid=folder_uuid)
+    folder.file_ids = payload.file_ids
+    folder.save()
+    return {"file_ids": folder.file_ids}
 
 
 @api.get("/{folder_uuid}/sync/")
