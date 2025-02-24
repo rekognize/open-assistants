@@ -1,93 +1,208 @@
 <script>
-    /* Folders */
+  // Global variables to hold fetched data
+  let allFiles = [];
+  let allFolders = [];
 
-    async function fetchFoldersTab() {
-        toggleLoading('loadingFoldersTab', true);
-        try {
-            const foldersResponse = await fetch("{% url 'folders-api:list_folders' %}", {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            const foldersData = await foldersResponse.json();
-
-            console.log('folders tab:', foldersData);
-
-            populateFoldersTabsAndContent(foldersData.folders);
-
-        } catch (error) {
-            console.error('Error fetching folders:', error);
-        } finally {
-            toggleLoading('loadingFoldersTab', false);
+  async function fetchFiles() {
+    const url = "{% url 'api-1.0.0:list_files' %}";
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
         }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching files:', error);
+    }
+  }
+
+  async function fetchFolders() {
+    const url = "{% url 'folders-api:list_folders' %}";
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching folders:', error);
+    }
+  }
+
+  // Fetch both folders and files, then build the UI
+  async function fetchFoldersTab() {
+    toggleLoading('loadingFoldersTab', true);
+    const foldersData = await fetchFolders();
+    const filesData = await fetchFiles();
+    toggleLoading('loadingFoldersTab', false);
+
+    // Assume responses include .folders and .files arrays
+    allFolders = foldersData.folders;
+    allFiles = filesData.files;
+    console.log('folders:', allFolders);
+    console.log('files:', allFiles);
+
+    populateFoldersTabsAndContent(allFolders, allFiles);
+  }
+
+  // Build folder tabs and for each, display a dual-list widget
+  function populateFoldersTabsAndContent(folders, files) {
+    const tabsContainer = document.getElementById('foldersNavTabs');
+    const contentContainer = document.getElementById('folderContent');
+
+    tabsContainer.innerHTML = '';
+    contentContainer.innerHTML = '';
+
+    if (!folders || folders.length === 0) {
+      document.getElementById('no-folders').classList.remove('d-none');
+      return;
     }
 
-    function populateFoldersTabsAndContent(folders) {
-        const tabsContainer = document.getElementById('foldersNavTabs');
-        const contentContainer = document.getElementById('folderContent');
+    folders.forEach((folder, index) => {
+      // Create the tab element
+      const tabItem = document.createElement('li');
+      tabItem.className = 'nav-item';
+      const tabLink = document.createElement('a');
+      tabLink.className = index === 0
+        ? 'nav-link py-1 px-2 bg-secondary text-white active'
+        : 'nav-link py-1 px-2 bg-white text-secondary';
+      tabLink.setAttribute('data-bs-toggle', 'tab');
+      tabLink.setAttribute('href', `#folders-tab-${folder.uuid}`);
+      tabLink.setAttribute('role', 'tab');
+      tabLink.setAttribute('aria-controls', `folders-tab-${folder.uuid}`);
+      tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+      tabLink.id = `folders-tab-${folder.uuid}-tab`;
+      tabLink.textContent = folder.name || 'Untitled Folder';
+      tabItem.appendChild(tabLink);
+      tabsContainer.appendChild(tabItem);
 
-        tabsContainer.innerHTML = '';
-        contentContainer.innerHTML = '';
+      // Create the content pane for this folder
+      const contentPane = document.createElement('div');
+      contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+      contentPane.setAttribute('id', `folders-tab-${folder.uuid}`);
+      contentPane.setAttribute('role', 'tabpanel');
+      contentPane.setAttribute('aria-labelledby', `folders-tab-${folder.uuid}-tab`);
 
-        if (!folders || folders.length === 0) {
-            document.getElementById('no-folders').classList.remove('d-none');
-            return;
-        }
+      // Build the dual list widget HTML
+      const dualListHTML = buildDualListHTML(folder, files);
 
-        folders.forEach((folder, index) => {
-            const tabItem = document.createElement('li');
-            tabItem.className = 'nav-item';
+      contentPane.innerHTML = `
+        <h4>${folder.name || 'Untitled Folder'}</h4>
+        ${dualListHTML}
+      `;
+      contentContainer.appendChild(contentPane);
+    });
 
-            const tabLink = document.createElement('a');
-            tabLink.className = index === 0
-                ? 'nav-link py-1 px-2 bg-secondary text-white active'
-                : 'nav-link py-1 px-2 bg-white text-secondary';
-            tabLink.setAttribute('data-bs-toggle', 'tab');
-            tabLink.setAttribute('href', `#folders-tab-${folder.uuid}`);
-            tabLink.setAttribute('role', 'tab');
-            tabLink.setAttribute('aria-controls', `folders-tab-${folder.uuid}`);
-            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-            tabLink.id = `folders-tab-${folder.uuid}-tab`;
-            tabLink.textContent = folder.name || 'Untitled Folder';
-
-            tabItem.appendChild(tabLink);
-            tabsContainer.appendChild(tabItem);
-
-            const contentPane = document.createElement('div');
-            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
-            contentPane.setAttribute('id', `folders-tab-${folder.uuid}`);
-            contentPane.setAttribute('role', 'tabpanel');
-            contentPane.setAttribute('aria-labelledby', `folders-tab-${folder.uuid}-tab`);
-
-            contentPane.innerHTML = `
-                <h4>${folder.name || 'Untitled Folder'}</h4>
-
-                <div>
-                  <pre>${JSON.stringify(folder, null, 2)}</pre>
-                </div>
-            `;
-
-            contentContainer.appendChild(contentPane);
-
+    // Listen for tab activation events to update classes
+    document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
+      tab.addEventListener('shown.bs.tab', function (event) {
+        document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(t => {
+          if (t === event.target) {
+            t.classList.remove('bg-white', 'text-secondary');
+            t.classList.add('bg-secondary', 'text-white');
+          } else {
+            t.classList.remove('bg-secondary', 'text-white');
+            t.classList.add('bg-white', 'text-secondary');
+          }
         });
+      });
+    });
+  }
 
-        // Listen for tab activation events so we can update the background classes
-        document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
-            tab.addEventListener('shown.bs.tab', function (event) {
-                // Loop through all tabs and update classes accordingly
-                document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(t => {
-                    if (t === event.target) {
-                        t.classList.remove('bg-white', 'text-secondary');
-                        t.classList.add('bg-secondary', 'text-white');
-                    } else {
-                        t.classList.remove('bg-secondary', 'text-white');
-                        t.classList.add('bg-white', 'text-secondary');
-                    }
-                });
-            });
-        });
+  // Helper: build the dual list widget for a folder
+  function buildDualListHTML(folder, files) {
+    const selectedFileIds = new Set(folder.file_ids);
+    const availableFilesForFolder = files.filter(file => !selectedFileIds.has(file.id));
+    const selectedFilesForFolder = files.filter(file => selectedFileIds.has(file.id));
+
+    return `
+      <div class="row">
+        <div class="col-md-6">
+          <h5>Available Files</h5>
+          <ul class="list-group" id="available-files-${folder.uuid}">
+            ${availableFilesForFolder.map(file => `
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                ${file.filename}
+                <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folder.uuid}')">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                </button>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+        <div class="col-md-6">
+          <h5>Selected Files</h5>
+          <ul class="list-group" id="selected-files-${folder.uuid}">
+            ${selectedFilesForFolder.map(file => `
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                ${file.filename}
+                <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folder.uuid}')">
+                    <i class="bi bi-box-arrow-left"></i>
+                </button>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+      </div>
+    `;
+  }
+
+  // Add file to folder (update local state and re-render the folder's dual list)
+  function addFileToFolder(fileId, folderUuid) {
+    const folder = allFolders.find(f => f.uuid === folderUuid);
+    if (!folder) return;
+    if (!folder.file_ids.includes(fileId)) {
+      folder.file_ids.push(fileId);
     }
+    updateFolderContent(folderUuid);
+  }
+
+  // Remove file from folder
+  function removeFileFromFolder(fileId, folderUuid) {
+    const folder = allFolders.find(f => f.uuid === folderUuid);
+    if (!folder) return;
+    folder.file_ids = folder.file_ids.filter(id => id !== fileId);
+    updateFolderContent(folderUuid);
+  }
+
+  // Update the dual list widget for a given folder
+  function updateFolderContent(folderUuid) {
+    const folder = allFolders.find(f => f.uuid === folderUuid);
+    if (!folder) return;
+    const selectedFileIds = new Set(folder.file_ids);
+    const availableFilesForFolder = allFiles.filter(file => !selectedFileIds.has(file.id));
+    const selectedFilesForFolder = allFiles.filter(file => selectedFileIds.has(file.id));
+
+    const availableList = document.getElementById(`available-files-${folderUuid}`);
+    const selectedList = document.getElementById(`selected-files-${folderUuid}`);
+
+    if (availableList && selectedList) {
+      availableList.innerHTML = availableFilesForFolder.map(file => `
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          ${file.filename}
+          <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folderUuid}')">
+              <i class="bi bi-box-arrow-right"></i>
+          </button>
+        </li>
+      `).join('');
+
+      selectedList.innerHTML = selectedFilesForFolder.map(file => `
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          ${file.filename}
+          <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folderUuid}')">
+              <i class="bi bi-box-arrow-left"></i>
+          </button>
+        </li>
+      `).join('');
+    }
+  }
+
+  // Call fetchFoldersTab on page load (or on an event)
+  document.addEventListener('DOMContentLoaded', fetchFoldersTab);
 </script>
