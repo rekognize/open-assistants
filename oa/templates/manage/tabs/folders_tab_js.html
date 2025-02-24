@@ -45,8 +45,6 @@
     // Assume responses include .folders and .files arrays
     allFolders = foldersData.folders;
     allFiles = filesData.files;
-    console.log('folders:', allFolders);
-    console.log('files:', allFiles);
 
     populateFoldersTabsAndContent(allFolders, allFiles);
   }
@@ -127,7 +125,7 @@
           <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between">
               <h6 class="card-title mb-0 py-2">Available Files</h6>
-              <button class="btn btn-outline-secondary btn-sm">
+              <button class="btn btn-secondary btn-sm">
                 <i class="bi bi-plus-lg"></i>
                 Upload
               </button>
@@ -151,8 +149,11 @@
         </div>
         <div class="col-md-6">
           <div class="card border-success">
-            <div class="card-header">
+            <div class="card-header d-flex align-items-center justify-content-between">
               <h6 class="card-title mb-0 py-2">Selected Files</h6>
+              <div class="spinner-border spinner-border-sm text-secondary d-none" id="updatingSpinner" role="status">
+                <span class="visually-hidden">Updating...</span>
+              </div>
             </div>
             <div class="card-header bg-white">
                 <input type="text" class="form-control form-control-sm" placeholder="Filter selected files" id="filter-selected-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
