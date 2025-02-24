@@ -89,7 +89,7 @@
       contentPane.setAttribute('role', 'tabpanel');
       contentPane.setAttribute('aria-labelledby', `folders-tab-${folder.uuid}-tab`);
 
-      // Build the dual list widget HTML
+      // Build the dual list widget HTML with a filter input for available files
       const dualListHTML = buildDualListHTML(folder, files);
 
       contentPane.innerHTML = `
