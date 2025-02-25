@@ -143,9 +143,11 @@
                         <div id="collapse-${assistant.id}" class="accordion-collapse collapse show" aria-labelledby="heading-${assistant.id}" data-bs-parent="#foldersAccordion-${assistant.id}">
                             <div class="accordion-body d-flex justify-content-between align-items-center">
                                 ${folderNames}
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="manageAssistantFolders('${assistant.id}', '${assistant.name || 'Untitled assistant'}')">
-                                    Manage
-                                </button>
+                                <a href="#" onclick="hideTooltip(this); manageAssistantFolders('${assistant.id}');"
+                                    class="text-secondary text-decoration-none"
+                                    data-bs-toggle="tooltip" data-bs-title="Manage folders">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -341,5 +343,3 @@
     }
 
 </script>
-
-{% include "modals/manage_folders_modal_js.html" %}
