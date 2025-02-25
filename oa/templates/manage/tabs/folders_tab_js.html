@@ -2,6 +2,7 @@
   // Global variables to hold fetched data
   let allFiles = [];
   let allFolders = [];
+  let allFolderAssistants = [];
 
   async function fetchFiles() {
     const url = "{% url 'api-1.0.0:list_files' %}";
@@ -35,23 +36,42 @@
     }
   }
 
+  async function fetchFolderAssistants() {
+    const url = "{% url 'folders-api:list_folder_assistants' %}";
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching folders:', error);
+    }
+  }
+
+
   // Fetch both folders and files, then build the UI
   async function fetchFoldersTab() {
     toggleLoading('loadingFoldersTab', true);
     const foldersData = await fetchFolders();
     const filesData = await fetchFiles();
+    const folderAssistantsData = await fetchFolderAssistants();
     toggleLoading('loadingFoldersTab', false);
 
     // Assume responses include .folders and .files arrays
     allFolders = foldersData.folders;
     allFiles = filesData.files;
+    allFolderAssistants = folderAssistantsData.folder_assistants;
 
-    populateFoldersTabsAndContent(allFolders, allFiles);
+    populateFoldersTabsAndContent(allFolders, allFiles, allFolderAssistants);
   }
 
   // Build folder tabs and for each, display a dual-list widget with a folder name input,
   // filter inputs, scrollable lists, and a right-floating delete button.
-  function populateFoldersTabsAndContent(folders, files) {
+  function populateFoldersTabsAndContent(folders, files, folderAssistants) {
     const tabsContainer = document.getElementById('foldersNavTabs');
     const contentContainer = document.getElementById('folderContent');
 
@@ -100,12 +120,24 @@
         // Build the dual list widget HTML along with a folder name input field
         const dualListHTML = buildDualListHTML(folder, files);
 
+        // Build the assistants list for this folder
+        const assistantsListHTML = document.createElement('ul');
+        (folderAssistants[folder.uuid] || []).forEach(function (assistantId) {
+          const li = document.createElement('li');
+          li.textContent = assistantId;
+          assistantsListHTML.appendChild(li);
+        });
+
         contentPane.innerHTML = `
-        <div class="mb-3">
-          <input type="text" class="form-control form-control-lg" id="folder-name-${folder.uuid}" value="${folder.name || 'Untitled Folder'}" onblur="updateFolderName('${folder.uuid}')">
-        </div>
-        ${dualListHTML}
-      `;
+          <div class="mb-3">
+            <input type="text" class="form-control form-control-lg" id="folder-name-${folder.uuid}" value="${folder.name || 'Untitled Folder'}" onblur="updateFolderName('${folder.uuid}')">
+          </div>
+          ${dualListHTML}
+        `;
+
+        // Append the assistants list to the content pane
+        contentPane.appendChild(assistantsListHTML);
+
         contentContainer.appendChild(contentPane);
     });
 

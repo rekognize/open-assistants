@@ -1,5 +1,6 @@
 import json
 import uuid
+from collections import defaultdict
 
 from asgiref.sync import sync_to_async
 from django.shortcuts import get_object_or_404
@@ -60,7 +61,6 @@ async def list_folders(request):
             "created_by": folder.created_by.username,
             "modified_at": folder.modified_at,
             "public": folder.public,
-            "sync_source": folder.sync_source,
             "file_ids": folder.file_ids,
         })
     return {"folders": folders}
@@ -100,7 +100,7 @@ def delete_folder(request, folder_uuid: uuid.UUID):
 
 # Assistant - Folder relations
 
-@api.get("/assistant_folders", auth=BearerAuth())
+@api.get("/assistant-folders", auth=BearerAuth())
 async def list_assistant_folders(request):
     project = request.auth['project']
     qs = FolderAssistant.objects.filter(folder__projects=project).select_related("folder")
@@ -111,7 +111,17 @@ async def list_assistant_folders(request):
     return {"assistant_folders": mapping}
 
 
-@api.post("/assistant_folders/{assistant_id}", auth=BearerAuth())
+@api.get("/folder-assistants", auth=BearerAuth())
+async def list_folder_assistants(request):
+    project = request.auth['project']
+    qs = FolderAssistant.objects.filter(folder__projects=project).select_related("folder")
+    folder_assistants = defaultdict(list)
+    async for fa in qs:
+        folder_assistants[str(fa.folder.uuid)].append(fa.assistant_id)
+    return {"folder_assistants": folder_assistants}
+
+
+@api.post("/assistants/{assistant_id}", auth=BearerAuth())
 async def modify_assistant_folders(request, assistant_id):
     project = request.auth['project']
     data = json.loads(request.body)
