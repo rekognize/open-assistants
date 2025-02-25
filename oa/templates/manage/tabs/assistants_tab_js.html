@@ -24,106 +24,6 @@
         }
     }
 
-    // Helper: Generates the view mode HTML for an assistant
-    function getAssistantViewTemplate(assistant, folderNames) {
-        return `
-            <div class="view-mode">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h4 class="card-title">${assistant.name || 'Untitled Assistant'}</h4>
-                    <div class="action-buttons">
-                        <a class="small text-secondary text-decoration-none ms-auto me-2" href="#">
-                            <i class="bi bi-bar-chart"></i></i> Threads
-                        </a>
-                        <a class="small text-secondary text-decoration-none" href="#" onclick="toggleEditMode('${assistant.id}', 'assistant')">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
-                    </div>
-                </div>
-                <p class="text-secondary small">
-                    Created: ${formatUnixTimestamp(assistant.created_at)}
-                    (${timeSince(assistant.created_at * 1000)} ago)
-                </p>
-                <div class="accordion mt-4" id="foldersAccordion-${assistant.id}">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="heading-${assistant.id}">
-                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${assistant.id}" aria-expanded="false" aria-controls="collapse-${assistant.id}">
-                                <span class="text-secondary small">Folders</span>
-                            </button>
-                        </h2>
-                        <div id="collapse-${assistant.id}" class="accordion-collapse collapse show" aria-labelledby="heading-${assistant.id}" data-bs-parent="#foldersAccordion-${assistant.id}">
-                            <div class="accordion-body d-flex justify-content-between align-items-center">
-                                ${folderNames}
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="manageAssistantFolders('${assistant.id}', '${assistant.name || 'Untitled Assistant'}')">
-                                    Manage
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="info-box mt-4">
-                    <span class="info-label">Description</span>
-                    <p class="info-value" id="info-description-${assistant.id}">${assistant.description || 'No description given'}</p>
-                </div>
-                <div class="info-box mt-4">
-                    <span class="info-label">Instructions</span>
-                    <p class="info-value" id="info-instructions-${assistant.id}">${assistant.instructions || 'No instructions'}</p>
-                </div>
-                <div class="info-box mt-4">
-                    <span class="info-label">Model</span>
-                    <p class="info-value" id="info-model-${assistant.id}">${assistant.model}</p>
-                </div>
-            </div>
-        `;
-    }
-
-    // Helper: Generates the edit mode HTML for an assistant.
-    function getAssistantEditTemplate(assistant) {
-        return `
-            <div class="d-flex justify-content-between align-items-center">
-                <h4 class="card-title">Edit: ${assistant.name || 'Untitled Assistant'}</h4>
-                <div class="action-buttons">
-                    <button type="button" class="btn btn-sm btn-outline-success btnModifyAssistant"
-                            onclick="modifyTabAssistant('${assistant.id}');"
-                            data-assistant-id="${assistant.id}"
-                            data-bs-toggle="tooltip" data-bs-title="Save">
-                        <span class="button-text"><i class="bi bi-check-lg"></i></span>
-                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary"
-                            onclick="toggleEditMode('${assistant.id}', 'assistant')"
-                            data-bs-toggle="tooltip" data-bs-title="Cancel">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </div>
-            </div>
-            <p class="text-secondary small">
-                Created: ${formatUnixTimestamp(assistant.created_at)}
-                (${timeSince(assistant.created_at * 1000)} ago)
-            </p>
-            <form class="mt-3">
-                <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="name-${assistant.id}" value="${assistant.name}">
-                    <label for="name-${assistant.id}" class="form-label">Name</label>
-                </div>
-                <div class="form-floating mb-3">
-                    <textarea class="form-control" id="description-${assistant.id}" placeholder="Description" rows="3">${assistant.description || ''}</textarea>
-                    <label for="description-${assistant.id}">Description</label>
-                </div>
-                <div class="form-floating mb-3">
-                    <textarea class="form-control" id="instructions-${assistant.id}" placeholder="Instructions" style="height: 100px">${assistant.instructions || ''}</textarea>
-                    <label for="instructions-${assistant.id}">Instructions</label>
-                </div>
-                <div class="form-floating mb-3">
-                    <select class="form-select" id="model-${assistant.id}">
-                        <option value="gpt-4o" ${assistant.model === 'gpt-4o' ? 'selected' : ''}>gpt-4o</option>
-                        <option value="gpt-4o-mini" ${assistant.model === 'gpt-4o-mini' ? 'selected' : ''}>gpt-4o-mini</option>
-                    </select>
-                    <label for="model-${assistant.id}">Model</label>
-                </div>
-            </form>
-        `;
-    }
-
     function populateAssistantsTabsAndContent(assistants) {
         const tabsContainer = document.getElementById('assistantsNavTabs');
         const contentContainer = document.getElementById('assistantContent');
@@ -213,6 +113,228 @@
         viewMode.classList.toggle('d-none');
         editMode.classList.toggle('d-none');
     }
+
+    // Helper: Generates the view mode HTML for an assistant
+    function getAssistantViewTemplate(assistant, folderNames) {
+        return `
+            <div class="view-mode">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="card-title">${assistant.name || 'Untitled Assistant'}</h4>
+                    <div class="action-buttons">
+                        <a class="small text-secondary text-decoration-none ms-auto me-2" href="#">
+                            <i class="bi bi-bar-chart"></i></i> Threads
+                        </a>
+                        <a class="small text-secondary text-decoration-none" href="#" onclick="toggleEditMode('${assistant.id}', 'assistant')">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                    </div>
+                </div>
+                <p class="text-secondary small">
+                    Created: ${formatUnixTimestamp(assistant.created_at)}
+                    (${timeSince(assistant.created_at * 1000)} ago)
+                </p>
+                <div class="accordion mt-4" id="foldersAccordion-${assistant.id}">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-${assistant.id}">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${assistant.id}" aria-expanded="false" aria-controls="collapse-${assistant.id}">
+                                <span class="text-secondary small">Folders</span>
+                            </button>
+                        </h2>
+                        <div id="collapse-${assistant.id}" class="accordion-collapse collapse show" aria-labelledby="heading-${assistant.id}" data-bs-parent="#foldersAccordion-${assistant.id}">
+                            <div class="accordion-body d-flex justify-content-between align-items-center">
+                                ${folderNames}
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="manageAssistantFolders('${assistant.id}', '${assistant.name || 'Untitled Assistant'}')">
+                                    Manage
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Description</span>
+                    <p class="info-value" id="info-description-${assistant.id}">${assistant.description || 'No description given'}</p>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Instructions</span>
+                    <p class="info-value" id="info-instructions-${assistant.id}">${assistant.instructions || 'No instructions'}</p>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Model</span>
+                    <p class="info-value" id="info-model-${assistant.id}">${assistant.model}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // Helper: Generates the edit mode HTML for an assistant.
+    function getAssistantEditTemplate(assistant) {
+        // Precompute the available and chosen options using the global "folders" and "assistantFoldersMapping"
+        let availableOptions = '';
+        let chosenOptions = '';
+        if (typeof folders !== 'undefined') {
+            for (const [folderId, folder] of Object.entries(folders)) {
+                if (assistantFoldersMapping && assistantFoldersMapping[assistant.id] && assistantFoldersMapping[assistant.id].includes(folderId)) {
+                    chosenOptions += `<option value="${folderId}">${folder.name}</option>`;
+                } else {
+                    availableOptions += `<option value="${folderId}">${folder.name}</option>`;
+                }
+            }
+        }
+
+        return `
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="card-title">Edit: ${assistant.name || 'Untitled Assistant'}</h4>
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-sm btn-outline-success btnModifyAssistant"
+                            onclick="modifyTabAssistant('${assistant.id}');"
+                            data-assistant-id="${assistant.id}"
+                            data-bs-toggle="tooltip" data-bs-title="Save">
+                        <span class="button-text"><i class="bi bi-check-lg"></i></span>
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            onclick="toggleEditMode('${assistant.id}', 'assistant')"
+                            data-bs-toggle="tooltip" data-bs-title="Cancel">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <p class="text-secondary small">
+                Created: ${formatUnixTimestamp(assistant.created_at)}
+                (${timeSince(assistant.created_at * 1000)} ago)
+            </p>
+            <form class="mt-3">
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="edit-name-${assistant.id}" value="${assistant.name}">
+                    <label for="edit-name-${assistant.id}" class="form-label">Name</label>
+                </div>
+                <!-- Folders management section -->
+                <fieldset class="mb-3">
+                    <div class="dual-listbox d-flex justify-content-between align-items-start">
+                        <!-- Available folders list -->
+                        <div class="available-folders me-2" style="flex: 1;">
+                            <legend class="small text-secondary">Available Folders</legend>
+                            <input type="text" class="form-control mb-2" id="search-available-${assistant.id}" placeholder="Search available folders" oninput="filterFolders('${assistant.id}', 'available')">
+                            <div class="select-container" style="min-height: 160px;">
+                                <select multiple class="form-control" id="available-folders-${assistant.id}" size="10" onchange="updateFolderButtons('${assistant.id}')">
+                                    ${availableOptions}
+                                </select>
+                            </div>
+                            <div class="text-center mt-2">
+                                <button type="button" class="btn btn-link btn-sm text-secondary-emphasis text-decoration-none" id="choose-all-${assistant.id}" onclick="chooseAll('${assistant.id}')" ${availableOptions.trim() === '' ? 'disabled' : ''}>
+                                    Choose All <i class="bi bi-chevron-double-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Controls to move options -->
+                        <div class="listbox-controls d-flex flex-column justify-content-center align-self-center">
+                            <button type="button" class="btn btn-secondary btn-sm mb-2" id="move-right-${assistant.id}" onclick="moveFolder('${assistant.id}', 'right')" disabled><i class="bi bi-caret-right-fill"></i></button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="move-left-${assistant.id}" onclick="moveFolder('${assistant.id}', 'left')" disabled><i class="bi bi-caret-left-fill"></i></button>
+                        </div>
+                        <!-- Chosen folders list -->
+                        <div class="chosen-folders ms-2" style="flex: 1;">
+                            <legend class="small text-secondary">Chosen Folders</legend>
+                            <input type="text" class="form-control mb-2" id="search-chosen-${assistant.id}" placeholder="Search chosen folders" oninput="filterFolders('${assistant.id}', 'chosen')">
+                            <div class="select-container" style="min-height: 160px;">
+                                <select multiple class="form-control" id="chosen-folders-${assistant.id}" size="10" onchange="updateFolderButtons('${assistant.id}')">
+                                    ${chosenOptions}
+                                </select>
+                            </div>
+                            <div class="text-center mt-2">
+                                <button type="button" class="btn btn-link btn-sm text-secondary-emphasis text-decoration-none " id="remove-all-${assistant.id}" onclick="removeAll('${assistant.id}')" ${chosenOptions.trim() === '' ? 'disabled' : ''}>
+                                    <i class="bi bi-chevron-double-left"></i> Remove All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+                <div class="form-floating mb-3">
+                    <textarea class="form-control" id="edit-description-${assistant.id}" placeholder="Description" rows="3">${assistant.description || ''}</textarea>
+                    <label for="edit-description-${assistant.id}">Description</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <textarea class="form-control" id="edit-instructions-${assistant.id}" placeholder="Instructions" style="height: 100px">${assistant.instructions || ''}</textarea>
+                    <label for="edit-instructions-${assistant.id}">Instructions</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <select class="form-select" id="edit-model-${assistant.id}">
+                        <option value="gpt-4o" ${assistant.model === 'gpt-4o' ? 'selected' : ''}>gpt-4o</option>
+                        <option value="gpt-4o-mini" ${assistant.model === 'gpt-4o-mini' ? 'selected' : ''}>gpt-4o-mini</option>
+                    </select>
+                    <label for="edit-model-${assistant.id}">Model</label>
+                </div>
+            </form>
+        `;
+    }
+
+    // Moves selected options from one select box to the other
+    function moveFolder(assistantId, direction) {
+        const availableSelect = document.getElementById(`available-folders-${assistantId}`);
+        const chosenSelect = document.getElementById(`chosen-folders-${assistantId}`);
+        if (direction === 'right') {
+            // Move selected options from available to chosen
+            [...availableSelect.selectedOptions].forEach(option => {
+                chosenSelect.appendChild(option);
+            });
+        } else if (direction === 'left') {
+            // Move selected options from chosen back to available
+            [...chosenSelect.selectedOptions].forEach(option => {
+                availableSelect.appendChild(option);
+            });
+        }
+        updateFolderButtons(assistantId);
+    }
+
+    // Filters the options in the select box based on the search input
+    function filterFolders(assistantId, type) {
+        const inputId = type === 'available' ? `search-available-${assistantId}` : `search-chosen-${assistantId}`;
+        const selectId = type === 'available' ? `available-folders-${assistantId}` : `chosen-folders-${assistantId}`;
+        const filter = document.getElementById(inputId).value.toLowerCase();
+        const select = document.getElementById(selectId);
+        for (const option of select.options) {
+            option.style.display = option.text.toLowerCase().includes(filter) ? '' : 'none';
+        }
+    }
+
+    // Update the state of arrow and "all" buttons based on selection and box content
+    function updateFolderButtons(assistantId) {
+        const availableSelect = document.getElementById(`available-folders-${assistantId}`);
+        const chosenSelect = document.getElementById(`chosen-folders-${assistantId}`);
+        const moveRightButton = document.getElementById(`move-right-${assistantId}`);
+        const moveLeftButton = document.getElementById(`move-left-${assistantId}`);
+        const chooseAllButton = document.getElementById(`choose-all-${assistantId}`);
+        const removeAllButton = document.getElementById(`remove-all-${assistantId}`);
+
+        // Arrow buttons: disable if no options are selected
+        moveRightButton.disabled = availableSelect.selectedOptions.length === 0;
+        moveLeftButton.disabled = chosenSelect.selectedOptions.length === 0;
+
+        // "Choose All" button disabled if no available options
+        chooseAllButton.disabled = availableSelect.options.length === 0;
+        // "Remove All" button disabled if no chosen options
+        removeAllButton.disabled = chosenSelect.options.length === 0;
+    }
+
+    // Moves all available options to the chosen list
+    function chooseAll(assistantId) {
+        const availableSelect = document.getElementById(`available-folders-${assistantId}`);
+        const chosenSelect = document.getElementById(`chosen-folders-${assistantId}`);
+        [...availableSelect.options].forEach(option => {
+            chosenSelect.appendChild(option);
+        });
+        updateFolderButtons(assistantId);
+    }
+
+    // Moves all chosen options back to the available list
+    function removeAll(assistantId) {
+        const availableSelect = document.getElementById(`available-folders-${assistantId}`);
+        const chosenSelect = document.getElementById(`chosen-folders-${assistantId}`);
+        [...chosenSelect.options].forEach(option => {
+            availableSelect.appendChild(option);
+        });
+        updateFolderButtons(assistantId);
+    }
+
 </script>
 
 {% include "modals/manage_folders_modal_js.html" %}
