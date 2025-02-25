@@ -929,7 +929,7 @@ function renderAssistant(assistant) {
             .map(folderUUID => folders[folderUUID])
             .filter(folder => folder !== undefined);
         if (matchingFolders.length > 0) {
-            folderNames = matchingFolders.map(folder => folder.name).join(', ');
+            folderNames = matchingFolders.map(folder => folder.name || "Untitled folder").join(', ');
         }
     }
 
