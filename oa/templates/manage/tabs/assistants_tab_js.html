@@ -210,9 +210,9 @@
                 </div>
                 <!-- Folders management section -->
                 <fieldset class="mb-3">
-                    <div class="dual-listbox d-flex justify-content-between align-items-start">
+                    <div class="dual-listbox d-flex flex-column flex-md-row justify-content-between align-items-stretch">
                         <!-- Available folders list -->
-                        <div class="available-folders me-2" style="flex: 1;">
+                        <div class="available-folders mb-2 mb-md-0" style="flex: 1;">
                             <legend class="small text-secondary">Available Folders</legend>
                             <input type="text" class="form-control mb-2" id="search-available-${assistant.id}" placeholder="Search available folders" oninput="filterFolders('${assistant.id}', 'available')">
                             <div class="select-container" style="min-height: 160px;">
@@ -222,17 +222,21 @@
                             </div>
                             <div class="text-center mt-2">
                                 <button type="button" class="btn btn-link btn-sm text-secondary-emphasis text-decoration-none" id="choose-all-${assistant.id}" onclick="chooseAll('${assistant.id}')" ${availableOptions.trim() === '' ? 'disabled' : ''}>
-                                    Choose All <i class="bi bi-chevron-double-right"></i>
+                                    Choose All <i class="bi bi-chevron-double-right d-none d-md-inline"></i><i class="bi bi-chevron-double-down d-inline d-md-none"></i>
                                 </button>
                             </div>
                         </div>
                         <!-- Controls to move options -->
-                        <div class="listbox-controls d-flex flex-column justify-content-center align-self-center">
-                            <button type="button" class="btn btn-secondary btn-sm mb-2" id="move-right-${assistant.id}" onclick="moveFolder('${assistant.id}', 'right')" disabled><i class="bi bi-caret-right-fill"></i></button>
-                            <button type="button" class="btn btn-secondary btn-sm" id="move-left-${assistant.id}" onclick="moveFolder('${assistant.id}', 'left')" disabled><i class="bi bi-caret-left-fill"></i></button>
+                        <div class="listbox-controls d-flex flex-row flex-md-column justify-content-center align-items-center mx-md-2 mb-2 mb-md-0">
+                            <button type="button" class="btn btn-secondary btn-sm me-2 me-md-0 mb-0 mb-md-2" id="move-right-${assistant.id}" onclick="moveFolder('${assistant.id}', 'right')" disabled>
+                                <i class="bi bi-caret-right-fill d-none d-md-inline"></i><i class="bi bi-caret-down-fill d-inline d-md-none"></i>
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="move-left-${assistant.id}" onclick="moveFolder('${assistant.id}', 'left')" disabled>
+                                <i class="bi bi-caret-left-fill d-none d-md-inline"></i><i class="bi bi-caret-up-fill d-inline d-md-none"></i>
+                            </button>
                         </div>
                         <!-- Chosen folders list -->
-                        <div class="chosen-folders ms-2" style="flex: 1;">
+                        <div class="chosen-folders" style="flex: 1;">
                             <legend class="small text-secondary">Chosen Folders</legend>
                             <input type="text" class="form-control mb-2" id="search-chosen-${assistant.id}" placeholder="Search chosen folders" oninput="filterFolders('${assistant.id}', 'chosen')">
                             <div class="select-container" style="min-height: 160px;">
@@ -241,8 +245,8 @@
                                 </select>
                             </div>
                             <div class="text-center mt-2">
-                                <button type="button" class="btn btn-link btn-sm text-secondary-emphasis text-decoration-none " id="remove-all-${assistant.id}" onclick="removeAll('${assistant.id}')" ${chosenOptions.trim() === '' ? 'disabled' : ''}>
-                                    <i class="bi bi-chevron-double-left"></i> Remove All
+                                <button type="button" class="btn btn-link btn-sm text-secondary-emphasis text-decoration-none" id="remove-all-${assistant.id}" onclick="removeAll('${assistant.id}')" ${chosenOptions.trim() === '' ? 'disabled' : ''}>
+                                    <i class="bi bi-chevron-double-left d-none d-md-inline"></i><i class="bi bi-chevron-double-up d-inline d-md-none"></i> Remove All
                                 </button>
                             </div>
                         </div>
