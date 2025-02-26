@@ -3,6 +3,9 @@
     {% include 'partials/loading_indicator.html' with content_id='loadingAssistantsTab' content_name='assistants' %}
     <div class="row">
         <div class="col-3">
+            <button class="btn btn-outline-success w-100 mb-3 d-none"
+                    id="createNewAssistantBtn"
+                    onclick="createNewAssistant()">Create Assistant</button>
             <ul class="nav nav-pills flex-column" role="tablist" id="assistantsNavTabs">
             </ul>
         </div>
@@ -13,8 +16,5 @@
     </div>
     <div id="no-assistants" class="text-center text-secondary d-none">
         <p>No assistants available.</p>
-        <span class="text-secondary">
-            You can create assistants <a href="{% url "manage_overview" project_uuid=selected_project.uuid %}" class="text-decoration-none">here</a>.
-        </span>
     </div>
 </div>

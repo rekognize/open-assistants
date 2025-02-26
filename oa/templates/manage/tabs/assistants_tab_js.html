@@ -1,6 +1,21 @@
 <script>
     /* Assistants */
 
+    // Global event listener to update nav classes when any tab is shown
+    document.addEventListener('shown.bs.tab', function (event) {
+        document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
+            if (tab === event.target) {
+                tab.classList.remove('bg-white', 'text-secondary');
+                tab.classList.add('active', 'bg-secondary', 'text-white');
+                tab.setAttribute('aria-selected', 'true');
+            } else {
+                tab.classList.remove('active', 'bg-secondary', 'text-white');
+                tab.classList.add('bg-white', 'text-secondary');
+                tab.setAttribute('aria-selected', 'false');
+            }
+        });
+    });
+
     async function fetchAssistantsTab() {
         toggleLoading('loadingAssistantsTab', true);
         try {
@@ -13,6 +28,9 @@
             }
 
             populateAssistantsTabsAndContent(assistants);
+
+            // Make Create New Assistant button visible
+            document.getElementById('createNewAssistantBtn').classList.remove('d-none');
 
         } catch (error) {
             const contentContainer = document.getElementById('assistants-tab-container');
@@ -62,9 +80,9 @@
             // Get folder names for the assistant
             const folderNames = (assistantFoldersMapping && assistantFoldersMapping[assistant.id]
                 ? assistantFoldersMapping[assistant.id]
-                      .map(uuid => folders[uuid] ? (folders[uuid].name || "Untitled folder") : null)
-                      .filter(name => name)
-                      .join(', ')
+                    .map(uuid => folders[uuid] ? (folders[uuid].name || "Untitled folder") : null)
+                    .filter(name => name)
+                    .join(', ')
                 : `<span>No folders assigned</span>`);
 
             // Build the card content with separate view and edit templates
@@ -87,24 +105,12 @@
             `;
             contentContainer.appendChild(contentPane);
         });
-
-        // Update tab background classes on activation
-        document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
-            tab.addEventListener('shown.bs.tab', function (event) {
-                document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(t => {
-                    if (t === event.target) {
-                        t.classList.remove('bg-white', 'text-secondary');
-                        t.classList.add('bg-secondary', 'text-white');
-                    } else {
-                        t.classList.remove('bg-secondary', 'text-white');
-                        t.classList.add('bg-white', 'text-secondary');
-                    }
-                });
-            });
-        });
     }
 
-    // Toggle between view and edit modes
+
+    /* Templates */
+
+    // Helper: Toggle between view and edit modes
     function toggleEditMode(assistantId, type) {
         // Close inline folder management if it is open
         cancelInlineFolders(assistantId);
@@ -184,7 +190,8 @@
             <div class="d-flex justify-content-between align-items-center">
                 <h4 class="card-title">Edit: ${assistant.name || 'Untitled assistant'}</h4>
                 <div class="action-buttons">
-                    <button type="button" class="btn btn-sm btn-outline-success btnModifyTabAssistant"
+                    <button type="button" class="btn btn-sm btn-outline-success"
+                            id="modifyTabAssistantBtn"
                             onclick="modifyTabAssistant('${assistant.id}');">
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                         <span class="button-text">Save</span>
@@ -218,8 +225,8 @@
                 </div>
                 <div class="form-floating mb-3">
                     <select class="form-select" id="edit-model-${assistant.id}">
-                        <option value="gpt-4o" ${assistant.model==='gpt-4o' ? 'selected' : ''}>gpt-4o</option>
-                        <option value="gpt-4o-mini" ${assistant.model==='gpt-4o-mini' ? 'selected' : ''}>gpt-4o-mini</option>
+                        <option value="gpt-4o" ${assistant.model === 'gpt-4o' ? 'selected' : ''}>gpt-4o</option>
+                        <option value="gpt-4o-mini" ${assistant.model === 'gpt-4o-mini' ? 'selected' : ''}>gpt-4o-mini</option>
                     </select>
                     <label for="edit-model-${assistant.id}">Model</label>
                 </div>
@@ -247,7 +254,8 @@
         if (mode === 'inline') {
             html += `
                 <div class="d-flex justify-content-end mb-2">
-                    <button type="button" class="btn btn-sm btn-outline-success me-1 btnSaveInlineFolders"
+                    <button type="button" class="btn btn-sm btn-outline-success me-1"
+                            id="saveInlineFoldersBtn"
                             onclick="hideTooltip(this); saveInlineFolders('${assistant.id}');"
                             data-bs-toggle="tooltip" data-bs-title="Save">
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
@@ -280,7 +288,7 @@
                         <div class="text-center mt-2">
                             <button type="button" class="btn btn-link btn-sm text-secondary-emphasis text-decoration-none"
                                     id="${getFolderElementId('choose-all', assistant.id, mode)}"
-                                    onclick="chooseAll('${assistant.id}', '${mode}')" ${availableOptions.trim()==='' ? 'disabled' : ''}>
+                                    onclick="chooseAll('${assistant.id}', '${mode}')" ${availableOptions.trim() === '' ? 'disabled' : ''}>
                                 Choose All <i class="bi bi-chevron-double-right d-none d-md-inline"></i><i class="bi bi-chevron-double-down d-inline d-md-none"></i>
                             </button>
                         </div>
@@ -314,7 +322,7 @@
                         <div class="text-center mt-2">
                             <button type="button" class="btn btn-link btn-sm text-secondary-emphasis text-decoration-none"
                                     id="${getFolderElementId('remove-all', assistant.id, mode)}"
-                                    onclick="removeAll('${assistant.id}', '${mode}')" ${chosenOptions.trim()==='' ? 'disabled' : ''}>
+                                    onclick="removeAll('${assistant.id}', '${mode}')" ${chosenOptions.trim() === '' ? 'disabled' : ''}>
                                 <i class="bi bi-chevron-double-left d-none d-md-inline"></i><i class="bi bi-chevron-double-up d-inline d-md-none"></i> Remove All
                             </button>
                         </div>
@@ -325,10 +333,165 @@
         return html;
     }
 
+    // New assistant form template
+    function getNewAssistantTemplate() {
+        return `
+            <div class="card border-0" id="newAssistantCard">
+                <div class="card-body px-0 py-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="card-title">New Assistant</h4>
+                        <div class="action-buttons">
+                            <button type="button" class="btn btn-sm btn-outline-success" id="saveNewAssistantBtn" onclick="saveNewAssistant();">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span class="button-text">Create</span>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelNewAssistantForm();">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                    <form class="mt-3" id="newAssistantForm">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="new-assistant-name" placeholder="Name" value="">
+                            <label for="new-assistant-name" class="form-label">Name</label>
+                        </div>
+                        <!-- Reuse folder management template; pass a dummy assistant object with id 'new-assistant' -->
+                        ${getFolderManagementTemplate({id: 'new-assistant', name: '', description: '', instructions: '', model: 'gpt-4o'}, "edit")}
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="new-assistant-description" placeholder="Description" rows="3"></textarea>
+                            <label for="new-assistant-description">Description</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="new-assistant-instructions" placeholder="Instructions" style="height: 100px"></textarea>
+                            <label for="new-assistant-instructions">Instructions</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="new-assistant-model">
+                                <option value="gpt-4o">gpt-4o</option>
+                                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                            </select>
+                            <label for="new-assistant-model">Model</label>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
     // Helper: returns an element ID based on a base name, assistant ID, and mode.
     function getFolderElementId(base, assistantId, mode) {
         // mode: "inline" or "edit"
         return base + (mode === 'inline' ? '-inline-' : '-') + assistantId;
+    }
+
+
+    /* Create New Assistant */
+
+    // Function to create the new assistant tab
+    function createNewAssistant() {
+        const newTabId = "assistants-tab-new-assistant-tab";
+        const newPaneId = "assistants-tab-new-assistant";
+
+        // If the new assistant tab already exists, simply activate it
+        if (document.getElementById(newTabId)) {
+            new bootstrap.Tab(document.getElementById(newTabId)).show();
+            document.getElementById(newPaneId).classList.add("active", "show");
+            return;
+        }
+
+        const contentContainer = document.getElementById("assistantContent");
+        // Remove active classes from any currently active tab pane
+        const activePane = contentContainer.querySelector(".tab-pane.active");
+        if (activePane) {
+            activePane.classList.remove("active", "show");
+        }
+        // Hide any "no assistant" message
+        document.getElementById("no-assistants").classList.add("d-none");
+
+        // Remove active classes from any currently active nav items
+        document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
+            tab.classList.remove("active", "bg-secondary", "text-white");
+            tab.classList.add("bg-white", "text-secondary");
+        });
+
+        // Create a new nav tab item
+        const tabsContainer = document.getElementById("assistantsNavTabs");
+        const li = document.createElement("li");
+        li.className = "nav-item";
+        const a = document.createElement("a");
+        a.className = "nav-link py-1 px-2 active bg-secondary text-white";
+        a.setAttribute("data-bs-toggle", "tab");
+        a.setAttribute("href", "#" + newPaneId);
+        a.setAttribute("role", "tab");
+        a.setAttribute("aria-controls", newPaneId);
+        a.setAttribute("aria-selected", "true");
+        a.id = newTabId;
+        a.textContent = "New Assistant";
+        li.appendChild(a);
+        // Insert the new tab at the top of the nav
+        tabsContainer.insertBefore(li, tabsContainer.firstChild);
+
+        // Create the corresponding tab pane for the new assistant form
+        const tabPane = document.createElement("div");
+        tabPane.className = "tab-pane fade"; // initially not active
+        tabPane.id = newPaneId;
+        tabPane.setAttribute("role", "tabpanel");
+        tabPane.setAttribute("aria-labelledby", newTabId);
+        tabPane.innerHTML = getNewAssistantTemplate();
+        contentContainer.insertBefore(tabPane, contentContainer.firstChild);
+
+        // Activate the new assistant tab and force the content pane to become active
+        const newTabInstance = new bootstrap.Tab(a);
+        newTabInstance.show();
+        document.getElementById(newPaneId).classList.add("active", "show");
+    }
+
+    // Cancel new assistant creation: removes the new tab and its pane, then activates the first available tab
+    function cancelNewAssistantForm() {
+        const newTabId = "assistants-tab-new-assistant-tab";
+        const newPaneId = "assistants-tab-new-assistant";
+        const newTab = document.getElementById(newTabId);
+        if (newTab && newTab.parentElement) {
+            newTab.parentElement.remove();
+        }
+        const newPane = document.getElementById(newPaneId);
+        if (newPane) {
+            newPane.remove();
+        }
+        // Check if any assistant tabs remain
+        const remainingTab = document.querySelector('#assistantsNavTabs a[data-bs-toggle="tab"]');
+        if (remainingTab) {
+            new bootstrap.Tab(remainingTab).show();
+        } else {
+            // No assistants left: show the "no assistants" message
+            document.getElementById('no-assistants').classList.remove('d-none');
+            document.getElementById('assistantContent').innerHTML = "";
+        }
+    }
+
+    function saveNewAssistant() {
+        const name = document.getElementById('new-assistant-name').value;
+        const description = document.getElementById('new-assistant-description').value;
+        const instructions = document.getElementById('new-assistant-instructions').value;
+        const model = document.getElementById('new-assistant-model').value;
+
+        const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', 'new-assistant', 'edit'));
+        const chosenFolders = [];
+        if (chosenSelect) {
+            for (let i = 0; i < chosenSelect.options.length; i++) {
+                chosenFolders.push(chosenSelect.options[i].value);
+            }
+        }
+
+        console.log("Creating new assistant:", {
+            name: name,
+            description: description,
+            instructions: instructions,
+            model: model,
+            chosenFolders: chosenFolders
+        });
+        // TODO: Replace with API call to create the new assistant
+        // cancelNewAssistantForm();
     }
 
 
