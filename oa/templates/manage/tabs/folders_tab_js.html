@@ -1,169 +1,185 @@
 <script>
-  // Global variables to hold fetched data
-  let allFiles = [];
-  let allFolders = [];
-  let allFolderAssistants = [];
+    // Global variables to hold fetched data
+    let allFiles = [];
+    let allFolders = [];
+    let allFolderAssistants = [];
 
-  async function fetchFiles() {
-    const url = "{% url 'api-1.0.0:list_files' %}";
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
+    async function fetchFiles() {
+        const url = "{% url 'api-1.0.0:list_files' %}";
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching files:', error);
         }
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching files:', error);
     }
-  }
 
-  async function fetchFolders() {
-    const url = "{% url 'folders-api:list_folders' %}";
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
+    async function fetchFolders() {
+        const url = "{% url 'folders-api:list_folders' %}";
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching folders:', error);
         }
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching folders:', error);
     }
-  }
 
-  async function fetchFolderAssistants() {
-    const url = "{% url 'folders-api:list_folder_assistants' %}";
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
+    async function fetchFolderAssistants() {
+        const url = "{% url 'folders-api:list_folder_assistants' %}";
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching folders:', error);
         }
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching folders:', error);
     }
-  }
 
 
-  // Fetch both folders and files, then build the UI
-  async function fetchFoldersTab() {
-    toggleLoading('loadingFoldersTab', true);
-    const foldersData = await fetchFolders();
-    const filesData = await fetchFiles();
-    const folderAssistantsData = await fetchFolderAssistants();
-    toggleLoading('loadingFoldersTab', false);
+    // Fetch both folders and files, then build the UI
+    async function fetchFoldersTab() {
+        toggleLoading('loadingFoldersTab', true);
+        const foldersData = await fetchFolders();
+        const filesData = await fetchFiles();
+        const folderAssistantsData = await fetchFolderAssistants();
+        toggleLoading('loadingFoldersTab', false);
 
-    // Assume responses include .folders and .files arrays
-    allFolders = foldersData.folders;
-    allFiles = filesData.files;
-    allFolderAssistants = folderAssistantsData.folder_assistants;
+        // Assume responses include .folders and .files arrays
+        allFolders = foldersData.folders;
+        allFiles = filesData.files;
+        allFolderAssistants = folderAssistantsData.folder_assistants;
 
-    populateFoldersTabsAndContent(allFolders, allFiles, allFolderAssistants);
-  }
+        populateFoldersTabsAndContent(allFolders, allFiles, allFolderAssistants);
+    }
 
-  // Build folder tabs and for each, display a dual-list widget with a folder name input,
-  // filter inputs, scrollable lists, and a right-floating delete button.
-  function populateFoldersTabsAndContent(folders, files, folderAssistants) {
-    const tabsContainer = document.getElementById('foldersNavTabs');
-    const contentContainer = document.getElementById('folderContent');
+    // Build folder tabs and for each, display a dual-list widget with a folder name input,
+    // filter inputs, scrollable lists, and a right-floating delete button.
+    function populateFoldersTabsAndContent(folders, files, folderAssistants) {
+        const tabsContainer = document.getElementById('foldersNavTabs');
+        const contentContainer = document.getElementById('folderContent');
 
-    tabsContainer.innerHTML = '';
-    contentContainer.innerHTML = '';
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
 
-    folders.forEach((folder, index) => {
-        // Create the tab element container
-        const tabItem = document.createElement('li');
-        tabItem.className = 'nav-item mb-2 position-relative';
+        folders.forEach((folder, index) => {
+            // Create the tab element container
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item mb-2 position-relative';
 
-        // Create the tab link
-        const tabLink = document.createElement('a');
-        tabLink.className = index === 0
-            ? 'nav-link bg-secondary text-white active'
-            : 'nav-link bg-white text-secondary';
-        tabLink.setAttribute('data-bs-toggle', 'tab');
-        tabLink.setAttribute('href', `#folders-tab-${folder.uuid}`);
-        tabLink.setAttribute('role', 'tab');
-        tabLink.setAttribute('aria-controls', `folders-tab-${folder.uuid}`);
-        tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-        tabLink.id = `folders-tab-${folder.uuid}-tab`;
-        tabLink.textContent = folder.name || 'Untitled Folder';
-        tabItem.appendChild(tabLink);
+            // Create the tab link
+            const tabLink = document.createElement('a');
+            tabLink.className = index === 0
+                ? 'nav-link bg-secondary text-white active'
+                : 'nav-link bg-white text-secondary';
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#folders-tab-${folder.uuid}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `folders-tab-${folder.uuid}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.id = `folders-tab-${folder.uuid}-tab`;
+            tabLink.textContent = folder.name || 'Untitled Folder';
+            tabItem.appendChild(tabLink);
 
-        // Create a delete button floated to the right
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn btn-outline-danger btn-sm position-absolute top-50 end-0 translate-middle-y me-1';
-        deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
-        deleteBtn.onclick = function (e) {
-            e.stopPropagation();
-            e.preventDefault();
-            deleteFolder(folder.uuid);
-        };
-        tabItem.appendChild(deleteBtn);
+            // Create a delete button floated to the right
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-outline-danger btn-sm position-absolute top-50 end-0 translate-middle-y me-1';
+            deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            deleteBtn.onclick = function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+                deleteFolder(folder.uuid);
+            };
+            tabItem.appendChild(deleteBtn);
 
-        tabsContainer.appendChild(tabItem);
+            tabsContainer.appendChild(tabItem);
 
-        // Create the content pane for this folder
-        const contentPane = document.createElement('div');
-        contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
-        contentPane.setAttribute('id', `folders-tab-${folder.uuid}`);
-        contentPane.setAttribute('role', 'tabpanel');
-        contentPane.setAttribute('aria-labelledby', `folders-tab-${folder.uuid}-tab`);
+            // Create the content pane for this folder
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `folders-tab-${folder.uuid}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `folders-tab-${folder.uuid}-tab`);
 
-        // Build the dual list widget HTML along with a folder name input field
-        const dualListHTML = buildDualListHTML(folder, files);
+            // Build the dual list widget HTML along with a folder name input field
+            const dualListHTML = buildDualListHTML(folder, files);
 
-        // Build the assistants list for this folder
-        const assistantsListHTML = document.createElement('ul');
-        (folderAssistants[folder.uuid] || []).forEach(function (assistantId) {
-          const li = document.createElement('li');
-          li.textContent = assistantId;
-          assistantsListHTML.appendChild(li);
-        });
+            // Build the assistants list for this folder
+            const assistantsListHTML = document.createElement('ul');
+            (folderAssistants[folder.uuid] || []).forEach(function (assistantId) {
+                const li = document.createElement('li');
+                li.textContent = assistantId;
+                assistantsListHTML.appendChild(li);
+            });
 
-        contentPane.innerHTML = `
+            // Set the updated content pane HTML with the new subheaders and collapse for dual-list
+            contentPane.innerHTML = `
           <div class="mb-3">
             <input type="text" class="form-control form-control-lg" id="folder-name-${folder.uuid}" value="${folder.name || 'Untitled Folder'}" onblur="updateFolderName('${folder.uuid}')">
           </div>
-          ${dualListHTML}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">Files in this folder</h5>
+              <button class="btn btn-link btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDualList-${folder.uuid}" aria-expanded="false" aria-controls="collapseDualList-${folder.uuid}">Manage</button>
+            </div>
+            <div class="mb-2">
+              <small>Created at: ${folder.created_at || 'N/A'} | Modified at: ${folder.modified_at || 'N/A'} | Created by: ${folder.created_by || 'N/A'} | ${folder.file_ids.length} files</small>
+            </div>
+            <div class="collapse" id="collapseDualList-${folder.uuid}">
+              ${dualListHTML}
+            </div>
+          </div>
+          <div class="mb-3">
+            <h5>Assistants using this folder</h5>
+            <div id="assistants-list-${folder.uuid}"></div>
+          </div>
         `;
 
-        // Append the assistants list to the content pane
-        contentPane.appendChild(assistantsListHTML);
+            contentContainer.appendChild(contentPane);
 
-        contentContainer.appendChild(contentPane);
-    });
+            // Append the assistants list into the designated container
+            document.getElementById(`assistants-list-${folder.uuid}`).appendChild(assistantsListHTML);
+        });
 
-      // Listen for tab activation events to update classes
-      document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
-          tab.addEventListener('shown.bs.tab', function (event) {
-              document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(t => {
-                  if (t === event.target) {
-                      t.classList.remove('bg-white', 'text-secondary');
-                      t.classList.add('bg-secondary', 'text-white');
-                  } else {
-                      t.classList.remove('bg-secondary', 'text-white');
-                      t.classList.add('bg-white', 'text-secondary');
-                  }
-              });
-          });
-      });
-  }
+        // Listen for tab activation events to update classes
+        document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(t => {
+                    if (t === event.target) {
+                        t.classList.remove('bg-white', 'text-secondary');
+                        t.classList.add('bg-secondary', 'text-white');
+                    } else {
+                        t.classList.remove('bg-secondary', 'text-white');
+                        t.classList.add('bg-white', 'text-secondary');
+                    }
+                });
+            });
+        });
+    }
 
-  // Helper: build the dual list widget for a folder with filter inputs and scrollable divs.
-  function buildDualListHTML(folder, files) {
-      const selectedFileIds = new Set(folder.file_ids);
-      let availableFilesForFolder = files.filter(file => !selectedFileIds.has(file.id));
-      const selectedFilesForFolder = files.filter(file => selectedFileIds.has(file.id));
+    // Helper: build the dual list widget for a folder with filter inputs and scrollable divs.
+    function buildDualListHTML(folder, files) {
+        const selectedFileIds = new Set(folder.file_ids);
+        let availableFilesForFolder = files.filter(file => !selectedFileIds.has(file.id));
+        const selectedFilesForFolder = files.filter(file => selectedFileIds.has(file.id));
 
-      return `
+        return `
       <div class="row">
         <div class="col-md-6">
           <div class="card">
@@ -218,152 +234,152 @@
         </div>
       </div>
     `;
-  }
+    }
 
-  // Call the backend to update the folder's file_ids and name.
-  // The spinner is shown while the update is in progress.
-  async function updateFolderBackend(folder) {
-      const spinner = document.getElementById('updatingSpinner');
-      spinner.classList.remove('d-none');
-      try {
-          // Construct the endpoint URL. Adjust as needed based on your backend routing.
-          const urlTemplate = "{% url 'folders-api:update_folder' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
-          const url = urlTemplate.replace('FOLDER_UUID_PLACEHOLDER', folder.uuid);
-          const response = await fetch(url, {
-              method: 'POST',
-              headers: {
-                  'Authorization': `Bearer ${API_KEY}`,
-                  'Content-Type': 'application/json',
-              },
-              // Send both file_ids and name in the payload.
-              body: JSON.stringify({file_ids: folder.file_ids, name: folder.name}),
-          });
-          if (!response.ok) {
-              console.error("Error updating folder on backend:", response.statusText);
-          }
-      } catch (error) {
-          console.error("Error updating folder on backend:", error);
-      } finally {
-          spinner.classList.add('d-none');
-      }
-  }
+    // Call the backend to update the folder's file_ids and name.
+    // The spinner is shown while the update is in progress.
+    async function updateFolderBackend(folder) {
+        const spinner = document.getElementById('updatingSpinner');
+        spinner.classList.remove('d-none');
+        try {
+            // Construct the endpoint URL. Adjust as needed based on your backend routing.
+            const urlTemplate = "{% url 'folders-api:update_folder' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
+            const url = urlTemplate.replace('FOLDER_UUID_PLACEHOLDER', folder.uuid);
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                // Send both file_ids and name in the payload.
+                body: JSON.stringify({file_ids: folder.file_ids, name: folder.name}),
+            });
+            if (!response.ok) {
+                console.error("Error updating folder on backend:", response.statusText);
+            }
+        } catch (error) {
+            console.error("Error updating folder on backend:", error);
+        } finally {
+            spinner.classList.add('d-none');
+        }
+    }
 
-  // Add file to folder (update local state, re-render the UI, then call backend)
-  async function addFileToFolder(fileId, folderUuid) {
-      const folder = allFolders.find(f => f.uuid === folderUuid);
-      if (!folder) return;
-      if (!folder.file_ids.includes(fileId)) {
-          folder.file_ids.push(fileId);
-      }
-      updateFolderContent(folderUuid);
-      await updateFolderBackend(folder);
-  }
+    // Add file to folder (update local state, re-render the UI, then call backend)
+    async function addFileToFolder(fileId, folderUuid) {
+        const folder = allFolders.find(f => f.uuid === folderUuid);
+        if (!folder) return;
+        if (!folder.file_ids.includes(fileId)) {
+            folder.file_ids.push(fileId);
+        }
+        updateFolderContent(folderUuid);
+        await updateFolderBackend(folder);
+    }
 
-  // Remove file from folder (update local state, re-render the UI, then call backend)
-  async function removeFileFromFolder(fileId, folderUuid) {
-      const folder = allFolders.find(f => f.uuid === folderUuid);
-      if (!folder) return;
-      folder.file_ids = folder.file_ids.filter(id => id !== fileId);
-      updateFolderContent(folderUuid);
-      await updateFolderBackend(folder);
-  }
+    // Remove file from folder (update local state, re-render the UI, then call backend)
+    async function removeFileFromFolder(fileId, folderUuid) {
+        const folder = allFolders.find(f => f.uuid === folderUuid);
+        if (!folder) return;
+        folder.file_ids = folder.file_ids.filter(id => id !== fileId);
+        updateFolderContent(folderUuid);
+        await updateFolderBackend(folder);
+    }
 
-  // Update the folder name when the user leaves (blurs) the name input field.
-  function updateFolderName(folderUuid) {
-      const folder = allFolders.find(f => f.uuid === folderUuid);
-      if (!folder) return;
-      const nameInput = document.getElementById(`folder-name-${folderUuid}`);
-      if (!nameInput) return;
-      folder.name = nameInput.value;
-      // Update the tab label with the new folder name.
-      const tabLink = document.getElementById(`folders-tab-${folderUuid}-tab`);
-      if (tabLink) {
-          tabLink.textContent = folder.name || 'Untitled Folder';
-      }
-      updateFolderBackend(folder);
-  }
+    // Update the folder name when the user leaves (blurs) the name input field.
+    function updateFolderName(folderUuid) {
+        const folder = allFolders.find(f => f.uuid === folderUuid);
+        if (!folder) return;
+        const nameInput = document.getElementById(`folder-name-${folderUuid}`);
+        if (!nameInput) return;
+        folder.name = nameInput.value;
+        // Update the tab label with the new folder name.
+        const tabLink = document.getElementById(`folders-tab-${folderUuid}-tab`);
+        if (tabLink) {
+            tabLink.textContent = folder.name || 'Untitled Folder';
+        }
+        updateFolderBackend(folder);
+    }
 
-  // Call the backend to delete a folder.
-  async function deleteFolder(folderUuid) {
-      if (!confirm("Are you sure you want to delete this folder?")) return;
-      try {
-          const urlTemplate = "{% url 'folders-api:delete_folder' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
-          const url = urlTemplate.replace('FOLDER_UUID_PLACEHOLDER', folderUuid);
-          const response = await fetch(url, {
-              method: 'DELETE',
-              headers: {
-                  'Authorization': `Bearer ${API_KEY}`,
-                  'Content-Type': 'application/json',
-              },
-          });
-          if (!response.ok) {
-              console.error("Error deleting folder on backend:", response.statusText);
-              return;
-          }
-          // Re-fetch folders UI after deletion.
-          await fetchFoldersTab();
-      } catch (error) {
-          console.error("Error deleting folder on backend:", error);
-      }
-  }
+    // Call the backend to delete a folder.
+    async function deleteFolder(folderUuid) {
+        if (!confirm("Are you sure you want to delete this folder?")) return;
+        try {
+            const urlTemplate = "{% url 'folders-api:delete_folder' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
+            const url = urlTemplate.replace('FOLDER_UUID_PLACEHOLDER', folderUuid);
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!response.ok) {
+                console.error("Error deleting folder on backend:", response.statusText);
+                return;
+            }
+            // Re-fetch folders UI after deletion.
+            await fetchFoldersTab();
+        } catch (error) {
+            console.error("Error deleting folder on backend:", error);
+        }
+    }
 
-  // Create new folder and select its tab.
-  async function createNewFolder() {
-      try {
-          const url = "{% url 'folders-api:create_folder' %}";
-          const response = await fetch(url, {
-              method: 'POST',
-              headers: {
-                  'Authorization': `Bearer ${API_KEY}`,
-                  'Content-Type': 'application/json',
-              },
-          });
-          if (!response.ok) {
-              console.error("Error creating new folder:", response.statusText);
-              return;
-          }
-          const data = await response.json();
-          const newFolderUuid = data.folder_uuid;
-          // Refresh the folder list and UI.
-          await fetchFoldersTab();
-          // After reloading, select the new folder's tab.
-          const newTabEl = document.getElementById(`folders-tab-${newFolderUuid}-tab`);
-          if (newTabEl) {
-              const newTab = new bootstrap.Tab(newTabEl);
-              newTab.show();
-          }
-      } catch (error) {
-          console.error("Error creating new folder:", error);
-      }
-  }
+    // Create new folder and select its tab.
+    async function createNewFolder() {
+        try {
+            const url = "{% url 'folders-api:create_folder' %}";
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!response.ok) {
+                console.error("Error creating new folder:", response.statusText);
+                return;
+            }
+            const data = await response.json();
+            const newFolderUuid = data.folder_uuid;
+            // Refresh the folder list and UI.
+            await fetchFoldersTab();
+            // After reloading, select the new folder's tab.
+            const newTabEl = document.getElementById(`folders-tab-${newFolderUuid}-tab`);
+            if (newTabEl) {
+                const newTab = new bootstrap.Tab(newTabEl);
+                newTab.show();
+            }
+        } catch (error) {
+            console.error("Error creating new folder:", error);
+        }
+    }
 
-  // Update the dual list widget for a given folder and apply filtering to both available and selected files.
-  function updateFolderContent(folderUuid) {
-      const folder = allFolders.find(f => f.uuid === folderUuid);
-      if (!folder) return;
-      const selectedFileIds = new Set(folder.file_ids);
-      let availableFilesForFolder = allFiles.filter(file => !selectedFileIds.has(file.id));
-      let selectedFilesForFolder = allFiles.filter(file => selectedFileIds.has(file.id));
+    // Update the dual list widget for a given folder and apply filtering to both available and selected files.
+    function updateFolderContent(folderUuid) {
+        const folder = allFolders.find(f => f.uuid === folderUuid);
+        if (!folder) return;
+        const selectedFileIds = new Set(folder.file_ids);
+        let availableFilesForFolder = allFiles.filter(file => !selectedFileIds.has(file.id));
+        let selectedFilesForFolder = allFiles.filter(file => selectedFileIds.has(file.id));
 
-      // Apply filter for available files if provided
-      const filterAvailableInput = document.getElementById(`filter-available-${folderUuid}`);
-      if (filterAvailableInput && filterAvailableInput.value) {
-          const filterValue = filterAvailableInput.value.toLowerCase();
-          availableFilesForFolder = availableFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
-      }
+        // Apply filter for available files if provided
+        const filterAvailableInput = document.getElementById(`filter-available-${folderUuid}`);
+        if (filterAvailableInput && filterAvailableInput.value) {
+            const filterValue = filterAvailableInput.value.toLowerCase();
+            availableFilesForFolder = availableFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
+        }
 
-      // Apply filter for selected files if provided
-      const filterSelectedInput = document.getElementById(`filter-selected-${folderUuid}`);
-      if (filterSelectedInput && filterSelectedInput.value) {
-          const filterValue = filterSelectedInput.value.toLowerCase();
-          selectedFilesForFolder = selectedFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
-      }
+        // Apply filter for selected files if provided
+        const filterSelectedInput = document.getElementById(`filter-selected-${folderUuid}`);
+        if (filterSelectedInput && filterSelectedInput.value) {
+            const filterValue = filterSelectedInput.value.toLowerCase();
+            selectedFilesForFolder = selectedFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
+        }
 
-      const availableList = document.getElementById(`available-files-${folderUuid}`);
-      const selectedList = document.getElementById(`selected-files-${folderUuid}`);
+        const availableList = document.getElementById(`available-files-${folderUuid}`);
+        const selectedList = document.getElementById(`selected-files-${folderUuid}`);
 
-      if (availableList && selectedList) {
-          availableList.innerHTML = availableFilesForFolder.map(file => `
+        if (availableList && selectedList) {
+            availableList.innerHTML = availableFilesForFolder.map(file => `
         <li class="list-group-item d-flex justify-content-between align-items-center">
           ${file.filename}
           <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folderUuid}')">
@@ -372,7 +388,7 @@
         </li>
       `).join('');
 
-          selectedList.innerHTML = selectedFilesForFolder.map(file => `
+            selectedList.innerHTML = selectedFilesForFolder.map(file => `
         <li class="list-group-item d-flex justify-content-between align-items-center">
           ${file.filename}
           <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folderUuid}')">
@@ -380,10 +396,10 @@
           </button>
         </li>
       `).join('');
-      }
-  }
+        }
+    }
 
 
-  // Call fetchFoldersTab on page load (or on an event)
-  document.addEventListener('DOMContentLoaded', fetchFoldersTab);
+    // Call fetchFoldersTab on page load (or on an event)
+    document.addEventListener('DOMContentLoaded', fetchFoldersTab);
 </script>
