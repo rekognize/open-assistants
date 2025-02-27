@@ -1,13 +1,16 @@
 import json
+import uuid
+from collections import defaultdict
 
 from asgiref.sync import sync_to_async
-from ninja import NinjaAPI
+from django.shortcuts import get_object_or_404
+from ninja import NinjaAPI, Schema, Field
 from ninja.security import HttpBearer
 from ninja.errors import AuthenticationError
 from openai import AsyncOpenAI
 from django.http import JsonResponse
 from ..main.models import Project
-from .models import Folder, FolderFile, FolderAssistant
+from .models import Folder, FolderAssistant
 
 api = NinjaAPI(urls_namespace="folders-api")
 
@@ -47,7 +50,7 @@ async def list_folders(request):
     if assistant_id is not None:
         qs = qs.filter(folderassistant_set__assistant_id=assistant_id)
 
-    qs = qs.select_related("created_by").prefetch_related("folderfile_set")
+    qs = qs.select_related("created_by")
 
     folders = []
     async for folder in qs:
@@ -58,13 +61,46 @@ async def list_folders(request):
             "created_by": folder.created_by.username,
             "modified_at": folder.modified_at,
             "public": folder.public,
-            "sync_source": folder.sync_source,
-            "file_ids": [ff.file_id for ff in folder.folderfile_set.all()],
+            "file_ids": folder.file_ids,
         })
     return {"folders": folders}
 
 
-@api.get("/assistant_folders", auth=BearerAuth())
+class FolderUpdateSchema(Schema):
+    file_ids: list[str] | None = Field(default=None)
+    name: str | None = None
+
+
+@api.post("/{folder_uuid}/files/", auth=BearerAuth())
+def update_folder(request, folder_uuid: uuid.UUID, payload: FolderUpdateSchema):
+    folder = get_object_or_404(Folder, uuid=folder_uuid)
+    if payload.file_ids is not None:
+        folder.file_ids = payload.file_ids
+    if payload.name is not None:
+        folder.name = payload.name
+    folder.save()
+    return {"file_ids": folder.file_ids, "name": folder.name}
+
+
+@api.post("/create/", auth=BearerAuth())
+def create_folder(request):
+    folder = Folder.objects.create(
+        created_by=request.user,
+    )
+    folder.projects.add(request.auth['project'])
+    return {"folder_uuid": folder.uuid}
+
+
+@api.delete("/{folder_uuid}/", auth=BearerAuth())
+def delete_folder(request, folder_uuid: uuid.UUID):
+    folder = get_object_or_404(Folder, uuid=folder_uuid)
+    folder.delete()
+    return {"folder_uuid": folder_uuid}
+
+
+# Assistant - Folder relations
+
+@api.get("/assistant-folders", auth=BearerAuth())
 async def list_assistant_folders(request):
     project = request.auth['project']
     qs = FolderAssistant.objects.filter(folder__projects=project).select_related("folder")
@@ -75,7 +111,17 @@ async def list_assistant_folders(request):
     return {"assistant_folders": mapping}
 
 
-@api.post("/assistant_folders/{assistant_id}", auth=BearerAuth())
+@api.get("/folder-assistants", auth=BearerAuth())
+async def list_folder_assistants(request):
+    project = request.auth['project']
+    qs = FolderAssistant.objects.filter(folder__projects=project).select_related("folder")
+    folder_assistants = defaultdict(list)
+    async for fa in qs:
+        folder_assistants[str(fa.folder.uuid)].append(fa.assistant_id)
+    return {"folder_assistants": folder_assistants}
+
+
+@api.post("/assistants/{assistant_id}", auth=BearerAuth())
 async def modify_assistant_folders(request, assistant_id):
     project = request.auth['project']
     data = json.loads(request.body)
@@ -87,8 +133,8 @@ async def modify_assistant_folders(request, assistant_id):
     # TODO: change sync_to_async
     # Get current FolderAssistant relations for this assistant in the current project
     current_folder_ids = set(map(str, await sync_to_async(list)(
-         FolderAssistant.objects.filter(assistant_id=assistant_id, folder__projects=project)
-         .values_list('folder__uuid', flat=True)
+        FolderAssistant.objects.filter(assistant_id=assistant_id, folder__projects=project)
+        .values_list('folder__uuid', flat=True)
     )))
 
     new_folder_ids = set(folder_ids)
@@ -112,17 +158,3 @@ async def modify_assistant_folders(request, assistant_id):
 
     return JsonResponse({'success': True, 'returned_folder_ids': list(new_folder_ids)})
 
-
-@api.get("/{folder_uuid}/list/")
-async def list_files(request, folder_uuid):
-    file_ids = [
-        file_id
-        async for file_id in FolderFile.objects.filter(folder__uuid=folder_uuid).values_list('file_id', flat=True)
-    ]
-    return {"file_ids": file_ids}
-
-
-@api.get("/{folder_uuid}/sync/")
-async def sync_folder(request, folder_uuid):
-    folder = Folder.objects.get(uuid=folder_uuid)
-    folder.sync_files()
