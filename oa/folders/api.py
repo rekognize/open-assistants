@@ -50,7 +50,7 @@ async def list_folders(request):
     if assistant_id is not None:
         qs = qs.filter(folderassistant_set__assistant_id=assistant_id)
 
-    qs = qs.select_related("created_by")
+    qs = qs.select_related("created_by").order_by("-created_at")
 
     folders = []
     async for folder in qs:

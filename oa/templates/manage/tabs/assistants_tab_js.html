@@ -29,7 +29,7 @@
 
             populateAssistantsTabsAndContent(assistants);
 
-            // Make Create New Assistant button visible
+            // Make Create Assistant button visible
             document.getElementById('createNewAssistantBtn').classList.remove('d-none');
 
         } catch (error) {
@@ -37,6 +37,7 @@
             contentContainer.innerHTML = `
                 <div class="text-center text-danger">Failed to load assistants!</div>
             `;
+            console.error(error);
         } finally {
             toggleLoading('loadingAssistantsTab', false);
         }
@@ -58,10 +59,11 @@
         // Convert the assistants object into an array of assistant objects
         const assistantsArr = Object.values(assistants);
         assistantsArr.forEach((assistant, index) => {
-            // Create tab element
+            // Create the tab element container
             const tabItem = document.createElement('li');
             tabItem.className = 'nav-item';
 
+            // Create the tab link
             const tabLink = document.createElement('a');
             tabLink.className = index === 0
                 ? 'nav-link py-1 px-2 bg-secondary text-white active'

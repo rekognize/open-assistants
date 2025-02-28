@@ -1,8 +1,25 @@
 <script>
+    /* Folders */
+
     // Global variables to hold fetched data
     let allFiles = [];
     let allFolders = [];
     let allFolderAssistants = [];
+
+    // Global event listener to update nav classes when any tab is shown
+    document.addEventListener('shown.bs.tab', function (event) {
+        document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
+            if (tab === event.target) {
+                tab.classList.remove('bg-white', 'text-secondary');
+                tab.classList.add('active', 'bg-secondary', 'text-white');
+                tab.setAttribute('aria-selected', 'true');
+            } else {
+                tab.classList.remove('active', 'bg-secondary', 'text-white');
+                tab.classList.add('bg-white', 'text-secondary');
+                tab.setAttribute('aria-selected', 'false');
+            }
+        });
+    });
 
     async function fetchFiles() {
         const url = "{% url 'api-1.0.0:list_files' %}";
@@ -17,22 +34,6 @@
             return await response.json();
         } catch (error) {
             console.error('Error fetching files:', error);
-        }
-    }
-
-    async function fetchFolders() {
-        const url = "{% url 'folders-api:list_folders' %}";
-        try {
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
-                }
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Error fetching folders:', error);
         }
     }
 
@@ -52,21 +53,40 @@
         }
     }
 
-
-    // Fetch both folders and files, then build the UI
     async function fetchFoldersTab() {
         toggleLoading('loadingFoldersTab', true);
-        const foldersData = await fetchFolders();
-        const filesData = await fetchFiles();
-        const folderAssistantsData = await fetchFolderAssistants();
-        toggleLoading('loadingFoldersTab', false);
+        try {
+            // Wait until folders are loaded or an error occurs
+            while (!foldersLoaded) {
+                if (foldersError) {
+                    throw new Error(foldersError);
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
 
-        // Assume responses include .folders and .files arrays
-        allFolders = foldersData.folders;
-        allFiles = filesData.files;
-        allFolderAssistants = folderAssistantsData.folder_assistants;
+            const foldersData = Object.values(folders);
+            const filesData = await fetchFiles();
+            const folderAssistantsData = await fetchFolderAssistants();
 
-        populateFoldersTabsAndContent(allFolders, allFiles, allFolderAssistants);
+            // Fill global variables with arrays
+            allFolders = foldersData;
+            allFiles = filesData.files;
+            allFolderAssistants = folderAssistantsData.folder_assistants;
+
+            populateFoldersTabsAndContent(allFolders, allFiles, allFolderAssistants);
+
+            // Make Create Folder button visible
+            document.getElementById('createNewFolderBtn').classList.remove('d-none');
+
+        } catch (error) {
+            const contentContainer = document.getElementById('folders-tab-container');
+            contentContainer.innerHTML = `
+                <div class="text-center text-danger">Failed to load folders!</div>
+            `;
+            console.error(error);
+        } finally {
+            toggleLoading('loadingFoldersTab', false);
+        }
     }
 
     // Build folder tabs and for each, display a dual-list widget with a folder name input,
@@ -78,36 +98,31 @@
         tabsContainer.innerHTML = '';
         contentContainer.innerHTML = '';
 
+        // Check if the global dict is empty
+        if (!folders || Object.keys(folders).length === 0) {
+            document.getElementById('no-folders').classList.remove('d-none');
+            return;
+        }
+
         folders.forEach((folder, index) => {
             // Create the tab element container
             const tabItem = document.createElement('li');
-            tabItem.className = 'nav-item mb-2 position-relative';
+            tabItem.className = 'nav-item';
 
             // Create the tab link
             const tabLink = document.createElement('a');
             tabLink.className = index === 0
-                ? 'nav-link bg-secondary text-white active'
-                : 'nav-link bg-white text-secondary';
+                ? 'nav-link py-1 px-2 bg-secondary text-white active'
+                : 'nav-link py-1 px-2 bg-white text-secondary';
             tabLink.setAttribute('data-bs-toggle', 'tab');
             tabLink.setAttribute('href', `#folders-tab-${folder.uuid}`);
             tabLink.setAttribute('role', 'tab');
             tabLink.setAttribute('aria-controls', `folders-tab-${folder.uuid}`);
             tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
             tabLink.id = `folders-tab-${folder.uuid}-tab`;
-            tabLink.textContent = folder.name || 'Untitled Folder';
+            tabLink.textContent = folder.name || 'Untitled folder';
+
             tabItem.appendChild(tabLink);
-
-            // Create a delete button floated to the right
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn btn-outline-danger btn-sm position-absolute top-50 end-0 translate-middle-y me-1';
-            deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
-            deleteBtn.onclick = function (e) {
-                e.stopPropagation();
-                e.preventDefault();
-                deleteFolder(folder.uuid);
-            };
-            tabItem.appendChild(deleteBtn);
-
             tabsContainer.appendChild(tabItem);
 
             // Create the content pane for this folder
@@ -130,46 +145,34 @@
 
             // Set the updated content pane HTML with the new subheaders and collapse for dual-list
             contentPane.innerHTML = `
-          <div class="mb-3">
-            <input type="text" class="form-control form-control-lg" id="folder-name-${folder.uuid}" value="${folder.name || 'Untitled Folder'}" onblur="updateFolderName('${folder.uuid}')">
-          </div>
-          <div class="mb-3">
-            <div class="d-flex justify-content-between align-items-center">
-              <h5 class="mb-0">Files in this folder</h5>
-              <button class="btn btn-link btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDualList-${folder.uuid}" aria-expanded="false" aria-controls="collapseDualList-${folder.uuid}">Manage</button>
-            </div>
-            <div class="mb-2">
-              <small>Created at: ${folder.created_at || 'N/A'} | Modified at: ${folder.modified_at || 'N/A'} | Created by: ${folder.created_by || 'N/A'} | ${folder.file_ids.length} files</small>
-            </div>
-            <div class="collapse" id="collapseDualList-${folder.uuid}">
-              ${dualListHTML}
-            </div>
-          </div>
-          <div class="mb-3">
-            <h5>Assistants using this folder</h5>
-            <div id="assistants-list-${folder.uuid}"></div>
-          </div>
-        `;
+              <div class="mb-3 d-flex justify-content-between align-items-center">
+                <input type="text" class="form-control form-control-lg me-2" id="folder-name-${folder.uuid}" value="${folder.name || 'Untitled folder'}" onblur="updateFolderName('${folder.uuid}')">
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteFolder('${folder.uuid}')">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">Files in this folder</h5>
+                  <button class="btn btn-link btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDualList-${folder.uuid}" aria-expanded="false" aria-controls="collapseDualList-${folder.uuid}">Manage</button>
+                </div>
+                <div class="mb-2">
+                  <small>Created at: ${folder.created_at || 'N/A'} | Modified at: ${folder.modified_at || 'N/A'} | Created by: ${folder.created_by || 'N/A'} | ${folder.file_ids.length} files</small>
+                </div>
+                <div class="collapse" id="collapseDualList-${folder.uuid}">
+                  ${dualListHTML}
+                </div>
+              </div>
+              <div class="mb-3">
+                <h5>Assistants using this folder</h5>
+                <div id="assistants-list-${folder.uuid}"></div>
+              </div>
+            `;
 
             contentContainer.appendChild(contentPane);
 
             // Append the assistants list into the designated container
             document.getElementById(`assistants-list-${folder.uuid}`).appendChild(assistantsListHTML);
-        });
-
-        // Listen for tab activation events to update classes
-        document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
-            tab.addEventListener('shown.bs.tab', function (event) {
-                document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(t => {
-                    if (t === event.target) {
-                        t.classList.remove('bg-white', 'text-secondary');
-                        t.classList.add('bg-secondary', 'text-white');
-                    } else {
-                        t.classList.remove('bg-secondary', 'text-white');
-                        t.classList.add('bg-white', 'text-secondary');
-                    }
-                });
-            });
         });
     }
 
@@ -236,6 +239,9 @@
     `;
     }
 
+
+    /* Folder and file operations */
+
     // Call the backend to update the folder's file_ids and name.
     // The spinner is shown while the update is in progress.
     async function updateFolderBackend(folder) {
@@ -294,7 +300,7 @@
         // Update the tab label with the new folder name.
         const tabLink = document.getElementById(`folders-tab-${folderUuid}-tab`);
         if (tabLink) {
-            tabLink.textContent = folder.name || 'Untitled Folder';
+            tabLink.textContent = folder.name || 'Untitled folder';
         }
         updateFolderBackend(folder);
     }
@@ -317,13 +323,13 @@
                 return;
             }
             // Re-fetch folders UI after deletion.
+            await fetchFolders();
             await fetchFoldersTab();
         } catch (error) {
             console.error("Error deleting folder on backend:", error);
         }
     }
 
-    // Create new folder and select its tab.
     async function createNewFolder() {
         try {
             const url = "{% url 'folders-api:create_folder' %}";
@@ -340,8 +346,11 @@
             }
             const data = await response.json();
             const newFolderUuid = data.folder_uuid;
+
             // Refresh the folder list and UI.
+            await fetchFolders();
             await fetchFoldersTab();
+
             // After reloading, select the new folder's tab.
             const newTabEl = document.getElementById(`folders-tab-${newFolderUuid}-tab`);
             if (newTabEl) {
@@ -399,7 +408,4 @@
         }
     }
 
-
-    // Call fetchFoldersTab on page load (or on an event)
-    document.addEventListener('DOMContentLoaded', fetchFoldersTab);
 </script>

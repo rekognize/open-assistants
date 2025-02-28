@@ -90,6 +90,8 @@ let fileFolders = {};  // {fileId: [folder1, folder2, ...]}
 let assistantFoldersMapping = {}; // { assistantId: [folderUUID, ...], ... }
 let selectedFiles = [];
 
+let foldersLoaded = false;
+let foldersError = null;
 let assistantsLoaded = false;
 let assistantsError = null;
 
@@ -640,6 +642,8 @@ async function fetchFolders() {
 
         const data = await response.json();
 
+        console.log('fetchFolders:', data);
+
         if (data.folders) {
 
             // Clear the global folders object
@@ -650,10 +654,14 @@ async function fetchFolders() {
                 folders[folder.uuid] = folder;
             });
 
+            // Set the global data as loaded
+            foldersLoaded = true;
+
             // Return the global folders object
             return folders;
         } else {
             const parsedError = parseErrorText(data.error);
+            foldersError = parsedError.errorMessage;
             showToast("Failed to fetch folders!", parsedError.errorMessage);
             console.error('Failed to fetch folders!', parsedError);
             return {};
@@ -661,6 +669,7 @@ async function fetchFolders() {
     } catch (error) {
         showToast("Error fetching folders:", error);
         console.error('Error fetching folders:', error);
+        foldersError = error;
         return {};
     } finally {
         toggleLoading('folders', false);
