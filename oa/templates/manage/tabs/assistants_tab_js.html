@@ -332,7 +332,7 @@
                                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                                 <span class="button-text">Create</span>
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelNewAssistantForm();">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="cancelNewAssistantBtn" onclick="cancelNewAssistantForm();">
                                 Cancel
                             </button>
                         </div>
@@ -456,7 +456,7 @@
         }
     }
 
-    function saveNewAssistant() {
+    async function saveNewAssistant() {
         const name = document.getElementById('new-assistant-name').value;
         const description = document.getElementById('new-assistant-description').value;
         const instructions = document.getElementById('new-assistant-instructions').value;
@@ -470,15 +470,73 @@
             }
         }
 
-        console.log("Creating new assistant:", {
+        // Construct payload according to AssistantSchema
+        const payload = {
             name: name,
             description: description,
             instructions: instructions,
             model: model,
-            chosenFolders: chosenFolders
-        });
-        // TODO: Replace with API call to create the new assistant
-        // cancelNewAssistantForm();
+        };
+
+        // Show a spinner on the save button
+        const saveBtn = document.getElementById('saveNewAssistantBtn');
+        const cancelBtn = document.getElementById('cancelNewAssistantBtn');
+        const spinner = saveBtn.querySelector('.spinner-border');
+        saveBtn.disabled = true;
+        cancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+
+        try {
+            const response = await fetch(createAssistantsUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                console.log("Created new assistant:", data);
+
+                await fetchAssistants();
+                await fetchAssistantsTab();
+
+            } else {
+                const errorData = await response.json();
+                let errorMessage = '';
+
+                if (errorData.error) {
+                    const parsedError = parseErrorText(errorData.error);
+                    errorMessage = parsedError.errorMessage;
+                } else if (errorData.detail) {
+                    // Handle server errors
+                    if (Array.isArray(errorData.detail)) {
+                        // Extract the message from the first error detail
+                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
+                    } else if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else {
+                        errorMessage = 'Unknown error occurred.';
+                    }
+                } else {
+                    errorMessage = 'Unknown error occurred.';
+                }
+
+                showToast("Failed to save new assistant!", errorMessage);
+                console.error('Failed to save new assistant!', errorMessage);
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        } finally {
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            spinner.classList.add('d-none');
+        }
     }
 
 
