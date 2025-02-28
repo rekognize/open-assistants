@@ -540,6 +540,38 @@
         });
     });
 
+    // Global event listener to update nav classes when any tab is shown
+    document.addEventListener('shown.bs.tab', function (event) {
+        // If the event target is inside the assistants nav, update only that group
+        if (event.target.closest('#assistantsNavTabs')) {
+            document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
+                if (tab === event.target) {
+                    tab.classList.remove('bg-white', 'text-secondary');
+                    tab.classList.add('active', 'bg-secondary', 'text-white');
+                    tab.setAttribute('aria-selected', 'true');
+                } else {
+                    tab.classList.remove('active', 'bg-secondary', 'text-white');
+                    tab.classList.add('bg-white', 'text-secondary');
+                    tab.setAttribute('aria-selected', 'false');
+                }
+            });
+        }
+        // If the event target is inside the folders nav, update only that group
+        if (event.target.closest('#foldersNavTabs')) {
+            document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
+                if (tab === event.target) {
+                    tab.classList.remove('bg-white', 'text-secondary');
+                    tab.classList.add('active', 'bg-secondary', 'text-white');
+                    tab.setAttribute('aria-selected', 'true');
+                } else {
+                    tab.classList.remove('active', 'bg-secondary', 'text-white');
+                    tab.classList.add('bg-white', 'text-secondary');
+                    tab.setAttribute('aria-selected', 'false');
+                }
+            });
+        }
+    });
+
 </script>
 
 <script id="function-item-template" type="text/template">

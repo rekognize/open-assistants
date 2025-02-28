@@ -6,21 +6,6 @@
     let allFolders = [];
     let allFolderAssistants = [];
 
-    // Global event listener to update nav classes when any tab is shown
-    document.addEventListener('shown.bs.tab', function (event) {
-        document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
-            if (tab === event.target) {
-                tab.classList.remove('bg-white', 'text-secondary');
-                tab.classList.add('active', 'bg-secondary', 'text-white');
-                tab.setAttribute('aria-selected', 'true');
-            } else {
-                tab.classList.remove('active', 'bg-secondary', 'text-white');
-                tab.classList.add('bg-white', 'text-secondary');
-                tab.setAttribute('aria-selected', 'false');
-            }
-        });
-    });
-
     async function fetchFiles() {
         const url = "{% url 'api-1.0.0:list_files' %}";
         try {
