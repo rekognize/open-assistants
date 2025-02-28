@@ -482,7 +482,8 @@
     const listAssistantsUrl = "{% url 'api-1.0.0:list_assistants' %}";
     const listFunctionsUrl = '{% url "functions-api:list_functions" %}';
 
-    const createAssistantsUrl = "{% url 'api-1.0.0:create_assistant' %}";
+    const createAssistantUrl = "{% url 'api-1.0.0:create_assistant' %}";
+    const createVectorStoreUrl = "{% url 'api-1.0.0:create_vector_store' %}";
 
     const listAssistantFoldersUrl = "{% url 'folders-api:list_assistant_folders' %}";
     const modifyAssistantFoldersUrl = "{% url 'folders-api:modify_assistant_folders' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";

@@ -470,14 +470,6 @@
             }
         }
 
-        // Construct payload according to AssistantSchema
-        const payload = {
-            name: name,
-            description: description,
-            instructions: instructions,
-            model: model,
-        };
-
         // Show a spinner on the save button
         const saveBtn = document.getElementById('saveNewAssistantBtn');
         const cancelBtn = document.getElementById('cancelNewAssistantBtn');
@@ -486,8 +478,58 @@
         cancelBtn.disabled = true;
         spinner.classList.remove('d-none');
 
+        let vsData;
+
         try {
-            const response = await fetch(createAssistantsUrl, {
+            const vectorStorePayload = {
+                name: `Store for ${name}`,
+            };
+
+            const vsResponse = await fetch(createVectorStoreUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+                body: JSON.stringify(vectorStorePayload)
+            });
+
+            if (!vsResponse.ok) {
+                const errorVsData = await vsResponse.json();
+                throw new Error(errorVsData.error || vsResponse.statusText);
+            }
+
+            vsData = await vsResponse.json();
+
+            console.log("Created vector store for assistant:", vsData);
+
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            spinner.classList.add('d-none');
+
+            return; // Exit if vector store creation fails
+        }
+
+        // Construct payload according to AssistantSchema
+        const payload = {
+            name: name,
+            description: description,
+            instructions: instructions,
+            model: model,
+            tools: [
+                {"type": "code_interpreter"},
+                {"type": "file_search"}
+            ],
+            tool_resources:{"file_search": {"vector_store_ids": [vsData.id]}},
+        };
+
+        try {
+            const response = await fetch(createAssistantUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
