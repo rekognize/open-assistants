@@ -60,8 +60,10 @@
 
             populateFoldersTabsAndContent(allFolders, allFiles, allFolderAssistants);
 
-            // Make Create Folder button visible
-            document.getElementById('createNewFolderBtn').classList.remove('d-none');
+            // Make Create Folder button visible if folders list not empty
+            if (folders && Object.keys(folders).length > 0) {
+                document.getElementById('createNewFolderBtn').classList.remove('d-none');
+            }
 
         } catch (error) {
             const contentContainer = document.getElementById('folders-tab-container');

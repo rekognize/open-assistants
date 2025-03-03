@@ -769,7 +769,7 @@ function displayFolders() {
         messageDiv.innerHTML = `
             <p class="text-secondary">No folders found.</p>
             <span class="text-secondary">
-                <a href="#" class="text-decoration-none"><i class="bi bi-plus-lg"></i>Add a folder.</a>
+                <a href="#" class="text-decoration-none" onclick="clickKnowledgeTab()"><i class="bi bi-plus-lg"></i>Add a folder.</a>
             </span>
         `;
         foldersList.appendChild(messageDiv);
@@ -812,13 +812,16 @@ function displayFolders() {
     initializeTooltips();
 }
 
-// Redirect to Knowledge tab
-async function editFolder(folderId) {
-    console.log("Editing folder:", folderId);
+async function clickKnowledgeTab() {
     const foldersTabTrigger = document.getElementById('foldersTab');
     if (foldersTabTrigger && !foldersTabTrigger.classList.contains('active')) {
         foldersTabTrigger.click();
     }
+}
+
+// Redirect to Knowledge tab
+async function editFolder(folderId) {
+    await clickKnowledgeTab();
     await waitForContainerAndTarget('folders-tab-container', 'folders-tab', folderId, function(targetTabLink) {
         let tabInstance = bootstrap.Tab.getInstance(targetTabLink);
         if (!tabInstance) {
