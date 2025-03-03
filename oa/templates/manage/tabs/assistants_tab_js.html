@@ -14,8 +14,11 @@
 
             populateAssistantsTabsAndContent(assistants);
 
-            // Make Create Assistant button visible
-            document.getElementById('createNewAssistantBtn').classList.remove('d-none');
+            // Make Create Assistant button visible if assistants list not empty
+            if (assistants && Object.keys(assistants).length > 0) {
+                document.getElementById('createNewAssistantBtn').classList.remove('d-none');
+            }
+
 
         } catch (error) {
             const contentContainer = document.getElementById('assistants-tab-container');

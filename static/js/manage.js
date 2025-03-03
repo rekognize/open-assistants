@@ -562,7 +562,7 @@ function populateAssistantFilterOptions() {
     for (const [folderId, folder] of Object.entries(folders)) {
         const option = document.createElement('option');
         option.value = folderId;
-        option.textContent = folder.name;
+        option.textContent = folder.name || 'Untitled folder';
         filterFolder.appendChild(option);
     }
 }
@@ -1024,7 +1024,7 @@ function displayAssistants() {
         messageDiv.innerHTML = `
             <p class="text-secondary">No assistants found.</p>
             <span class="text-secondary">
-                <a href="#" class="text-decoration-none"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
+                <a href="#" class="text-decoration-none" onclick="clickAssistantsTab()"><i class="bi bi-plus-lg"></i>Add your first assistant.</a>
             </span>
         `;
         assistantsList.appendChild(messageDiv);
@@ -1066,13 +1066,16 @@ function displayAssistants() {
     initializeTooltips();
 }
 
-// Redirect to Assistants tab
-async function editAssistant(assistantId) {
-    console.log("Editing assistant:", assistantId);
+async function clickAssistantsTab() {
     const assistantsTabTrigger = document.getElementById('assistantsTab');
     if (assistantsTabTrigger && !assistantsTabTrigger.classList.contains('active')) {
         assistantsTabTrigger.click();
     }
+}
+
+// Redirect to Assistants tab
+async function editAssistant(assistantId) {
+    await clickAssistantsTab();
     await waitForContainerAndTarget('assistants-tab-container', 'assistants-tab', assistantId, function(targetTabLink) {
         let tabInstance = bootstrap.Tab.getInstance(targetTabLink);
         if (!tabInstance) {
