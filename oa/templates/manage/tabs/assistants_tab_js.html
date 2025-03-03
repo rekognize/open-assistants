@@ -221,6 +221,13 @@
                     <label for="edit-model-${assistant.id}">Model</label>
                 </div>
             </form>
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-sm btn-outline-danger"
+                        id="deleteTabAssistantBtn"
+                        onclick="deleteAssistant('${assistant.id}')">
+                    <span class="button-text">Delete</span>
+                </button>
+            </div>
       `;
     }
 
@@ -477,9 +484,11 @@
         const saveBtn = document.getElementById('saveNewAssistantBtn');
         const cancelBtn = document.getElementById('cancelNewAssistantBtn');
         const spinner = saveBtn.querySelector('.spinner-border');
+        const buttonText = saveBtn.querySelector('.button-text');
         saveBtn.disabled = true;
         cancelBtn.disabled = true;
         spinner.classList.remove('d-none');
+        buttonText.textContent = 'Creating...';
 
         let vsData;
 
@@ -514,6 +523,7 @@
             saveBtn.disabled = false;
             cancelBtn.disabled = false;
             spinner.classList.add('d-none');
+            buttonText.textContent = 'Create';
 
             return; // Exit if vector store creation fails
         }
@@ -549,6 +559,7 @@
 
                 await fetchAssistants();
                 await fetchAssistantsTab();
+                displayAssistants(); // Refresh overview assistants list
 
             } else {
                 const errorData = await response.json();
@@ -571,6 +582,9 @@
                     errorMessage = 'Unknown error occurred.';
                 }
 
+                saveBtn.disabled = false;
+                cancelBtn.disabled = false;
+
                 showToast("Failed to save new assistant!", errorMessage);
                 console.error('Failed to save new assistant!', errorMessage);
             }
@@ -578,9 +592,85 @@
             showToast("Unexpected error:", error);
             console.error('Unexpected error:', error);
         } finally {
-            saveBtn.disabled = false;
-            cancelBtn.disabled = false;
             spinner.classList.add('d-none');
+            buttonText.textContent = 'Create';
+        }
+    }
+
+
+    /* Delete Assistant */
+
+    let assistantToDeleteId = null; // To store the ID of the assistant to delete
+
+    async function deleteAssistant(assistantId) {
+        assistantToDeleteId = assistantId; // Store the assistant ID for use in the confirm deletion function
+
+        const assistantInfo = document.getElementById('assistantInfo');
+
+        // Add assistant info
+        assistantInfo.textContent = '';
+        assistantInfo.textContent = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
+
+        // Show the modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('assistantDeleteModal'));
+        deleteModal.show();
+
+        // Attach event listener to the confirm delete button
+        const confirmDeleteBtn = document.getElementById('confirmDeleteAssistantBtn');
+        confirmDeleteBtn.onclick = confirmDeleteAssistant;
+    }
+
+    async function confirmDeleteAssistant() {
+        const assistantId = assistantToDeleteId;
+        const assistantName = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
+
+        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('assistantDeleteModal'));
+
+        // Show a spinner on the confirm button
+        const confirmBtn = document.getElementById('confirmDeleteAssistantBtn');
+        const cancelBtn = document.getElementById('cancelAssistantDeleteModalBtn');
+        const spinner = confirmBtn.querySelector('.spinner-border');
+        const buttonText = confirmBtn.querySelector('.button-text');
+        confirmBtn.disabled = true;
+        cancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Deleting...';
+
+        try {
+            const response = await fetch(deleteAssistantUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId), {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                }
+            });
+
+            if (response.ok) {
+                // Re-display the assistants
+                await fetchAssistants();
+                await fetchAssistantsTab();
+                displayAssistants(); // Refresh overview assistants list
+
+                deleteModal.hide();
+
+                showToast("Assistant deleted!", assistantName, "success");
+                console.log(`Assistant with ID ${assistantId} deleted successfully.`);
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to delete assistant!", parsedError.errorMessage);
+                console.error('Failed to delete assistant!', parsedError);
+
+                confirmBtn.disabled = false;
+                cancelBtn.disabled = false;
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        } finally {
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Delete';
         }
     }
 
