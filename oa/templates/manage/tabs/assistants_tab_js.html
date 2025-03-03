@@ -182,7 +182,7 @@
                 <div class="action-buttons">
                     <button type="button" class="btn btn-sm btn-outline-success"
                             id="modifyTabAssistantBtn"
-                            onclick="modifyTabAssistant('${assistant.id}');">
+                            onclick="modifyAssistant('${assistant.id}');">
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                         <span class="button-text">Save</span>
                     </button>
@@ -198,15 +198,19 @@
             </p>
             <form class="mt-3">
                 <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="edit-name-${assistant.id}" value="${assistant.name}">
+                    <input type="text" class="form-control" id="edit-name-${assistant.id}" maxlength="256" value="${assistant.name}"
+                           oninput="checkInputLength(this, 'editNameHelp-${assistant.id}', 256)">
                     <label for="edit-name-${assistant.id}" class="form-label">Name</label>
+                    <small id="editNameHelp-${assistant.id}" class="form-text text-danger d-none">The maximum character length is reached.</small>
                 </div>
                 <!-- Folders management section using template -->
                 ${getFolderManagementTemplate(assistant, "edit")}
                 <!-- Other fields... -->
                 <div class="form-floating mb-3">
-                    <textarea class="form-control" id="edit-description-${assistant.id}" placeholder="Description" rows="3">${assistant.description || ''}</textarea>
+                    <textarea class="form-control" id="edit-description-${assistant.id}" placeholder="Description" rows="3" maxlength="512"
+                              oninput="checkInputLength(this, 'editDescHelp-${assistant.id}', 512)">${assistant.description || ''}</textarea>
                     <label for="edit-description-${assistant.id}">Description</label>
+                    <small id="editDescHelp-${assistant.id}" class="form-text text-danger d-none">The maximum character length is reached.</small>
                 </div>
                 <div class="form-floating mb-3">
                     <textarea class="form-control" id="edit-instructions-${assistant.id}" placeholder="Instructions"
@@ -349,14 +353,18 @@
                     </div>
                     <form class="mt-3" id="newAssistantForm">
                         <div class="form-floating mb-3">
-                            <input type="text" class="form-control" id="new-assistant-name" placeholder="Name" value="">
+                            <input type="text" class="form-control" id="new-assistant-name" placeholder="Name" maxlength="256" value=""
+                                   oninput="checkInputLength(this, 'newNameHelp', 256)">
                             <label for="new-assistant-name" class="form-label">Name</label>
+                            <small id="newNameHelp" class="form-text text-danger d-none">The maximum character length is reached.</small>
                         </div>
                         <!-- Reuse folder management template; pass a dummy assistant object with id 'new-assistant' -->
                         ${getFolderManagementTemplate({id: 'new-assistant', name: '', description: '', instructions: '', model: 'gpt-4o'}, "edit")}
                         <div class="form-floating mb-3">
-                            <textarea class="form-control" id="new-assistant-description" placeholder="Description" rows="3"></textarea>
+                            <textarea class="form-control" id="new-assistant-description" placeholder="Description" rows="3" maxlength="512"
+                                      oninput="checkInputLength(this, 'newDescHelp', 512)"></textarea>
                             <label for="new-assistant-description">Description</label>
+                            <small id="newDescHelp" class="form-text text-danger d-none">The maximum character length is reached.</small>
                         </div>
                         <div class="form-floating mb-3">
                             <textarea class="form-control" id="new-assistant-instructions" placeholder="Instructions" style="height: 100px"></textarea>
@@ -379,6 +387,16 @@
     function getFolderElementId(base, assistantId, mode) {
         // mode: "inline" or "edit"
         return base + (mode === 'inline' ? '-inline-' : '-') + assistantId;
+    }
+
+    // Helper: checks input length and gives user a warning
+    function checkInputLength(inputElement, helpElementId, maxLength = 256) {
+        const helpElement = document.getElementById(helpElementId);
+        if (inputElement.value.length >= maxLength) {
+            helpElement.classList.remove('d-none');
+        } else {
+            helpElement.classList.add('d-none');
+        }
     }
 
 
@@ -595,6 +613,13 @@
             spinner.classList.add('d-none');
             buttonText.textContent = 'Create';
         }
+    }
+
+
+    /* Modify Assistant */
+
+    async function modifyAssistant(assistantId) {
+        console.log('modifyAssistant:', assistantId);
     }
 
 
