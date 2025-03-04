@@ -508,128 +508,41 @@
         spinner.classList.remove('d-none');
         buttonText.textContent = 'Creating...';
 
-        let vsData;
-
         try {
-            const vectorStorePayload = {
-                name: `Store for ${name || 'Untitled assistant'}`,
-            };
-
-            const vsResponse = await fetch(createVectorStoreUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': CSRF_TOKEN
-                },
-                body: JSON.stringify(vectorStorePayload)
-            });
-
-            if (!vsResponse.ok) {
-                const errorVsData = await vsResponse.json();
-                throw new Error(errorVsData.error || vsResponse.statusText);
-            }
-
-            vsData = await vsResponse.json();
-
+            // Create vector store
+            const vsData = await createVectorStore(name);
             console.log("Created vector store for assistant:", vsData);
 
-        } catch (error) {
-            showToast("Unexpected error:", error);
-            console.error('Unexpected error:', error);
+            // Construct payload for assistant creation
+            const assistantPayload = {
+                name: name,
+                description: description,
+                instructions: instructions,
+                model: model,
+                tools: [
+                    {"type": "code_interpreter"},
+                    {"type": "file_search"}
+                ],
+                tool_resources: {"file_search": {"vector_store_ids": [vsData.id]}},
+            };
 
-            saveBtn.disabled = false;
-            cancelBtn.disabled = false;
-            spinner.classList.add('d-none');
-            buttonText.textContent = 'Create';
+            // Create the assistant
+            const assistantData = await createAssistant(assistantPayload);
+            console.log("Created new assistant:", assistantData);
 
-            return; // Exit if vector store creation fails
-        }
+            // Update assistant folders
+            const assistantFoldersData = await updateAssistantFolders(assistantData.id, chosenFolders);
+            console.log("Union files to add VS:", assistantFoldersData);
 
-        // Construct payload according to AssistantSchema
-        const payload = {
-            name: name,
-            description: description,
-            instructions: instructions,
-            model: model,
-            tools: [
-                {"type": "code_interpreter"},
-                {"type": "file_search"}
-            ],
-            tool_resources:{"file_search": {"vector_store_ids": [vsData.id]}},
-        };
+            // Update vector store files
+            const vectorStoreFilesData = await updateVectorStoreFiles(vsData.id, assistantFoldersData.union_file_ids);
+            console.log("Updated Vector Store files:", vectorStoreFilesData);
 
-        try {
-            const response = await fetch(createAssistantUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': CSRF_TOKEN
-                },
-                body: JSON.stringify(payload)
-            });
+            await fetchAssistants();
+            await fetchAssistantFoldersMapping();
+            await fetchAssistantsTab();
+            displayAssistants(); // Refresh overview assistants list
 
-            if (response.ok) {
-                const data = await response.json();
-
-                console.log("Created new assistant:", data);
-
-                try {
-                    const assistantFoldersResponse = await fetch(updateAssistantFoldersUrl.replace('ASSISTANT_ID_PLACEHOLDER', data.id), {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${API_KEY}`,
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': CSRF_TOKEN
-                        },
-                        body: JSON.stringify({folder_uuids: chosenFolders})
-                    });
-
-                    if (!assistantFoldersResponse.ok) {
-                        const errorFoldersResponse = await assistantFoldersResponse.json();
-                        throw new Error(errorFoldersResponse.error || assistantFoldersResponse.statusText);
-                    }
-
-                    const assistantFoldersData = await assistantFoldersResponse.json();
-
-                    // TODO update VS
-                    console.log("union files to add VS:", assistantFoldersData)
-
-                } catch (error) {
-                    showToast("Unexpected error:", error);
-                    console.error('Unexpected error:', error);
-                }
-
-
-                await fetchAssistants();
-                await fetchAssistantFoldersMapping();
-                await fetchAssistantsTab();
-                displayAssistants(); // Refresh overview assistants list
-
-            } else {
-                const errorData = await response.json();
-                let errorMessage = '';
-
-                if (errorData.error) {
-                    const parsedError = parseErrorText(errorData.error);
-                    errorMessage = parsedError.errorMessage;
-                } else if (errorData.detail) {
-                    // Handle server errors
-                    if (Array.isArray(errorData.detail)) {
-                        // Extract the message from the first error detail
-                        errorMessage = errorData.detail[0].msg || 'Unknown error occurred.';
-                    } else if (typeof errorData.detail === 'string') {
-                        errorMessage = errorData.detail;
-                    } else {
-                        errorMessage = 'Unknown error occurred.';
-                    }
-                } else {
-                    errorMessage = 'Unknown error occurred.';
-                }
-                showToast("Failed to save new assistant!", errorMessage);
-                console.error('Failed to save new assistant!', errorMessage);
-            }
         } catch (error) {
             showToast("Unexpected error:", error);
             console.error('Unexpected error:', error);
@@ -639,6 +552,78 @@
             saveBtn.disabled = false;
             cancelBtn.disabled = false;
         }
+    }
+
+    async function createVectorStore(name) {
+        const vectorStorePayload = {name: `Store for ${name || 'Untitled assistant'}`};
+        const vsResponse = await fetch(createVectorStoreUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify(vectorStorePayload)
+        });
+        if (!vsResponse.ok) {
+            const errorVsData = await vsResponse.json();
+            throw new Error(errorVsData.error || vsResponse.statusText);
+        }
+        return vsResponse.json();
+    }
+
+    async function createAssistant(payload) {
+        const response = await fetch(createAssistantUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            let errorMessage = errorData.error || errorData.detail || 'Unknown error occurred.';
+            throw new Error(errorMessage);
+        }
+        return response.json();
+    }
+
+    async function updateAssistantFolders(assistantId, chosenFolders) {
+        const url = updateAssistantFoldersUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({folder_uuids: chosenFolders})
+        });
+        if (!response.ok) {
+            const errorFoldersResponse = await response.json();
+            throw new Error(errorFoldersResponse.error || response.statusText);
+        }
+        return response.json();
+    }
+
+    async function updateVectorStoreFiles(VSId, file_ids) {
+        const url = updateVectorStoreFilesUrl.replace('VS_ID_PLACEHOLDER', VSId);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({file_ids: file_ids})
+        });
+        if (!response.ok) {
+            const errorFoldersResponse = await response.json();
+            throw new Error(errorFoldersResponse.error || response.statusText);
+        }
+        return response.json();
     }
 
 

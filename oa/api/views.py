@@ -14,7 +14,7 @@ from ninja.files import UploadedFile
 from typing import List
 from openai import AsyncOpenAI, OpenAIError
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
-    AssistantSharedLink
+    AssistantSharedLink, VectorStoreFilesUpdateSchema
 from .utils import serialize_to_dict, APIError, EventHandler
 from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction, FunctionExecution
 from ..main.models import Project, SharedLink, Thread
@@ -396,6 +396,30 @@ async def retrieve_vector_store_file(request, vector_store_id, file_id):
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse(serialize_to_dict(vector_store_file))
+
+
+@api.post("/vector_stores/{vector_store_id}/update", auth=BearerAuth())
+async def update_vector_store_files(request, vector_store_id, payload: VectorStoreFilesUpdateSchema):
+    try:
+        file_ids = payload.file_ids
+        if len(file_ids) > 1:
+            # Batch assignment for multiple files
+            response = await request.auth['client'].beta.vector_stores.file_batches.create(
+                vector_store_id=vector_store_id,
+                file_ids=file_ids
+            )
+        elif len(file_ids) == 1:
+            # Assign a single file
+            response= await request.auth['client'].beta.vector_stores.files.create(
+                vector_store_id=vector_store_id,
+                file_id=file_ids[0]
+            )
+        else:
+            return
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse(serialize_to_dict(response))
 
 
 # Files
