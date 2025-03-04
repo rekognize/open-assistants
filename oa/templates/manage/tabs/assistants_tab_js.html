@@ -512,7 +512,7 @@
 
         try {
             const vectorStorePayload = {
-                name: `Store for ${name}`,
+                name: `Store for ${name || 'Untitled assistant'}`,
             };
 
             const vsResponse = await fetch(createVectorStoreUrl, {
@@ -575,7 +575,35 @@
 
                 console.log("Created new assistant:", data);
 
+                try {
+                    const assistantFoldersResponse = await fetch(updateAssistantFoldersUrl.replace('ASSISTANT_ID_PLACEHOLDER', data.id), {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${API_KEY}`,
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': CSRF_TOKEN
+                        },
+                        body: JSON.stringify({folder_uuids: chosenFolders})
+                    });
+
+                    if (!assistantFoldersResponse.ok) {
+                        const errorFoldersResponse = await assistantFoldersResponse.json();
+                        throw new Error(errorFoldersResponse.error || assistantFoldersResponse.statusText);
+                    }
+
+                    const assistantFoldersData = await assistantFoldersResponse.json();
+
+                    // TODO update VS
+                    console.log("union files to add VS:", assistantFoldersData)
+
+                } catch (error) {
+                    showToast("Unexpected error:", error);
+                    console.error('Unexpected error:', error);
+                }
+
+
                 await fetchAssistants();
+                await fetchAssistantFoldersMapping();
                 await fetchAssistantsTab();
                 displayAssistants(); // Refresh overview assistants list
 
@@ -599,10 +627,6 @@
                 } else {
                     errorMessage = 'Unknown error occurred.';
                 }
-
-                saveBtn.disabled = false;
-                cancelBtn.disabled = false;
-
                 showToast("Failed to save new assistant!", errorMessage);
                 console.error('Failed to save new assistant!', errorMessage);
             }
@@ -612,6 +636,8 @@
         } finally {
             spinner.classList.add('d-none');
             buttonText.textContent = 'Create';
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
         }
     }
 
@@ -686,9 +712,6 @@
                 const parsedError = parseErrorText(errorData.error);
                 showToast("Failed to delete assistant!", parsedError.errorMessage);
                 console.error('Failed to delete assistant!', parsedError);
-
-                confirmBtn.disabled = false;
-                cancelBtn.disabled = false;
             }
         } catch (error) {
             showToast("Unexpected error:", error);
@@ -696,6 +719,8 @@
         } finally {
             spinner.classList.add('d-none');
             buttonText.textContent = 'Delete';
+            confirmBtn.disabled = false;
+            cancelBtn.disabled = false;
         }
     }
 

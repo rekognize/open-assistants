@@ -120,6 +120,27 @@ async def list_folder_assistants(request):
         folder_assistants[str(fa.folder.uuid)].append(fa.assistant_id)
     return {"folder_assistants": folder_assistants}
 
+class AssistantFolderUpdateSchema(Schema):
+    folder_uuids: list[str] | None = Field(default=None)
+
+@api.post("/assistants/{assistant_id}/folders", auth=BearerAuth())
+async def update_assistant_folders(request, assistant_id: str, payload: AssistantFolderUpdateSchema):
+    project = request.auth['project']
+
+    # Remove any existing FolderAssistant relations for this assistant
+    await FolderAssistant.objects.filter(assistant_id=assistant_id, folder__projects=project).adelete()
+
+    union_file_ids = set()
+
+    # If folder_ids are provided, create new relations and aggregate file_ids
+    if payload.folder_uuids is not None:
+        for folder_uuid in payload.folder_uuids:
+            folder = await Folder.objects.aget(uuid=folder_uuid, projects=project)
+            await FolderAssistant.objects.acreate(folder=folder, assistant_id=assistant_id)
+            # Collect file_ids from this folder
+            union_file_ids.update(folder.file_ids)
+
+    return JsonResponse({'success': True, 'union_file_ids': list(union_file_ids)})
 
 @api.post("/assistants/{assistant_id}", auth=BearerAuth())
 async def modify_assistant_folders(request, assistant_id):
