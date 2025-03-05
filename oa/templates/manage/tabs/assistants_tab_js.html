@@ -264,6 +264,7 @@
                         <i class="bi bi-check-lg"></i>
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary"
+                            id="cancelInlineFoldersBtn-${assistant.id}"
                             onclick="hideTooltip(this); cancelInlineFolders('${assistant.id}')"
                             data-bs-toggle="tooltip" data-bs-title="Cancel">
                         <i class="bi bi-x-lg"></i>
@@ -866,28 +867,73 @@
         document.getElementById('folder-display-' + assistantId).classList.remove('d-none');
     }
 
-    function saveInlineFolders(assistantId) {
+    async function saveInlineFolders(assistantId) {
+        // Get the inline save button and its spinner
+        const inlineSaveBtn = document.getElementById(`saveInlineFoldersBtn-${assistantId}`);
+        const inlineCancelBtn = document.getElementById(`cancelInlineFoldersBtn-${assistantId}`);
+        const spinner = inlineSaveBtn.querySelector('.spinner-border');
+
+        // Disable buttons and show the spinner
+        inlineSaveBtn.disabled = true;
+        inlineCancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+
         const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', assistantId, "inline"));
         const selectedFolderIds = [];
         for (const option of chosenSelect.options) {
             selectedFolderIds.push(option.value);
         }
-        // TODO: Save backend with updateAssistantFoldersUrl
-        // TODO: trigger folder-assistant related api views for openai-api (vs, file etc.)
-        // Update global dict and template
-        assistantFoldersMapping[assistantId] = selectedFolderIds;
-        let folderNames = 'No folders assigned';
-        if (assistantFoldersMapping[assistantId] && assistantFoldersMapping[assistantId].length > 0) {
-            folderNames = assistantFoldersMapping[assistantId]
-                .map(uuid => folders[uuid] ? (folders[uuid].name || "Untitled folder") : null)
-                .filter(name => name)
-                .join(', ');
+
+        try {
+            // Update assistant-folder relations on the backend
+            const assistantFoldersData = await updateAssistantFolders(assistantId, selectedFolderIds);
+            console.log("Assistant folders updated (inline):", assistantFoldersData);
+
+            // Update the global mapping with the new folder selection
+            assistantFoldersMapping[assistantId] = selectedFolderIds;
+
+            // Update vector store files
+            const currentAssistant = assistants[assistantId];
+            const vsIds = currentAssistant.tool_resources?.file_search?.vector_store_ids;
+            if (vsIds && vsIds.length > 0) {
+                try {
+                    const vectorStoreFilesData = await updateVectorStoreFiles(vsIds[0], assistantFoldersData.union_file_ids);
+                    console.log("Updated vector store files (inline):", vectorStoreFilesData);
+                } catch (vsError) {
+                    console.error("Failed to update vector store files (inline):", vsError);
+                }
+            } else {
+                // TODO: Create vector store for the assistant
+                console.log("No vector store found for this assistant. Skipping vector store update.");
+            }
+
+            // Update the folder display UI with new folder names
+            let folderNames = 'No folders assigned';
+            if (assistantFoldersMapping[assistantId] && assistantFoldersMapping[assistantId].length > 0) {
+                folderNames = assistantFoldersMapping[assistantId]
+                    .map(uuid => folders[uuid] ? (folders[uuid].name || "Untitled folder") : null)
+                    .filter(name => name)
+                    .join(', ');
+            }
+            document.getElementById('folder-display-' + assistantId).innerHTML = folderNames +
+                ` <a href="#" onclick="hideTooltip(this); toggleInlineFolderManagement('${assistantId}')" class="text-secondary text-decoration-none" data-bs-toggle="tooltip" data-bs-title="Manage folders">
+                    <i class="bi bi-pencil-square"></i>
+                </a>`;
+        } catch (error) {
+            console.error("Error saving inline folders:", error);
+            showToast("Error", "Failed to update folders.", "error");
+        } finally {
+            // Re-enable the inline save button and hide the spinner
+            inlineSaveBtn.disabled = false;
+            inlineCancelBtn.disabled = false;
+            spinner.classList.add('d-none');
+
+            // Hide the inline folder management UI and show the folder display area again
+            cancelInlineFolders(assistantId);
+
+            displayAssistants(); // Refresh overview assistants list
+            fetchFoldersTab(); // Refresh knowledge tab
         }
-        document.getElementById('folder-display-' + assistantId).innerHTML = folderNames +
-            ` <a href="#" onclick="hideTooltip(this); toggleInlineFolderManagement('${assistantId}')" class="text-secondary text-decoration-none" data-bs-toggle="tooltip" data-bs-title="Manage folders">
-            <i class="bi bi-pencil-square"></i>
-          </a>`;
-        cancelInlineFolders(assistantId);
     }
 
 
