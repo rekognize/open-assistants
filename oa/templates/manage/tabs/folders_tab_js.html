@@ -245,7 +245,7 @@
                     'Content-Type': 'application/json',
                 },
                 // Send both file_ids and name in the payload.
-                body: JSON.stringify({file_ids: folder.file_ids, name: folder.name}),
+                body: JSON.stringify({ file_ids: folder.file_ids, name: folder.name }),
             });
             if (!response.ok) {
                 console.error("Error updating folder on backend:", response.statusText);
@@ -254,6 +254,8 @@
             console.error("Error updating folder on backend:", error);
         } finally {
             spinner.classList.add('d-none');
+            // After the folder is updated on the backend, sync the vector stores of all assistants that are using this folder
+            await syncFolderAssistantsVectorStore(folder);
         }
     }
 
@@ -392,6 +394,46 @@
           </button>
         </li>
       `).join('');
+        }
+    }
+
+    // Update given assistant's vector store files
+    async function updateAssistantVectorStore(assistantId) {
+        const folderIds = assistantFoldersMapping[assistantId];
+        if (!folderIds || folderIds.length === 0) {
+            console.log(`Assistant ${assistantId} has no associated folders. Skipping vector store sync.`);
+            return;
+        }
+        // Compute union of file_ids from all associated folders
+        const unionFileIdsSet = new Set();
+        folderIds.forEach(folderId => {
+            const folder = allFolders.find(f => f.uuid === folderId);
+            if (folder && folder.file_ids) {
+                folder.file_ids.forEach(fileId => unionFileIdsSet.add(fileId));
+            }
+        });
+        const unionFileIds = Array.from(unionFileIdsSet);
+        // Get the assistant's vector store ID from the global "assistants" object
+        const currentAssistant = assistants[assistantId];
+        const vsIds = currentAssistant?.tool_resources?.file_search?.vector_store_ids;
+        if (vsIds && vsIds.length > 0) {
+            try {
+                const vectorStoreFilesData = await updateVectorStoreFiles(vsIds[0], unionFileIds);
+                console.log(`Updated vector store files for assistant ${assistantId}:`, vectorStoreFilesData);
+            } catch (vsError) {
+                console.error(`Failed to update vector store files for assistant ${assistantId}:`, vsError);
+                showToast("Warning", `Failed to sync vector store for assistant ${assistantId}`, "warning");
+            }
+        } else {
+            console.log(`No vector store found for assistant ${assistantId}.`);
+        }
+    }
+
+    // For a given folder, look up the related assistant IDs and sync their vector stores
+    async function syncFolderAssistantsVectorStore(folder) {
+        const assistantIds = allFolderAssistants[folder.uuid] || [];
+        for (const assistantId of assistantIds) {
+            await updateAssistantVectorStore(assistantId);
         }
     }
 
