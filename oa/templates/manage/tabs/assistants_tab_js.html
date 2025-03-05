@@ -181,12 +181,13 @@
                 <h4 class="card-title">Edit: ${assistant.name || 'Untitled assistant'}</h4>
                 <div class="action-buttons">
                     <button type="button" class="btn btn-sm btn-outline-success"
-                            id="modifyTabAssistantBtn"
+                            id="saveModifyAssistantBtn-${assistant.id}"
                             onclick="modifyAssistant('${assistant.id}');">
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                         <span class="button-text">Save</span>
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary"
+                            id="cancelModifyAssistantBtn-${assistant.id}"
                             onclick="toggleEditMode('${assistant.id}', 'assistant')">
                         Cancel
                     </button>
@@ -227,7 +228,7 @@
             </form>
             <div class="d-flex justify-content-end">
                 <button type="button" class="btn btn-sm btn-outline-danger"
-                        id="deleteTabAssistantBtn"
+                        id="deleteTabAssistantBtn-${assistant.id}"
                         onclick="deleteAssistant('${assistant.id}')">
                     <span class="button-text">Delete</span>
                 </button>
@@ -256,7 +257,7 @@
             html += `
                 <div class="d-flex justify-content-end mb-2">
                     <button type="button" class="btn btn-sm btn-outline-success me-1"
-                            id="saveInlineFoldersBtn"
+                            id="saveInlineFoldersBtn-${assistant.id}"
                             onclick="hideTooltip(this); saveInlineFolders('${assistant.id}');"
                             data-bs-toggle="tooltip" data-bs-title="Save">
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
@@ -544,6 +545,7 @@
             displayAssistants(); // Refresh overview assistants list
             fetchFoldersTab(); // Refresh knowledge tab
 
+            showToast("Assistant created successfully", name, "success");
         } catch (error) {
             showToast("Unexpected error:", error);
             console.error('Unexpected error:', error);
@@ -634,6 +636,105 @@
 
     async function modifyAssistant(assistantId) {
         console.log('modifyAssistant:', assistantId);
+
+        const saveModifyBtn = document.getElementById(`saveModifyAssistantBtn-${assistantId}`);
+        const cancelModifyBtn = document.getElementById(`cancelModifyAssistantBtn-${assistantId}`);
+        const spinner = saveModifyBtn.querySelector('.spinner-border');
+        const buttonText = saveModifyBtn.querySelector('.button-text');
+
+        // Set loading state on the modify button
+        saveModifyBtn.disabled = true;
+        cancelModifyBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Saving...';
+
+        try {
+            // Gather updated values from the edit form
+            const name = document.getElementById(`edit-name-${assistantId}`).value;
+            const description = document.getElementById(`edit-description-${assistantId}`).value;
+            const instructions = document.getElementById(`edit-instructions-${assistantId}`).value;
+            const model = document.getElementById(`edit-model-${assistantId}`).value;
+
+            // Get updated folder selections from the edit mode multi-select element
+            const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', assistantId, 'edit'));
+            const chosenFolders = [];
+            if (chosenSelect) {
+                for (let i = 0; i < chosenSelect.options.length; i++) {
+                    chosenFolders.push(chosenSelect.options[i].value);
+                }
+            }
+
+            // Build payload: For tools, tool_resources, and metadata use the current values from the global "assistants" object
+            const currentAssistant = assistants[assistantId] || {};
+            const updatePayload = {
+                name: name,
+                description: description,
+                instructions: instructions,
+                model: model,
+                tools: currentAssistant.tools || [],
+                tool_resources: currentAssistant.tool_resources || {},
+                metadata: currentAssistant.metadata || {}
+            };
+
+            // Update assistant via the API endpoint
+            const updatedAssistantData = await updateAssistant(assistantId, updatePayload);
+            console.log("Assistant updated:", updatedAssistantData);
+
+            // Update folder associations
+            const assistantFoldersData = await updateAssistantFolders(assistantId, chosenFolders);
+            console.log("Assistant folders updated:", assistantFoldersData);
+
+            // Update vector store files if applicable
+            // TODO: Update files instead of overwrite
+            const vsIds = currentAssistant.tool_resources?.file_search?.vector_store_ids;
+            if (vsIds && vsIds.length > 0) {
+                try {
+                    const vectorStoreFilesData = await updateVectorStoreFiles(vsIds[0], assistantFoldersData.union_file_ids);
+                    console.log("Updated vector store files:", vectorStoreFilesData);
+                } catch (vsError) {
+                    console.error("Failed to update vector store files:", vsError);
+                }
+            } else {
+                console.log("No vector store found for this assistant. Skipping vector store update.");
+            }
+
+            // Refresh the assistants list and update the UI accordingly
+            await fetchAssistants();
+            await fetchAssistantFoldersMapping();
+            await fetchAssistantsTab();
+            displayAssistants(); // Refresh overview assistants list
+            fetchFoldersTab(); // Refresh knowledge tab
+
+            // TODO: Go back to the assistant
+            showToast("Assistant updated successfully", name, "success");
+        } catch (error) {
+            console.error("Error in modifyAssistant:", error);
+            showToast("Error updating assistant", error);
+        } finally {
+            // Reset the button state
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Save';
+            saveModifyBtn.disabled = false;
+            cancelModifyBtn.disabled = false;
+        }
+    }
+
+    async function updateAssistant(assistantId, payload) {
+        const url = modifyAssistantUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || errorData.detail || 'Unknown error occurred.');
+        }
+        return response.json();
     }
 
 
