@@ -415,6 +415,7 @@ async def update_vector_store_files(request, vector_store_id, payload: VectorSto
                 file_id=file_ids[0]
             )
         else:
+            # TODO: remove all files from vector store
             return
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)

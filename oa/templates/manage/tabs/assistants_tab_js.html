@@ -542,6 +542,7 @@
             await fetchAssistantFoldersMapping();
             await fetchAssistantsTab();
             displayAssistants(); // Refresh overview assistants list
+            fetchFoldersTab(); // Refresh knowledge tab
 
         } catch (error) {
             showToast("Unexpected error:", error);
@@ -590,6 +591,7 @@
         return response.json();
     }
 
+    // Helper: Updates assistant-folder relations
     async function updateAssistantFolders(assistantId, chosenFolders) {
         const url = updateAssistantFoldersUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
         const response = await fetch(url, {
@@ -608,8 +610,9 @@
         return response.json();
     }
 
-    async function updateVectorStoreFiles(VSId, file_ids) {
-        const url = updateVectorStoreFilesUrl.replace('VS_ID_PLACEHOLDER', VSId);
+    // Helper: Updates vector store files
+    async function updateVectorStoreFiles(vsId, file_ids) {
+        const url = updateVectorStoreFilesUrl.replace('VS_ID_PLACEHOLDER', vsId);
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -673,6 +676,10 @@
         buttonText.textContent = 'Deleting...';
 
         try {
+            // Clear the assistant-folder relations
+            await updateAssistantFolders(assistantId, []);
+
+            // Delete the assistant
             const response = await fetch(deleteAssistantUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId), {
                 method: 'DELETE',
                 headers: {
@@ -683,10 +690,24 @@
             });
 
             if (response.ok) {
-                // Re-display the assistants
+                // After deletion, delete the vector store if it exists
+                const vsIds = assistants[assistantId]?.tool_resources?.file_search?.vector_store_ids;
+                if (vsIds && vsIds.length > 0) {
+                    try {
+                        await deleteVectorStore(vsIds[0]);
+                        console.log(`Vector store ${vsIds[0]} deleted successfully.`);
+                    } catch (vsError) {
+                        console.error("Failed to delete vector store:", vsError);
+                        showToast("Failed to delete vector store:", vsError);
+                    }
+                }
+
+                // Refresh lists and UI
                 await fetchAssistants();
+                await fetchAssistantFoldersMapping();
                 await fetchAssistantsTab();
                 displayAssistants(); // Refresh overview assistants list
+                fetchFoldersTab(); // Refresh knowledge tab
 
                 deleteModal.hide();
 
@@ -707,6 +728,22 @@
             confirmBtn.disabled = false;
             cancelBtn.disabled = false;
         }
+    }
+
+    async function deleteVectorStore(vsId) {
+        const response = await fetch(deleteVectorStoreUrl.replace('VS_ID_PLACEHOLDER', vsId), {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || response.statusText);
+        }
+        return response.json();
     }
 
 
@@ -734,7 +771,7 @@
         for (const option of chosenSelect.options) {
             selectedFolderIds.push(option.value);
         }
-        // TODO: Save backend with modifyAssistantFoldersUrl
+        // TODO: Save backend with updateAssistantFoldersUrl
         // TODO: trigger folder-assistant related api views for openai-api (vs, file etc.)
         // Update global dict and template
         assistantFoldersMapping[assistantId] = selectedFolderIds;
