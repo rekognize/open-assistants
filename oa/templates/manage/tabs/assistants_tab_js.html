@@ -545,7 +545,7 @@
             displayAssistants(); // Refresh overview assistants list
             fetchFoldersTab(); // Refresh knowledge tab
 
-            showToast("Assistant created successfully", name, "success");
+            showToast("Assistant created successfully", name || 'Untitled assistant', "success");
         } catch (error) {
             showToast("Unexpected error:", error);
             console.error('Unexpected error:', error);
@@ -614,7 +614,7 @@
 
     // Helper: Updates vector store files
     async function updateVectorStoreFiles(vsId, file_ids) {
-        const url = updateVectorStoreFilesUrl.replace('VS_ID_PLACEHOLDER', vsId);
+        const url = syncVectorStoreFilesUrl.replace('VS_ID_PLACEHOLDER', vsId);
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -622,11 +622,11 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': CSRF_TOKEN
             },
-            body: JSON.stringify({file_ids: file_ids})
+            body: JSON.stringify({ file_ids: file_ids })
         });
         if (!response.ok) {
-            const errorFoldersResponse = await response.json();
-            throw new Error(errorFoldersResponse.error || response.statusText);
+            const errorResponse = await response.json();
+            throw new Error(errorResponse.error || response.statusText);
         }
         return response.json();
     }
@@ -684,8 +684,7 @@
             const assistantFoldersData = await updateAssistantFolders(assistantId, chosenFolders);
             console.log("Assistant folders updated:", assistantFoldersData);
 
-            // Update vector store files if applicable
-            // TODO: Update files instead of overwrite
+            // Update vector store files
             const vsIds = currentAssistant.tool_resources?.file_search?.vector_store_ids;
             if (vsIds && vsIds.length > 0) {
                 try {
@@ -695,6 +694,7 @@
                     console.error("Failed to update vector store files:", vsError);
                 }
             } else {
+                // TODO: Create vector store for the assistant
                 console.log("No vector store found for this assistant. Skipping vector store update.");
             }
 

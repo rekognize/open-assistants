@@ -398,6 +398,60 @@ async def retrieve_vector_store_file(request, vector_store_id, file_id):
     return JsonResponse(serialize_to_dict(vector_store_file))
 
 
+@api.post("/vector_stores/{vector_store_id}/sync", auth=BearerAuth())
+async def sync_vector_store_files(request, vector_store_id, payload: VectorStoreFilesUpdateSchema):
+    try:
+        new_file_ids = set(payload.file_ids)
+
+        # Retrieve current files in the vector store
+        current_files = await request.auth['client'].beta.vector_stores.files.list(
+            vector_store_id=vector_store_id,
+            order="desc",
+            limit=100,
+        )
+        # TODO: Pagination will be added for 100+ files
+
+        current_file_ids = {file.id for file in current_files.data}
+
+        # Files to add and remove
+        file_ids_to_add = new_file_ids - current_file_ids
+        file_ids_to_remove = current_file_ids - new_file_ids
+
+        print('current_file_ids:', current_file_ids)
+        print('file_ids_to_add:', file_ids_to_add)
+        print('file_ids_to_remove:', file_ids_to_remove)
+
+        # Remove files not in new_file_ids
+        if file_ids_to_remove:
+            for file_id in file_ids_to_remove:
+                try:
+                    await request.auth['client'].beta.vector_stores.files.delete(
+                        vector_store_id=vector_store_id,
+                        file_id=file_id
+                    )
+                except OpenAIError as e:
+                    logger.warning(f"Failed to delete file {file_id}: {e}")
+
+        # Add new files (using batch if more than one)
+        if file_ids_to_add:
+            if len(file_ids_to_add) > 1:
+                response = await request.auth['client'].beta.vector_stores.file_batches.create(
+                    vector_store_id=vector_store_id,
+                    file_ids=list(file_ids_to_add)
+                )
+            else:
+                response = await request.auth['client'].beta.vector_stores.files.create(
+                    vector_store_id=vector_store_id,
+                    file_id=list(file_ids_to_add)[0]
+                )
+        else:
+            response = {"message": "No new files added."}
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse(serialize_to_dict(response))
+
+
 @api.post("/vector_stores/{vector_store_id}/update", auth=BearerAuth())
 async def update_vector_store_files(request, vector_store_id, payload: VectorStoreFilesUpdateSchema):
     try:
