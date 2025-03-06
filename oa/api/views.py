@@ -423,7 +423,7 @@ async def sync_vector_store_files(request, vector_store_id, payload: VectorStore
 
         # Remove files not in new_file_ids
         if file_ids_to_remove:
-            for file_id in file_ids_to_remove:
+            async def delete_vector_store_file(file_id):
                 try:
                     await request.auth['client'].beta.vector_stores.files.delete(
                         vector_store_id=vector_store_id,
@@ -431,6 +431,10 @@ async def sync_vector_store_files(request, vector_store_id, payload: VectorStore
                     )
                 except OpenAIError as e:
                     logger.warning(f"Failed to delete file {file_id}: {e}")
+
+            # Create deletion tasks concurrently
+            delete_tasks = [delete_vector_store_file(file_id) for file_id in file_ids_to_remove]
+            await asyncio.gather(*delete_tasks)
 
         # Add new files (using batch if more than one)
         if file_ids_to_add:
