@@ -102,13 +102,22 @@
 
     // Helper: Toggle between view and edit modes
     function toggleEditMode(assistantId, type) {
-        // Close inline folder management if it is open
+        // Close inline folder management if open
         cancelInlineFolders(assistantId);
 
         const cardBody = document.getElementById(`tab-card-${assistantId}`);
         if (!cardBody) return;
+
         const viewMode = cardBody.querySelector('.view-mode');
         const editMode = cardBody.querySelector('.edit-mode');
+
+        // If view mode is currently visible, reset the edit mode by re-rendering the edit template
+        if (!viewMode.classList.contains('d-none')) {
+            // Reinitialize edit form fields with current values from the assistant object
+            editMode.innerHTML = getAssistantEditTemplate(assistants[assistantId]);
+        }
+
+        // Toggle the visibility of the view and edit modes
         viewMode.classList.toggle('d-none');
         editMode.classList.toggle('d-none');
     }
