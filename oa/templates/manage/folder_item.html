@@ -10,7 +10,7 @@
                 <div class="d-flex justify-content-between align-items-center">
 
                     <h6 class="card-title my-0">
-                        ${folder.name || 'Untitled folder'}
+                        ${folderName}
                     </h6>
 
                 </div>
@@ -22,13 +22,13 @@
                     </div>
 
                     <div class="info-box">
-                        <span class="info-label">Created ${timeSince(folder.created_at * 1000)} ago</span>
-                        <p class="info-value">${new Date(folder.created_at * 1000).toLocaleString()}</p>
+                        <span class="info-label">Created ${timeSinceDB(folder.created_at)} ago</span>
+                        <p class="info-value">${formatDbDate(folder.created_at)}</p>
                     </div>
 
                     <div class="info-box">
-                        <span class="info-label">Last modified ${timeSince(folder.modified_at * 1000)} ago</span>
-                        <p class="info-value">${new Date(folder.modified_at * 1000).toLocaleString()}</p>
+                        <span class="info-label">Last modified ${timeSinceDB(folder.modified_at)} ago</span>
+                        <p class="info-value">${formatDbDate(folder.modified_at)}</p>
                     </div>
 
                 </div>

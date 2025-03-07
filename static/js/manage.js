@@ -708,13 +708,19 @@ function renderFolder(folder) {
     folderItem.className = 'folder-item';
     folderItem.id = `folder-${folder.uuid}`;
 
+    // Get the folder name
+    const folderName = folder.name || 'Untitled folder';
+
     // Grab the raw template string from the DOM
     const data = {
-        folder: folder
+        folder: folder,
+        folderName: folderName
     };
 
     // Compile the template into a function
     const renderTemplate = compileTemplate(folderItemTemplate);
+
+    // Create the inner HTML for the folder item
     folderItem.innerHTML = renderTemplate(data);
 
     return folderItem;
@@ -753,13 +759,13 @@ function displayFolders() {
     const filteredFoldersCount = foldersArray.length;
 
     // Update the folder count display only if filters are active
-    const folderCountElement = document.getElementById('folders-count');
+    const foldersCountElement = document.getElementById('folders-count');
     if (areFiltersActive(folderFilters)) {
-        folderCountElement.textContent = `${filteredFoldersCount} results (${totalFolders} total)`;
-        folderCountElement.style.display = 'inline';
+        foldersCountElement.innerHTML = `${filteredFoldersCount} folders (<a class="text-decoration-none" href="#" onclick="resetFolderFilters(); return false;">${totalFolders} total</a>)`;
     } else {
-        folderCountElement.style.display = 'none';
+        foldersCountElement.textContent = `${totalFolders} folders`;
     }
+    foldersCountElement.style.display = 'inline';
 
     // Handle different cases based on total folders and filtered folders
     if (totalFolders === 0) {
@@ -1145,7 +1151,7 @@ function renderFunction(func) {
     // Compile the template into a function
     const renderTemplate = compileTemplate(functionItemTemplate);
 
-    // Create the inner HTML for the assistant item
+    // Create the inner HTML for the function item
     functionItem.innerHTML = renderTemplate(data);
 
     return functionItem;
