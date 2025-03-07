@@ -1013,11 +1013,12 @@ function displayAssistants() {
     // Update the assistants count display only if filters are active
     const assistantsCountElement = document.getElementById('assistants-count');
     if (areFiltersActive(assistantFilters)) {
-        assistantsCountElement.textContent = `${filteredAssistantsCount} results (${totalAssistants} total)`;
-        assistantsCountElement.style.display = 'inline';
+        assistantsCountElement.innerHTML = `${filteredAssistantsCount} results (<a class="text-decoration-none" href="#" onclick="resetAssistantFilters(); return false;">${totalAssistants} total</a>)`;
     } else {
-        assistantsCountElement.style.display = 'none';
+        assistantsCountElement.textContent = `${totalAssistants} total`;
     }
+    assistantsCountElement.style.display = 'inline';
+
 
     // Handle different cases based on total assistants and filtered assistants
     if (totalAssistants === 0) {
