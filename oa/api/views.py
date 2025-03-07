@@ -456,31 +456,6 @@ async def sync_vector_store_files(request, vector_store_id, payload: VectorStore
     return JsonResponse(serialize_to_dict(response))
 
 
-@api.post("/vector_stores/{vector_store_id}/update", auth=BearerAuth())
-async def update_vector_store_files(request, vector_store_id, payload: VectorStoreFilesUpdateSchema):
-    try:
-        file_ids = payload.file_ids
-        if len(file_ids) > 1:
-            # Batch assignment for multiple files
-            response = await request.auth['client'].beta.vector_stores.file_batches.create(
-                vector_store_id=vector_store_id,
-                file_ids=file_ids
-            )
-        elif len(file_ids) == 1:
-            # Assign a single file
-            response= await request.auth['client'].beta.vector_stores.files.create(
-                vector_store_id=vector_store_id,
-                file_id=file_ids[0]
-            )
-        else:
-            # TODO: remove all files from vector store
-            return
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse(serialize_to_dict(response))
-
-
 # Files
 
 @api.post("/files/upload", auth=BearerAuth())
