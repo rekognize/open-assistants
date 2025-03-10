@@ -181,7 +181,7 @@
                                                 <input type="date" class="form-control form-control-sm" id="filterEndDate">
                                             </div>
                                         </div>
-                                        <!-- Vector Store Filter -->
+                                        <!-- Folder Filter -->
                                         <div class="mb-2">
                                             <label for="filterFolder" class="form-label">Folder</label>
                                             <select class="form-select form-select-sm" id="filterFolder">
@@ -270,13 +270,13 @@
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('last_active_at', 'desc', event);">
-                                            Last Active (Newest First)
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('modified_at', 'desc', event);">
+                                            Modified Time (Newest First)
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('last_active_at', 'asc', event);">
-                                            Last Active (Oldest First)
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFolderSort('modified_at', 'asc', event);">
+                                            Modified Time (Oldest First)
                                         </a>
                                     </li>
                                 </ul>
@@ -286,38 +286,43 @@
                             <div class="dropdown d-inline">
                                 <a href="#" class="text-light-emphasis bi bi-funnel ms-2" id="folderFilterDropdown" data-bs-toggle="dropdown"
                                    aria-expanded="false"></a>
-                                <div class="dropdown-menu p-3" aria-labelledby="folderFilterDropdown">
+                                <div class="dropdown-menu p-3" aria-labelledby="folderFilterDropdownButton">
                                     <form id="folderFilterForm">
                                         <!-- Name Filter -->
                                         <div class="mb-2">
-                                            <label for="vsFilterName" class="form-label">Name</label>
-                                            <input type="text" class="form-control form-control-sm" id="vsFilterName" placeholder="Search by name">
+                                            <label for="folderFilterName" class="form-label">Name</label>
+                                            <input type="text" class="form-control form-control-sm" id="folderFilterName" placeholder="Search by name">
                                         </div>
-                                        <!-- Creation Date Filter -->
+                                        <!-- Created At Filter -->
                                         <div class="mb-2">
-                                            <label class="form-label">Creation Date</label>
+                                            <label class="form-label">Created</label>
                                             <div class="d-flex">
-                                                <input type="date" class="form-control form-control-sm me-1" id="vsFilterStartDate">
-                                                <input type="date" class="form-control form-control-sm" id="vsFilterEndDate">
+                                                <input type="date" class="form-control form-control-sm me-1" id="folderFilterCreatedStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="folderFilterCreatedEndDate">
                                             </div>
                                         </div>
-                                        <!-- Status Filter -->
+                                        <!-- Last Modified Filter -->
                                         <div class="mb-2">
-                                            <label for="vsFilterStatus" class="form-label">Status</label>
-                                            <select class="form-select form-select-sm" id="vsFilterStatus">
-                                                <option value="">All</option>
-                                                <option value="completed">Completed</option>
-                                                <option value="in_progress">In Progress</option>
-                                                <option value="expired">Expired</option>
+                                            <label class="form-label">Last Modified</label>
+                                            <div class="d-flex">
+                                                <input type="date" class="form-control form-control-sm me-1" id="folderFilterModifiedStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="folderFilterModifiedEndDate">
+                                            </div>
+                                        </div>
+                                        <!-- Assistant Filter -->
+                                        <div class="mb-2">
+                                            <label for="folderFilterAssistant" class="form-label">Assistant</label>
+                                            <select class="form-select form-select-sm" id="folderFilterAssistant">
+                                                <!-- Options will be populated dynamically -->
                                             </select>
                                         </div>
-                                        <!-- Expiration Filter -->
+                                        <!-- Files Filter Dropdown -->
                                         <div class="mb-2">
-                                            <label for="vsFilterHasExpiration" class="form-label">Has Expiration</label>
-                                            <select class="form-select form-select-sm" id="vsFilterHasExpiration">
-                                                <option value="">All</option>
-                                                <option value="true">Yes</option>
-                                                <option value="false">No</option>
+                                            <label for="folderFilterFiles" class="form-label">Files</label>
+                                            <select class="form-select form-select-sm" id="folderFilterFiles">
+                                                <option value="all">All</option>
+                                                <option value="no">No files</option>
+                                                <option value="have">Have files</option>
                                             </select>
                                         </div>
                                         <!-- Filter Buttons -->
@@ -484,6 +489,7 @@
     const listAssistantsUrl = "{% url 'api-1.0.0:list_assistants' %}";
     const listFunctionsUrl = '{% url "functions-api:list_functions" %}';
     const listAssistantFoldersUrl = "{% url 'folders-api:list_assistant_folders' %}";
+    const listFolderAssistantsUrl = "{% url 'folders-api:list_folder_assistants' %}";
 
     const createAssistantUrl = "{% url 'api-1.0.0:create_assistant' %}";
     const createVectorStoreUrl = "{% url 'api-1.0.0:create_vector_store' %}";

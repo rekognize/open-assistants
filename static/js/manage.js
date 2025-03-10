@@ -88,6 +88,7 @@ let functions = {};
 let folderFiles = {};  // {folderId: [file1, file2, ...]}
 let fileFolders = {};  // {fileId: [folder1, folder2, ...]}
 let assistantFoldersMapping = {}; // { assistantId: [folderUUID, ...], ... }
+let folderAssistantsMapping = {}; // { folderUUID: [assistantId, ...], ... }
 let selectedFiles = [];
 
 let foldersLoaded = false;
@@ -106,14 +107,16 @@ let assistantFilters = {
     folderId: '',
     model: ''
 };
-let folderSortField = 'created_at'; // default sort field
-let folderSortOrder = 'desc';       // default sort order
+let folderSortField = 'created_at';  // Options: 'name', 'created_at', 'modified_at'
+let folderSortOrder = 'desc';        // 'asc' or 'desc'
 let folderFilters = {
     name: '',
-    startDate: null,
-    endDate: null,
-    status: '',
-    hasExpiration: ''
+    createdStartDate: null,
+    createdEndDate: null,
+    modifiedStartDate: null,
+    modifiedEndDate: null,
+    assistant: '',      // Assistant filter: empty means "All", "none" means folders with no assistants
+    fileFilter: 'all'   // Options: 'all', 'no', 'have'
 };
 let functionSortField = 'created_at'; // default sort field
 let functionSortOrder = 'desc';       // default sort order
@@ -124,6 +127,7 @@ let functionFilters = {
 
 
 async function loadAndDisplayFolders() {
+    await fetchFolderAssistantsMapping();
     const folders = await fetchFolders();
     displayFolders(folders);
     return folders;
@@ -133,6 +137,7 @@ async function loadAndDisplayAssistants() {
     await fetchAssistantFoldersMapping();
     const assistants = await fetchAssistants();
     displayAssistants();
+    populateFolderFilterOptions();
     return assistants;
 }
 
@@ -455,8 +460,28 @@ function resetAssistantFilters() {
 function applyFolderFilters() {
     folderFilters.name = document.getElementById('folderFilterName').value.toLowerCase();
 
-    folderFilters.status = document.getElementById('vsFilterStatus').value;
-    folderFilters.hasExpiration = document.getElementById('vsFilterHasExpiration').value;
+    folderFilters.createdStartDate = document.getElementById('folderFilterCreatedStartDate').value
+        ? new Date(document.getElementById('folderFilterCreatedStartDate').value)
+        : null;
+    folderFilters.createdEndDate = document.getElementById('folderFilterCreatedEndDate').value
+        ? new Date(document.getElementById('folderFilterCreatedEndDate').value)
+        : null;
+    if (folderFilters.createdEndDate) {
+        folderFilters.createdEndDate.setHours(23, 59, 59, 999);
+    }
+
+    folderFilters.modifiedStartDate = document.getElementById('folderFilterModifiedStartDate').value
+        ? new Date(document.getElementById('folderFilterModifiedStartDate').value)
+        : null;
+    folderFilters.modifiedEndDate = document.getElementById('folderFilterModifiedEndDate').value
+        ? new Date(document.getElementById('folderFilterModifiedEndDate').value)
+        : null;
+    if (folderFilters.modifiedEndDate) {
+        folderFilters.modifiedEndDate.setHours(23, 59, 59, 999);
+    }
+
+    folderFilters.assistant = document.getElementById('folderFilterAssistant').value;
+    folderFilters.fileFilter = document.getElementById('folderFilterFiles').value; // 'all', 'no', or 'have'
 
     displayFolders();
 
@@ -473,10 +498,12 @@ function resetFolderFilters() {
     document.getElementById('folderFilterForm').reset();
     folderFilters = {
         name: '',
-        startDate: null,
-        endDate: null,
-        status: '',
-        hasExpiration: ''
+        createdStartDate: null,
+        createdEndDate: null,
+        modifiedStartDate: null,
+        modifiedEndDate: null,
+        assistant: '',
+        fileFilter: 'all'
     };
     displayFolders();
 
@@ -567,6 +594,33 @@ function populateAssistantFilterOptions() {
     }
 }
 
+function populateFolderFilterOptions() {
+    const dropdown = document.getElementById('folderFilterAssistant');
+    if (!dropdown) return;
+    dropdown.innerHTML = '';
+
+    // Add "All" option
+    const allOption = document.createElement('option');
+    allOption.value = '';
+    allOption.textContent = 'All';
+    dropdown.appendChild(allOption);
+
+    // Add "None" option
+    const noneOption = document.createElement('option');
+    noneOption.value = 'none';
+    noneOption.textContent = 'None';
+    dropdown.appendChild(noneOption);
+
+    for (const [assistantId, assistant] of Object.entries(assistants)) {
+
+        const option = document.createElement('option');
+        option.value = assistantId;
+        option.textContent = assistant.name || 'Untitled assistant';
+        dropdown.appendChild(option);
+    }
+}
+
+
 function populateFunctionFilterOptions() {
     const filterAssistant = document.getElementById('functionFilterAssistant');
     filterAssistant.innerHTML = '<option value="">All</option>'; // Reset options
@@ -599,7 +653,7 @@ function updateSortDropdownUI(dropdownId, field, order) {
         sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
     } else if (field === 'size' || field === 'bytes') {
         sortIcon.classList.add(order === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-down-alt');
-    } else if (field === 'last_active_at') {
+    } else if (field === 'modified_at') {
         sortIcon.classList.add(order === 'asc' ? 'bi-clock-history' : 'bi-clock');
     }
 }
@@ -617,12 +671,19 @@ function updateFilterIcon(dropdownId, filters) {
     }
 }
 
+// Helper to check if any filter is active
 function areFiltersActive(filters) {
-    return Object.values(filters).some(value => {
-        if (value instanceof Date) {
-            return true;
+    return Object.keys(filters).some(key => {
+        const value = filters[key];
+        if (typeof value === 'string') {
+            if (key === 'fileFilter') {
+                return value !== 'all';
+            }
+            return value.trim() !== '';
+        } else if (value instanceof Date) {
+            return !isNaN(value.getTime());
         } else {
-            return value !== '' && value !== null && value !== undefined;
+            return value !== null && value !== undefined;
         }
     });
 }
@@ -676,6 +737,29 @@ async function fetchFolders() {
     }
 }
 
+async function fetchFolderAssistantsMapping() {
+    try {
+        const response = await fetch(listFolderAssistantsUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+
+        if (data.folder_assistants) {
+            folderAssistantsMapping = data.folder_assistants;
+        } else {
+            showToast("Failed to fetch folder assistants!", "No folder_assistants key in response.");
+            console.error("No folder_assistants key in response:", data);
+        }
+    } catch (error) {
+        showToast("Failed to fetch folder assistants:", error);
+        console.error('Error fetching folder assistants mapping:', error);
+    }
+}
+
 async function updateFoldersByIds(folderIds) {
     const fetchPromises = folderIds.map(async (folderId) => {
         const retrieveFolderUrl = retrieveFolderUrlTemplate.replace('VS_ID_PLACEHOLDER', folderId);
@@ -708,13 +792,22 @@ function renderFolder(folder) {
     folderItem.className = 'folder-item';
     folderItem.id = `folder-${folder.uuid}`;
 
-    // Get the folder name
     const folderName = folder.name || 'Untitled folder';
+    const createdDate = formatDbDate(folder.created_at);
+    const modifiedDate = formatDbDate(folder.modified_at);
+    const createdAgo = timeSinceDB(folder.created_at);
+    const modifiedAgo = timeSinceDB(folder.modified_at);
+    const fileCount = folder.file_ids ? folder.file_ids.length : 0;
 
     // Grab the raw template string from the DOM
     const data = {
         folder: folder,
-        folderName: folderName
+        folderName: folderName,
+        createdDate: createdDate,
+        modifiedDate: modifiedDate,
+        createdAgo: createdAgo,
+        modifiedAgo: modifiedAgo,
+        fileCount: fileCount
     };
 
     // Compile the template into a function
@@ -728,30 +821,57 @@ function renderFolder(folder) {
 
 function displayFolders() {
     const foldersList = document.getElementById('folders-list');
-
-    // Dispose of existing tooltips within the folders list
     disposeTooltips(foldersList);
-
     foldersList.innerHTML = '';
 
     const totalFolders = Object.values(folders).length;
-
-    // Convert to array
     let foldersArray = Object.values(folders);
 
     // Apply filters
     foldersArray = foldersArray.filter(folder => {
-        // Name filter
-        if (folderFilters.name && ! folder.name.toLowerCase().includes(folderFilters.name)) {
+        // Check folder name
+        const folderName = folder.name || '';
+        if (folderFilters.name && !folderName.toLowerCase().includes(folderFilters.name)) {
             return false;
         }
-        // Creation date filter
-        const createdAt = new Date(folder.created_at * 1000);
-        if (folderFilters.startDate && createdAt < folderFilters.startDate) {
+        // Created At Date Filter
+        const createdAt = new Date(folder.created_at);
+        if (folderFilters.createdStartDate && createdAt < folderFilters.createdStartDate) {
             return false;
         }
-        if (folderFilters.endDate && createdAt > folderFilters.endDate) {
+        if (folderFilters.createdEndDate && createdAt > folderFilters.createdEndDate) {
             return false;
+        }
+        // Last Modified Date Filter
+        const modifiedAt = new Date(folder.modified_at);
+        if (folderFilters.modifiedStartDate && modifiedAt < folderFilters.modifiedStartDate) {
+            return false;
+        }
+        if (folderFilters.modifiedEndDate && modifiedAt > folderFilters.modifiedEndDate) {
+            return false;
+        }
+        // Assistant Filter
+        if (folderFilters.assistant) {
+            const assignedAssistants = folderAssistantsMapping[folder.uuid] || [];
+            if (folderFilters.assistant === 'none') {
+                if (assignedAssistants.length > 0) {
+                    return false;
+                }
+            } else {
+                if (!assignedAssistants.includes(folderFilters.assistant)) {
+                    return false;
+                }
+            }
+        }
+        // Files Filter
+        if (folderFilters.fileFilter === 'no') {
+            if (folder.file_ids && folder.file_ids.length > 0) {
+                return false;
+            }
+        } else if (folderFilters.fileFilter === 'have') {
+            if (!folder.file_ids || folder.file_ids.length === 0) {
+                return false;
+            }
         }
         return true;
     });
@@ -767,9 +887,20 @@ function displayFolders() {
     }
     foldersCountElement.style.display = 'inline';
 
-    // Handle different cases based on total folders and filtered folders
+    // Sorting
+    foldersArray.sort((a, b) => {
+        let compareResult = 0;
+        if (folderSortField === 'name') {
+            compareResult = (a.name || '').localeCompare(b.name || '');
+        } else if (folderSortField === 'created_at') {
+            compareResult = new Date(a.created_at) - new Date(b.created_at);
+        } else if (folderSortField === 'modified_at') {
+            compareResult = new Date(a.modified_at) - new Date(b.modified_at);
+        }
+        return folderSortOrder === 'asc' ? compareResult : -compareResult;
+    });
+
     if (totalFolders === 0) {
-        // No folders exist at all
         const messageDiv = document.createElement('div');
         messageDiv.className = 'text-center mt-4 no-folders-message';
         messageDiv.innerHTML = `
@@ -786,34 +917,18 @@ function displayFolders() {
         messageDiv.className = 'text-center mt-4';
         messageDiv.innerHTML = `
             <p class="text-secondary">No folders match your filters.</p>
-            <span class="text-secondary">You can
-            <a href="#" class="text-decoration-none" onclick="resetFolderFilters()">reset the filters</a>
-            to see all folders.</span>
+            <span class="text-secondary">
+                You can <a href="#" class="text-decoration-none" onclick="resetFolderFilters()">reset the filters</a> to see all folders.
+            </span>
         `;
         foldersList.appendChild(messageDiv);
         return;
     }
 
-    // Sort
-    foldersArray.sort((a, b) => {
-        let compareResult = 0;
-
-        if (folderSortField === 'name') {
-            compareResult = (a.name || 'Untitled folder').localeCompare(b.name || 'Untitled folder');
-        } else if (folderSortField === 'created_at') {
-            compareResult = a.created_at - b.created_at;
-        } else if (folderSortField === 'last_active_at') {
-            compareResult = a.last_active_at - b.last_active_at;
-        }
-
-        return folderSortOrder === 'asc' ? compareResult : -compareResult;
-    });
-
-    // Display
-    for (const folder of foldersArray) {
+    foldersArray.forEach(folder => {
         const folderItem = renderFolder(folder);
         foldersList.appendChild(folderItem);
-    }
+    });
 
     initializeTooltips();
 }
@@ -1019,9 +1134,9 @@ function displayAssistants() {
     // Update the assistants count display only if filters are active
     const assistantsCountElement = document.getElementById('assistants-count');
     if (areFiltersActive(assistantFilters)) {
-        assistantsCountElement.innerHTML = `${filteredAssistantsCount} results (<a class="text-decoration-none" href="#" onclick="resetAssistantFilters(); return false;">${totalAssistants} total</a>)`;
+        assistantsCountElement.innerHTML = `${filteredAssistantsCount} assistants (<a class="text-decoration-none" href="#" onclick="resetAssistantFilters(); return false;">${totalAssistants} total</a>)`;
     } else {
-        assistantsCountElement.textContent = `${totalAssistants} total`;
+        assistantsCountElement.textContent = `${totalAssistants} assistants`;
     }
     assistantsCountElement.style.display = 'inline';
 
@@ -1177,7 +1292,7 @@ function displayFunctions() {
             return false;
         }
         // Filter by function type
-        if (functionFilters.type !== functionFilters.type) {
+        if (functionFilters.functionType && func.functionType !== functionFilters.functionType) {
             return false;
         }
         return true;
@@ -1222,7 +1337,7 @@ function displayFunctions() {
             compareResult = a.created_at - b.created_at;
         }
 
-        return functionSortField === 'asc' ? compareResult : -compareResult;
+        return functionSortOrder === 'asc' ? compareResult : -compareResult;
     });
 
     // Iterate over the sorted and filtered array and append each item

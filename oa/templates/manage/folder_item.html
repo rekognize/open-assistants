@@ -18,17 +18,17 @@
                 <div class="collapse show">
 
                     <div class="info-box">
-                        <p class="info-value">${folder.file_ids.length} file(s)</p>
+                        <p class="info-value">${fileCount} file(s)</p>
                     </div>
 
                     <div class="info-box">
-                        <span class="info-label">Created ${timeSinceDB(folder.created_at)} ago</span>
-                        <p class="info-value">${formatDbDate(folder.created_at)}</p>
+                        <span class="info-label">Created ${createdAgo} ago</span>
+                        <p class="info-value">${createdDate}</p>
                     </div>
 
                     <div class="info-box">
-                        <span class="info-label">Last modified ${timeSinceDB(folder.modified_at)} ago</span>
-                        <p class="info-value">${formatDbDate(folder.modified_at)}</p>
+                        <span class="info-label">Last modified ${modifiedAgo} ago</span>
+                        <p class="info-value">${modifiedDate}</p>
                     </div>
 
                 </div>
