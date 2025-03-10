@@ -431,6 +431,9 @@ function applyAssistantFilters() {
         dropdownInstance.hide();
     }
 
+    // Update button styles and icons
+    updateFilterAssistantsButtonStyles();
+
     // Update the filter icon based on active filters
     updateFilterIcon('assistantFilterDropdown', assistantFilters);
 }
@@ -452,6 +455,9 @@ function resetAssistantFilters() {
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
+
+    // Update button styles and icons
+    updateFilterAssistantsButtonStyles();
 
     // Update the filter icon to reflect no active filters
     updateFilterIcon('assistantFilterDropdown', assistantFilters);
@@ -491,6 +497,8 @@ function applyFolderFilters() {
         dropdownInstance.hide();
     }
 
+    updateFilterFoldersButtonStyles();
+
     updateFilterIcon('folderFilterDropdown', folderFilters);
 }
 
@@ -512,6 +520,8 @@ function resetFolderFilters() {
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
+
+    updateFilterFoldersButtonStyles();
 
     updateFilterIcon('folderFilterDropdown', folderFilters);
 }
@@ -952,24 +962,50 @@ async function editFolder(folderId) {
     });
 }
 
-function updateFolderFilesButtonStyles() {
-    const buttons = document.querySelectorAll('.folder-files-button');
+// Called when a folder card’s “Filter assistants” button is clicked
+function toggleAssistantFilterByFolder(folderId, buttonElement) {
+    hideTooltip(buttonElement);
+
+    if (assistantFilters.folderId === folderId) {
+        // Remove the folder filter
+        assistantFilters.folderId = '';
+    } else {
+        // Set the folder filter to this folderId
+        assistantFilters.folderId = folderId;
+    }
+
+    // Update the assistant filter dropdown to reflect the selected folder
+    document.getElementById('filterFolder').value = assistantFilters.folderId;
+
+    // Update the styles and icons of all folder 'Filter assistants' buttons
+    updateFilterAssistantsButtonStyles();
+
+    // Display the assistants with the updated filters
+    displayAssistants();
+
+    // Update the assistant filter icon based on active filters
+    updateFilterIcon('assistantFilterDropdown', assistantFilters);
+}
+
+// Updates the styling for folder card buttons (for filtering assistants)
+function updateFilterAssistantsButtonStyles() {
+    const buttons = document.querySelectorAll('.folder-assistants-button');
     buttons.forEach(button => {
         const folderId = button.getAttribute('data-folder-uuid');
         const iconElement = button.querySelector('i');
 
-        if (functionFilters.folderId === folderId && functionFilters.folderId !== '') {
-            // The filter is active for this store
+        if (assistantFilters.folderId === folderId && assistantFilters.folderId !== '') {
+            // The filter is active for this folder
             button.classList.remove('btn-outline-secondary');
             button.classList.add('btn-secondary');
-            iconElement.classList.remove('bi-archive');
-            iconElement.classList.add('bi-archive-fill');
+            iconElement.classList.remove('bi-collection');
+            iconElement.classList.add('bi-collection-fill');
         } else {
             // The filter is not active
             button.classList.remove('btn-secondary');
             button.classList.add('btn-outline-secondary');
-            iconElement.classList.remove('bi-archive-fill');
-            iconElement.classList.add('bi-archive');
+            iconElement.classList.remove('bi-collection-fill');
+            iconElement.classList.add('bi-collection');
         }
     });
 }
@@ -1207,6 +1243,55 @@ async function editAssistant(assistantId) {
             tabInstance = new bootstrap.Tab(targetTabLink);
         }
         tabInstance.show();
+    });
+}
+
+// Called when an assistant card’s “Filter folders” button is clicked
+function toggleFolderFilterByAssistant(assistantId, buttonElement) {
+    hideTooltip(buttonElement);
+
+    if (folderFilters.assistant === assistantId) {
+        // Remove the assistant filter
+        folderFilters.assistant = '';
+    } else {
+        // Set the assistant filter to this assistantId
+        folderFilters.assistant = assistantId;
+    }
+
+    // Update the folder filter dropdown to reflect the selected assistant filter
+    document.getElementById('folderFilterAssistant').value = folderFilters.assistant;
+
+    // Update the styles and icons of all assistant 'Filter folders' buttons
+    updateFilterFoldersButtonStyles();
+
+    // Re-display folders with the updated filters
+    displayFolders();
+
+    // Update the filter icon in the folder filter dropdown
+    updateFilterIcon('folderFilterDropdown', folderFilters);
+}
+
+// Updates the styling for assistant card buttons (for filtering folders)
+function updateFilterFoldersButtonStyles() {
+    // Select buttons by their updated class name
+    const buttons = document.querySelectorAll('.assistant-folders-button');
+    buttons.forEach(button => {
+        const assistantId = button.getAttribute('data-folder-uuid');
+        const iconElement = button.querySelector('i');
+
+        if (folderFilters.assistant === assistantId && folderFilters.assistant !== '') {
+            // Active filter: use secondary style and change icon to archive-fill
+            button.classList.remove('btn-outline-secondary');
+            button.classList.add('btn-secondary');
+            iconElement.classList.remove('bi-archive');
+            iconElement.classList.add('bi-archive-fill');
+        } else {
+            // Inactive: reset to outline style and archive icon
+            button.classList.remove('btn-secondary');
+            button.classList.add('btn-outline-secondary');
+            iconElement.classList.remove('bi-archive-fill');
+            iconElement.classList.add('bi-archive');
+        }
     });
 }
 
