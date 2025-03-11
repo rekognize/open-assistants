@@ -95,6 +95,8 @@ let foldersLoaded = false;
 let foldersError = null;
 let assistantsLoaded = false;
 let assistantsError = null;
+let functionsLoaded = false;
+let functionsError = null;
 
 // Global variables for sorting and filtering
 
@@ -629,7 +631,6 @@ function populateFolderFilterOptions() {
         dropdown.appendChild(option);
     }
 }
-
 
 function populateFunctionFilterOptions() {
     const filterAssistant = document.getElementById('functionFilterAssistant');
@@ -1310,6 +1311,8 @@ async function fetchFunctions() {
 
         const data = await response.json();
 
+        console.log('fetchFunctions:', data);
+
         if (data.functions) {
             // Clear the global functions object
             functions = {};
@@ -1319,10 +1322,14 @@ async function fetchFunctions() {
                 functions[func.uuid] = func;
             });
 
+            // Set the global data as loaded
+            functionsLoaded = true;
+
             // Return the global functions object
             return functions;
         } else {
             const parsedError = parseErrorText(data.error);
+            functionsError = parsedError.errorMessage;
             showToast("Failed to fetch functions!", parsedError.errorMessage);
             console.error('Failed to fetch functions!', parsedError);
             return {};
@@ -1330,6 +1337,7 @@ async function fetchFunctions() {
     } catch (error) {
         showToast("Error fetching functions:", error);
         console.error('Error fetching functions:', error);
+        functionsError = error;
         return {};
     } finally {
         toggleLoading('functions', false);
@@ -1341,11 +1349,14 @@ const functionItemTemplate = document.getElementById("function-item-template").i
 function renderFunction(func) {
     const functionItem = document.createElement('div');
     functionItem.className = 'function-item';
-    functionItem.id = `function-${func.id}`;
+    functionItem.id = `function-${func.uuid}`;
+
+    const funcName = func.name || 'Untitled function';
 
     // The template context
     const data = {
         func: func,
+        funcName: funcName,
     };
 
     // Compile the template into a function

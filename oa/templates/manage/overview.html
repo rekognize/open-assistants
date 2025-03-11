@@ -487,7 +487,7 @@
     // URLs and URL templates
     const listFoldersUrl = '{% url "folders-api:list_folders" %}';
     const listAssistantsUrl = "{% url 'api-1.0.0:list_assistants' %}";
-    const listFunctionsUrl = '{% url "functions-api:list_functions" %}';
+    const listFunctionsUrl = '{% url "functions-api:list_local_functions" %}';
     const listAssistantFoldersUrl = "{% url 'folders-api:list_assistant_folders' %}";
     const listFolderAssistantsUrl = "{% url 'folders-api:list_folder_assistants' %}";
 
@@ -556,34 +556,26 @@
 
     // Global event listener to update nav classes when any tab is shown
     document.addEventListener('shown.bs.tab', function (event) {
-        // If the event target is inside the assistants nav, update only that group
-        if (event.target.closest('#assistantsNavTabs')) {
-            document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
-                if (tab === event.target) {
-                    tab.classList.remove('bg-white', 'text-secondary');
-                    tab.classList.add('active', 'bg-secondary', 'text-white');
-                    tab.setAttribute('aria-selected', 'true');
-                } else {
-                    tab.classList.remove('active', 'bg-secondary', 'text-white');
-                    tab.classList.add('bg-white', 'text-secondary');
-                    tab.setAttribute('aria-selected', 'false');
-                }
-            });
-        }
-        // If the event target is inside the folders nav, update only that group
-        if (event.target.closest('#foldersNavTabs')) {
-            document.querySelectorAll('#foldersNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
-                if (tab === event.target) {
-                    tab.classList.remove('bg-white', 'text-secondary');
-                    tab.classList.add('active', 'bg-secondary', 'text-white');
-                    tab.setAttribute('aria-selected', 'true');
-                } else {
-                    tab.classList.remove('active', 'bg-secondary', 'text-white');
-                    tab.classList.add('bg-white', 'text-secondary');
-                    tab.setAttribute('aria-selected', 'false');
-                }
-            });
-        }
+        // Ensure we have the correct anchor element even if a child element was clicked
+        const activatedTab = event.target.closest('a[data-bs-toggle="tab"]');
+        if (!activatedTab) return;
+
+        // Update the tabs for all nav groups where the activated tab belongs
+        ['#assistantsNavTabs', '#foldersNavTabs', '#functionsNavTabs'].forEach(function (navId) {
+            if (activatedTab.closest(navId)) {
+                document.querySelectorAll(navId + ' a[data-bs-toggle="tab"]').forEach(function (tab) {
+                    if (tab === activatedTab) {
+                        tab.classList.remove('bg-white', 'text-secondary');
+                        tab.classList.add('active', 'bg-secondary', 'text-white');
+                        tab.setAttribute('aria-selected', 'true');
+                    } else {
+                        tab.classList.remove('active', 'bg-secondary', 'text-white');
+                        tab.classList.add('bg-white', 'text-secondary');
+                        tab.setAttribute('aria-selected', 'false');
+                    }
+                });
+            }
+        });
     });
 
 </script>

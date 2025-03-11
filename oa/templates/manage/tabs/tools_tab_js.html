@@ -4,20 +4,27 @@
     async function fetchFunctionsTab() {
         toggleLoading('loadingToolsTab', true);
         try {
-            const functionsResponse = await fetch("{% url 'functions-api:list_local_functions' %}", {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json',
+            // Wait until functions are loaded or an error occurs
+            while (!functionsLoaded) {
+                if (functionsError) {
+                    throw new Error(functionsError);
                 }
-            });
-            const functionsData = await functionsResponse.json();
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
 
-            console.log('tools tab functions:', functionsData);
+            populateFunctionsTabsAndContent(functions);
 
-            populateFunctionsTabsAndContent(functionsData.functions);
+            // Make Create Function button visible if functions list not empty
+            if (functions && Object.keys(functions).length > 0) {
+                document.getElementById('createNewFunctionBtn').classList.remove('d-none');
+            }
+
         } catch (error) {
-            console.error('Error fetching functions:', error);
+            const contentContainer = document.getElementById('tools-tab-container');
+            contentContainer.innerHTML = `
+                <div class="text-center text-danger">Failed to load functions!</div>
+            `;
+            console.error(error);
         } finally {
             toggleLoading('loadingToolsTab', false);
         }
@@ -78,22 +85,24 @@
             return;
         }
 
-        functions.forEach((func, index) => {
+        const functionsArr = Object.values(functions);
+        functionsArr.forEach((func, index) => {
             // Create tab item with secondary styling
             const tabItem = document.createElement('li');
             tabItem.className = 'nav-item';
 
             const tabLink = document.createElement('a');
+            // Use the first tab as active
             tabLink.className = index === 0
                 ? 'nav-link py-1 px-2 bg-secondary text-white active'
                 : 'nav-link py-1 px-2 bg-white text-secondary';
             tabLink.setAttribute('data-bs-toggle', 'tab');
-            tabLink.setAttribute('href', `#functions-tab-${func.id}`);
+            tabLink.setAttribute('href', `#functions-tab-${func.uuid}`);
             tabLink.setAttribute('role', 'tab');
-            tabLink.setAttribute('aria-controls', `functions-tab-${func.id}`);
+            tabLink.setAttribute('aria-controls', `functions-tab-${func.uuid}`);
             tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-            tabLink.id = `functions-tab-${func.id}-tab`;
-            tabLink.textContent = func.name || 'Untitled Function';
+            tabLink.id = `functions-tab-${func.uuid}-tab`;
+            tabLink.textContent = func.name || 'Untitled function';
 
             tabItem.appendChild(tabLink);
             tabsContainer.appendChild(tabItem);
@@ -101,22 +110,22 @@
             // Create content pane with executions accordion
             const contentPane = document.createElement('div');
             contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
-            contentPane.setAttribute('id', `functions-tab-${func.id}`);
+            contentPane.setAttribute('id', `functions-tab-${func.uuid}`);
             contentPane.setAttribute('role', 'tabpanel');
-            contentPane.setAttribute('aria-labelledby', `functions-tab-${func.id}-tab`);
+            contentPane.setAttribute('aria-labelledby', `functions-tab-${func.uuid}-tab`);
 
             contentPane.innerHTML = `
                 <div class="mb-3">
-                    <h4>${func.name || 'Untitled Function'}</h4>
+                    <h4>${func.name || 'Untitled function'}</h4>
                     <!-- Executions Accordion -->
-                    <div class="accordion mb-4" id="executionsAccordion-${func.id}">
+                    <div class="accordion mb-4" id="executionsAccordion-${func.uuid}">
                       <div class="accordion-item">
-                        <h2 class="accordion-header" id="heading-${func.id}">
-                          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${func.id}" aria-expanded="false" aria-controls="collapse-${func.id}">
+                        <h2 class="accordion-header" id="heading-${func.uuid}">
+                          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${func.uuid}" aria-expanded="false" aria-controls="collapse-${func.uuid}">
                             Executions
                           </button>
                         </h2>
-                        <div id="collapse-${func.id}" class="accordion-collapse collapse" aria-labelledby="heading-${func.id}" data-bs-parent="#executionsAccordion-${func.id}">
+                        <div id="collapse-${func.uuid}" class="accordion-collapse collapse" aria-labelledby="heading-${func.uuid}" data-bs-parent="#executionsAccordion-${func.uuid}">
                           <div class="accordion-body">
                             <div class="table-responsive">
                               <table class="table table-sm">
@@ -130,7 +139,7 @@
                                     <th>Assistant</th>
                                   </tr>
                                 </thead>
-                                <tbody id="executionsTable-${func.id}">
+                                <tbody id="executionsTable-${func.uuid}">
                                   <!-- Execution rows will be appended here -->
                                 </tbody>
                               </table>
@@ -155,12 +164,12 @@
 
             contentContainer.appendChild(contentPane);
 
-            // Add an event listener to fetch and populate executions when the accordion is expanded
-            const collapseElement = document.getElementById(`collapse-${func.id}`);
+            // Initialize the collapse event for the executions accordion
+            const collapseElement = document.getElementById(`collapse-${func.uuid}`);
             collapseElement.addEventListener('show.bs.collapse', async function () {
-                const tbody = document.getElementById(`executionsTable-${func.id}`);
+                const tbody = document.getElementById(`executionsTable-${func.uuid}`);
                 if (tbody.dataset.loaded !== "true") {
-                    tbody.innerHTML = `<tr><td colspan="5" class="text-center">
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center">
                         <div class="spinner-border spinner-border-sm" role="status">
                           <span class="visually-hidden">Loading...</span>
                         </div> Loading executions...
@@ -242,21 +251,6 @@
                 }
             });
         });
-
-        // Listen for tab activation events so we can update the background classes
-        document.querySelectorAll('#functionsNavTabs a[data-bs-toggle="tab"]').forEach(tab => {
-            tab.addEventListener('shown.bs.tab', function (event) {
-                // Loop through all tabs and update classes accordingly
-                document.querySelectorAll('#functionsNavTabs a[data-bs-toggle="tab"]').forEach(t => {
-                    if (t === event.target) {
-                        t.classList.remove('bg-white', 'text-secondary');
-                        t.classList.add('bg-secondary', 'text-white');
-                    } else {
-                        t.classList.remove('bg-secondary', 'text-white');
-                        t.classList.add('bg-white', 'text-secondary');
-                    }
-                });
-            });
-        });
     }
+
 </script>

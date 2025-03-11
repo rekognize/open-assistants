@@ -51,7 +51,7 @@ async def list_functions(request):
 
 
 @api.get("/list_local_functions", auth=BearerAuth())
-def list_local_functions(request):
+async def list_local_functions(request):
     try:
         functions = LocalAPIFunction.objects.filter(
             projects=request.auth['project'],
@@ -60,9 +60,9 @@ def list_local_functions(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     functions_data = []
-    for func in functions:
+    async for func in functions:
         functions_data.append({
-            'id': func.uuid,
+            'uuid': func.uuid,
             'name': func.name,
             'slug': func.slug,
             'description': func.description,
@@ -74,6 +74,7 @@ def list_local_functions(request):
             'result_template': func.result_template,
             'version': func.version,
             'assistant_id': func.assistant_id,
+            "type": "local",
         })
 
     return JsonResponse({"functions": functions_data})

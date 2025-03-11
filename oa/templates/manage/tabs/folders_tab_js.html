@@ -23,9 +23,8 @@
     }
 
     async function fetchFolderAssistants() {
-        const url = "{% url 'folders-api:list_folder_assistants' %}";
         try {
-            const response = await fetch(url, {
+            const response = await fetch(listFolderAssistantsUrl, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
