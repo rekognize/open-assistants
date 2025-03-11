@@ -73,7 +73,7 @@ async def list_local_functions(request):
             'result_type': func.result_type,
             'result_template': func.result_template,
             'version': func.version,
-            'assistant_id': func.assistant_id,
+            'assistant_ids': func.assistant_ids,
             "type": "local",
         })
 

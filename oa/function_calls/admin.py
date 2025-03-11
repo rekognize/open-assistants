@@ -29,15 +29,21 @@ class CodeInterpreterScriptAdmin(admin.ModelAdmin):
 
 @admin.register(LocalAPIFunction)
 class LocalAPIFunctionAdmin(admin.ModelAdmin):
-    list_display = ("name", "assistant_id", "created_at")
-    list_filter = ("assistant_id", "created_at")
-    search_fields = ("name", "assistant_id", "description")
+    list_display = ("name", "display_assistant_ids", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("name", "description")
     ordering = ("-created_at",)
     readonly_fields = ("created_at",)
 
     formfield_overrides = {
         JSONField: {'widget': JSONEditorWidget},
     }
+
+    def display_assistant_ids(self, obj):
+        if obj.assistant_ids:
+            return ", ".join(obj.assistant_ids)
+        return "-"
+    display_assistant_ids.short_description = "Assistant IDs"
 
 
 @admin.register(ExternalAPIFunction)

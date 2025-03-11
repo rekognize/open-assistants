@@ -30,13 +30,13 @@ class BaseAPIFunction(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=100, blank=True, unique=True)
     description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    projects = models.ManyToManyField('main.Project', blank=True)
 
     # JSON schema describing the parameters as in the OpenAI function definition
     argument_schema = models.JSONField(default=dict, blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    projects = models.ManyToManyField('main.Project', blank=True)
+    assistant_ids = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.name
@@ -74,7 +74,6 @@ class LocalAPIFunction(BaseAPIFunction):
 
     # Metadata
     version = models.PositiveIntegerField(default=1)
-    assistant_id = models.CharField(max_length=50, db_index=True, blank=True, null=True)
 
     async def execute(self, **kwargs):
         """

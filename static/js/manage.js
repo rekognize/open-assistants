@@ -1446,13 +1446,16 @@ function displayFunctions() {
     initializeTooltips();
 }
 
+async function clickToolsTab() {
+    const toolsTabTrigger = document.getElementById('toolsTab');
+    if (toolsTabTrigger && !toolsTabTrigger.classList.contains('active')) {
+        toolsTabTrigger.click();
+    }
+}
+
 // Redirect to Tools tab
 async function editFunction(funcId) {
-    console.log("Editing function:", funcId);
-    const functionsTabTrigger = document.getElementById('toolsTab');
-    if (functionsTabTrigger && !functionsTabTrigger.classList.contains('active')) {
-        functionsTabTrigger.click();
-    }
+    await clickToolsTab();
     await waitForContainerAndTarget('tools-tab-container', 'functions-tab', funcId, function(targetTabLink) {
         let tabInstance = bootstrap.Tab.getInstance(targetTabLink);
         if (!tabInstance) {
