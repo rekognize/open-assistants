@@ -303,7 +303,7 @@ async def create_vector_store(request, payload: VectorStoreSchema):
         }
 
     try:
-        vector_store = await request.auth['client'].beta.vector_stores.create(
+        vector_store = await request.auth['client'].vector_stores.create(
             name=payload.name,
             expires_after=expires_after,
             metadata=payload.metadata
@@ -317,7 +317,7 @@ async def create_vector_store(request, payload: VectorStoreSchema):
 @api.get("/vector_stores", auth=BearerAuth())
 async def list_vector_stores(request):
     try:
-        vector_stores = await request.auth['client'].beta.vector_stores.list(
+        vector_stores = await request.auth['client'].vector_stores.list(
             order="desc",
             limit=100,
         )
@@ -330,7 +330,7 @@ async def list_vector_stores(request):
 @api.get("/vector_stores/{vector_store_id}", auth=BearerAuth())
 async def retrieve_vector_store(request, vector_store_id):
     try:
-        vector_store = await request.auth['client'].beta.vector_stores.retrieve(vector_store_id)
+        vector_store = await request.auth['client'].vector_stores.retrieve(vector_store_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -347,7 +347,7 @@ async def modify_vector_store(request, vector_store_id, payload: VectorStoreSche
         }
 
     try:
-        vector_store = await request.auth['client'].beta.vector_stores.update(
+        vector_store = await request.auth['client'].vector_stores.update(
             vector_store_id,
             name=payload.name,
             expires_after=expires_after,
@@ -362,7 +362,7 @@ async def modify_vector_store(request, vector_store_id, payload: VectorStoreSche
 @api.delete("/vector_stores/{vector_store_id}", auth=BearerAuth())
 async def delete_vector_store(request, vector_store_id):
     try:
-        vector_store = await request.auth['client'].beta.vector_stores.delete(vector_store_id)
+        vector_store = await request.auth['client'].vector_stores.delete(vector_store_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -374,7 +374,7 @@ async def delete_vector_store(request, vector_store_id):
 @api.get("/vector_stores/{vector_store_id}/files", auth=BearerAuth())
 async def list_vector_store_files(request, vector_store_id):
     try:
-        vector_store_files = await request.auth['client'].beta.vector_stores.files.list(
+        vector_store_files = await request.auth['client'].vector_stores.files.list(
             vector_store_id=vector_store_id,
             order="desc",
             limit=100,
@@ -388,7 +388,7 @@ async def list_vector_store_files(request, vector_store_id):
 @api.get("/vector_stores/{vector_store_id}/files/{file_id}", auth=BearerAuth())
 async def retrieve_vector_store_file(request, vector_store_id, file_id):
     try:
-        vector_store_file = await request.auth['client'].beta.vector_stores.files.retrieve(
+        vector_store_file = await request.auth['client'].vector_stores.files.retrieve(
             vector_store_id=vector_store_id,
             file_id=file_id
         )
@@ -404,7 +404,7 @@ async def sync_vector_store_files(request, vector_store_id, payload: VectorStore
         new_file_ids = set(payload.file_ids)
 
         # Retrieve current files in the vector store
-        current_files = await request.auth['client'].beta.vector_stores.files.list(
+        current_files = await request.auth['client'].vector_stores.files.list(
             vector_store_id=vector_store_id,
             order="desc",
             limit=100,
@@ -425,7 +425,7 @@ async def sync_vector_store_files(request, vector_store_id, payload: VectorStore
         if file_ids_to_remove:
             async def delete_vector_store_file(file_id):
                 try:
-                    await request.auth['client'].beta.vector_stores.files.delete(
+                    await request.auth['client'].vector_stores.files.delete(
                         vector_store_id=vector_store_id,
                         file_id=file_id
                     )
@@ -439,12 +439,12 @@ async def sync_vector_store_files(request, vector_store_id, payload: VectorStore
         # Add new files (using batch if more than one)
         if file_ids_to_add:
             if len(file_ids_to_add) > 1:
-                response = await request.auth['client'].beta.vector_stores.file_batches.create(
+                response = await request.auth['client'].vector_stores.file_batches.create(
                     vector_store_id=vector_store_id,
                     file_ids=list(file_ids_to_add)
                 )
             else:
-                response = await request.auth['client'].beta.vector_stores.files.create(
+                response = await request.auth['client'].vector_stores.files.create(
                     vector_store_id=vector_store_id,
                     file_id=list(file_ids_to_add)[0]
                 )
@@ -519,13 +519,13 @@ async def upload_files(
     for vector_store_id in vector_store_ids:
         if len(supported_files) > 1:
             # Batch assignment for multiple files
-            await request.auth['client'].beta.vector_stores.file_batches.create(
+            await request.auth['client'].vector_stores.file_batches.create(
                 vector_store_id=vector_store_id,
                 file_ids=[f['id'] for f in supported_files]
             )
         elif len(supported_files) == 1:
             # Assign a single file
-            await request.auth['client'].beta.vector_stores.files.create(
+            await request.auth['client'].vector_stores.files.create(
                 vector_store_id=vector_store_id,
                 file_id=supported_files[0]['id']
             )
@@ -569,7 +569,7 @@ async def add_file_to_vector_stores(request, file_id, payload: VectorStoreIdsSch
 
     for vector_store_id in payload.vector_store_ids:
         try:
-            vector_store_file = await request.auth['client'].beta.vector_stores.files.create(
+            vector_store_file = await request.auth['client'].vector_stores.files.create(
                 vector_store_id=vector_store_id,
                 file_id=file_id
             )
@@ -587,7 +587,7 @@ async def remove_file_from_vector_stores(request, file_id, payload: VectorStoreI
 
     for vector_store_id in payload.vector_store_ids:
         try:
-            vector_store_file = await request.auth['client'].beta.vector_stores.files.delete(
+            vector_store_file = await request.auth['client'].vector_stores.files.delete(
                 vector_store_id=vector_store_id,
                 file_id=file_id
             )
