@@ -116,6 +116,8 @@
             editMode.innerHTML = getAssistantEditTemplate(assistants[assistantId]);
         }
 
+        renderFunctionCheckboxes(assistantId);
+
         // Toggle the visibility of the view and edit modes
         viewMode.classList.toggle('d-none');
         editMode.classList.toggle('d-none');
@@ -123,6 +125,12 @@
 
     // View mode template for an assistant
     function getAssistantViewTemplate(assistant, folderNames) {
+        // Compute function names from the assistant’s tools (if any)
+        const functionNames = (assistant.tools || [])
+            .filter(tool => tool.type === 'function' && tool.function && tool.function.name)
+            .map(tool => tool.function.name)
+            .join(', ') || 'No functions in use';
+
         return `
             <div class="view-mode">
                 <div class="d-flex justify-content-between align-items-center">
@@ -178,6 +186,10 @@
                     <span class="info-label">Model</span>
                     <p class="info-value" id="info-model-${assistant.id}">${assistant.model}</p>
                 </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Functions</span>
+                    <p class="info-value" id="info-functions-${assistant.id}">${functionNames}</p>
+                </div>
             </div>
       `;
     }
@@ -232,6 +244,11 @@
                         <option value="gpt-4o-mini" ${assistant.model === 'gpt-4o-mini' ? 'selected' : ''}>gpt-4o-mini</option>
                     </select>
                     <label for="edit-model-${assistant.id}">Model</label>
+                </div>
+                <!-- Functions Section -->
+                <div class="mb-3">
+                    <h5>Functions</h5>
+                    <div id="functions-list-${assistant.id}"></div>
                 </div>
             </form>
             <div class="d-flex justify-content-end">
@@ -387,6 +404,11 @@
                             </select>
                             <label for="new-assistant-model">Model</label>
                         </div>
+                        <!-- Functions Section -->
+                        <div class="mb-3">
+                            <h5>Functions</h5>
+                            <div id="functions-list-new-assistant"></div>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -407,6 +429,50 @@
         } else {
             helpElement.classList.add('d-none');
         }
+    }
+
+    // Helper: renders function checkboxes for the assistant
+    function renderFunctionCheckboxes(assistantId) {
+        const functionsListDiv = document.getElementById(`functions-list-${assistantId}`);
+        functionsListDiv.innerHTML = ''; // Clear any existing content
+
+        // Determine which functions are already selected for this assistant
+        let selectedFunctions = [];
+        if (assistants[assistantId] && Array.isArray(assistants[assistantId].tools)) {
+            selectedFunctions = assistants[assistantId].tools
+                .filter(tool => tool.type === 'function' && tool.function && tool.function.name)
+                .map(tool => tool.function.name);
+        }
+
+        functionDefinitions.forEach(funcDef => {
+            const functionName = funcDef.name;
+
+            // Create checkbox container
+            const checkboxDiv = document.createElement('div');
+            checkboxDiv.classList.add('form-check');
+
+            // Create the checkbox input element
+            const input = document.createElement('input');
+            input.classList.add('form-check-input');
+            input.type = 'checkbox';
+            input.value = functionName;
+            input.id = `function-${functionName}-${assistantId}`;
+            // Pre-select the checkbox if the function is already in the assistant's tools
+            if (selectedFunctions.includes(functionName)) {
+                input.checked = true;
+            }
+
+            // Create the label element
+            const label = document.createElement('label');
+            label.classList.add('form-check-label');
+            label.setAttribute('for', `function-${functionName}-${assistantId}`);
+            label.textContent = functionName;
+
+            // Append the input and label to the container and add to the list div
+            checkboxDiv.appendChild(input);
+            checkboxDiv.appendChild(label);
+            functionsListDiv.appendChild(checkboxDiv);
+        });
     }
 
 
@@ -465,6 +531,8 @@
         tabPane.innerHTML = getNewAssistantTemplate();
         contentContainer.insertBefore(tabPane, contentContainer.firstChild);
 
+        renderFunctionCheckboxes('new-assistant');
+
         // Activate the new assistant tab and force the content pane to become active
         const newTabInstance = new bootstrap.Tab(a);
         newTabInstance.show();
@@ -508,6 +576,21 @@
             }
         }
 
+        // Gather selected function checkboxes
+        const functionCheckboxes = document.querySelectorAll('#functions-list-new-assistant input[type="checkbox"]');
+        const selectedFunctions = [];
+        functionCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                const funcDef = functionDefinitions.find(fd => fd.name === cb.value);
+                if (funcDef) {
+                    selectedFunctions.push({
+                        type: "function",
+                        function: funcDef
+                    });
+                }
+            }
+        });
+
         // Show a spinner on the save button
         const saveBtn = document.getElementById('saveNewAssistantBtn');
         const cancelBtn = document.getElementById('cancelNewAssistantBtn');
@@ -531,7 +614,8 @@
                 model: model,
                 tools: [
                     {"type": "code_interpreter"},
-                    {"type": "file_search"}
+                    {"type": "file_search"},
+                    ...selectedFunctions
                 ],
                 tool_resources: {"file_search": {"vector_store_ids": [vsData.id]}},
             };
@@ -673,14 +757,35 @@
                 }
             }
 
-            // Build payload: For tools, tool_resources, and metadata use the current values from the global "assistants" object
+            // Gather selected function checkboxes in edit mode
+            const functionCheckboxes = document.querySelectorAll(`#functions-list-${assistantId} input[type="checkbox"]`);
+            const selectedFunctions = [];
+            functionCheckboxes.forEach(cb => {
+                if (cb.checked) {
+                    const funcDef = functionDefinitions.find(fd => fd.name === cb.value);
+                    if (funcDef) {
+                        selectedFunctions.push({
+                            type: "function",
+                            function: funcDef
+                        });
+                    }
+                }
+            });
+
+            // Retrieve the current assistant from the global state
             const currentAssistant = assistants[assistantId] || {};
+
+            // Keep any tools that are not of type "function"
+            const nonFunctionTools = (currentAssistant.tools || []).filter(tool => tool.type !== 'function');
+            const updatedTools = nonFunctionTools.concat(selectedFunctions);
+
+            // Build payload
             const updatePayload = {
                 name: name,
                 description: description,
                 instructions: instructions,
                 model: model,
-                tools: currentAssistant.tools || [],
+                tools: updatedTools,
                 tool_resources: currentAssistant.tool_resources || {},
                 metadata: currentAssistant.metadata || {}
             };

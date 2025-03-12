@@ -46,37 +46,6 @@ function toggleAssistantFileSearch(assistantId) {
     }
 }
 
-function renderFunctionCheckboxes(assistantId) {
-    const functionsListDiv = document.getElementById(`functions-list-${assistantId}`);
-    functionsListDiv.innerHTML = ''; // Clear any existing content
-
-    functionDefinitions.forEach(funcDef => {
-        const functionName = funcDef.name;
-
-        // Create the checkbox input
-        const checkbox = document.createElement('div');
-        checkbox.classList.add('form-check');
-
-        const input = document.createElement('input');
-        input.classList.add('form-check-input');
-        input.type = 'checkbox';
-        input.value = functionName;
-        input.id = `function-${functionName}-${assistantId}`;
-
-        const label = document.createElement('label');
-        label.classList.add('form-check-label');
-        label.setAttribute('for', `function-${functionName}-${assistantId}`);
-        label.textContent = functionName;
-
-        // Append input and label to the checkbox div
-        checkbox.appendChild(input);
-        checkbox.appendChild(label);
-
-        // Append the checkbox to the functions list div
-        functionsListDiv.appendChild(checkbox);
-    });
-}
-
 
 /* Loading components and orchestration of the flow */
 

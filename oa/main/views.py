@@ -63,8 +63,8 @@ def manage_overview(request, project_uuid):
     else:
         selected_project = get_object_or_404(Project, uuid=project_uuid, users=request.user)
 
-    function_definitions = ([f.get_definition() for f in LocalAPIFunction.objects.all()] +
-                            [f.get_definition() for f in ExternalAPIFunction.objects.all()])
+    function_definitions = ([f.get_definition() for f in LocalAPIFunction.objects.filter(projects=selected_project)] +
+                            [f.get_definition() for f in ExternalAPIFunction.objects.filter(projects=selected_project)])
 
     return render(request, "manage/overview.html", {
         'function_definitions_json': json.dumps(function_definitions),
