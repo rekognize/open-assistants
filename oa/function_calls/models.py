@@ -31,6 +31,7 @@ class BaseAPIFunction(models.Model):
     slug = models.SlugField(max_length=100, blank=True, unique=True)
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
     projects = models.ManyToManyField('main.Project', blank=True)
 
     # JSON schema describing the parameters as in the OpenAI function definition

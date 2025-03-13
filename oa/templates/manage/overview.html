@@ -493,10 +493,12 @@
 
     const createAssistantUrl = "{% url 'api-1.0.0:create_assistant' %}";
     const createVectorStoreUrl = "{% url 'api-1.0.0:create_vector_store' %}";
+    const createFunctionUrl = "{% url 'functions-api:create_function' %}";
 
     const modifyAssistantUrl = "{% url 'api-1.0.0:modify_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
     const syncVectorStoreFilesUrl = "{% url 'api-1.0.0:sync_vector_store_files' vector_store_id='VS_ID_PLACEHOLDER' %}";
     const updateAssistantFoldersUrl = "{% url 'folders-api:update_assistant_folders' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
+    const updateFunctionUrl = "{% url 'functions-api:update_function' function_uuid='FUNCTION_UUID_PLACEHOLDER' %}";
 
     const deleteAssistantUrl = "{% url 'api-1.0.0:delete_assistant' assistant_id='ASSISTANT_ID_PLACEHOLDER' %}";
     const deleteVectorStoreUrl = "{% url 'api-1.0.0:delete_vector_store' vector_store_id='VS_ID_PLACEHOLDER' %}";

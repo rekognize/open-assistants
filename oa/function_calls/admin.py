@@ -29,11 +29,11 @@ class CodeInterpreterScriptAdmin(admin.ModelAdmin):
 
 @admin.register(LocalAPIFunction)
 class LocalAPIFunctionAdmin(admin.ModelAdmin):
-    list_display = ("name", "display_assistant_ids", "created_at")
-    list_filter = ("created_at",)
+    list_display = ("name", "display_assistant_ids", "created_at", "modified_at")
+    list_filter = ("created_at", "modified_at")
     search_fields = ("name", "description")
     ordering = ("-created_at",)
-    readonly_fields = ("created_at",)
+    readonly_fields = ("created_at", "modified_at")
 
     formfield_overrides = {
         JSONField: {'widget': JSONEditorWidget},

@@ -1,4 +1,4 @@
-import json
+from asgiref.sync import sync_to_async
 from ninja import NinjaAPI
 from ninja.security import HttpBearer
 from ninja.errors import AuthenticationError
@@ -68,6 +68,7 @@ async def list_local_functions(request):
             'description': func.description,
             'argument_schema': func.argument_schema,
             'created_at': func.created_at.isoformat() if func.created_at else None,
+            'modified_at': func.modified_at.isoformat() if func.modified_at else None,
             'code': func.code,
             'extra_context': func.extra_context,
             'result_type': func.result_type,
@@ -136,136 +137,91 @@ def list_scripts(request):
 
 
 class FunctionCreateSchema(Schema):
-    description: str
+    name: str
+    description: str = ""
+    argument_schema: dict = {}
+    code: str = ""
+    extra_context: dict = {}
+    result_type: str = "application/json"
+    version: int = 1
 
 
-@api.post("/create_function")
-def create_function(request, data: FunctionCreateSchema):
-    """
-    Creates a function according to the given description
-    """
-    tools = [{
-        "type": "function",
-        "function": {
-            "name": "execute_python_function",
-            "description": "Executes a python function.",
-            "strict": False,
-            "parameters": {
-                "type": "object",
-                "required": [
-                    "name",
-                    "description",
-                    "arguments",
-                    "code",
-                    "return_schema"
-                ],
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "The name of the function"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "The description of the function"
-                    },
-                    "arguments": {
-                        "type": "array",
-                        "description": "A list of function parameters, each describing a required or optional argument.",
-                        "items": {
-                            "type": "object",
-                            "description": "Definition of the function parameter.",
-                            "properties": {
-                                "name": {
-                                    "type": "string",
-                                    "description": "The name of the parameter"
-                                },
-                                "type": {
-                                    "type": "string",
-                                    "description": "The data type of the parameter.",
-                                    "enum": ["string", "number", "boolean", "object", "array"]
-                                },
-                                "description": {
-                                    "type": "string",
-                                    "description": "A short description of the parameter's purpose."
-                                },
-                                "required": {
-                                    "type": ["boolean", "null"],
-                                    "description": "Whether this parameter is required."
-                                },
-                                "enum": {
-                                    "type": ["array", "null"],
-                                    "description": "List of allowed values for this parameter, if applicable.",
-                                    "items": {
-                                        "type": ["string", "number", "boolean"]
-                                    }
-                                }
-                            },
-                            "required": ["name", "type", "description", "required", "enum"],
-                            "additionalProperties": False
-                        }
-                    },
-                    "code": {
-                        "type": "string",
-                        "description": "The full Python script to be executed"
-                    },
-                    "return_schema": {
-                        "type": "object",
-                        "description": "Defines the structure of the function's return value.\n"
-                                       "It can be a single value, an object or a list of objects.\n"
-                                       "E.g. values and their representations in the schema: \n"
-                                       "{'x': 5} => {'x': {'type': 'number'}}\n"
-                                       "{'name': 'Alice', 'score': 4.5} => "
-                                       "{'name': {'type': 'string'}, 'score': {'type': 'number'}}\n"
-                                       "df.to_records() => "
-                                       "{'records': {'type': 'array', 'items': {'id': {'type': 'number'}, 'name': {'type': 'string'}, 'score': {'type': 'number'}}}\n"
-                                       "Be specific as possible. ",
-                        "minProperties": 1,
-                        "additionalProperties": True
-                    }
-                },
-                "additionalProperties": False
-            }
+@api.post("/create_function", auth=BearerAuth())
+async def create_function(request, payload: FunctionCreateSchema):
+    try:
+        project = request.auth['project']
+
+        function = await LocalAPIFunction.objects.acreate(
+            name=payload.name,
+            description=payload.description,
+            argument_schema=payload.argument_schema,
+            code=payload.code,
+            extra_context=payload.extra_context,
+            result_type=payload.result_type,
+            version=payload.version,
+        )
+
+        await sync_to_async(function.projects.add)(project)
+
+        response_data = {
+            "uuid": str(function.uuid),
+            "name": function.name,
+            "description": function.description,
+            "argument_schema": function.argument_schema,
+            "code": function.code,
+            "extra_context": function.extra_context,
+            "result_type": function.result_type,
+            "version": function.version,
         }
-    }]
-
-    messages = [{
-        "role": "user",
-        "content": f"Create a Python script that would accomplish the given task.\n"
-                   f"The code should be a flat script, not a function.\n"
-                   f"Available modules are: pandas, numpy, scipy, matplotlib, openai, requests\n"
-                   f"DESCRIPTION: {data.description}\n"
-    }]
-
-    client = OpenAI()
-
-    # JSON
-    completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages,
-        tools=tools,
-        tool_choice="required"
-    )
-    response = json.loads(completion.choices[0].message.tool_calls[0].function.arguments)
-    """
-    # Pydantic:
-    completion = client.beta.chat.completions.parse(
-        model="gpt-4o",
-        messages=messages,
-        response_format=ExecutePythonFunctionSchema,
-    )
-    response = json.loads(completion.choices[0].message.content)
-    """
+        return JsonResponse(response_data)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
 
 
-    LocalAPIFunction.objects.create(
-        name=response['name'],
-        description=response['description'],
-        arguments=response['arguments'],
-        code=response['code'],
-        return_schema=response.get('return_schema', {}),
-    )
+class FunctionUpdateSchema(Schema):
+    name: str = None
+    description: str = None
+    argument_schema: dict = None
+    code: str = None
+    extra_context: dict = None
+    result_type: str = None
 
-    return
+
+@api.post("/update_function/{function_uuid}", auth=BearerAuth())
+async def update_function(request, function_uuid, payload: FunctionUpdateSchema):
+    try:
+        function = await LocalAPIFunction.objects.aget(uuid=function_uuid, projects=request.auth['project'])
+    except LocalAPIFunction.DoesNotExist:
+        return JsonResponse({"error": "Function not found."}, status=404)
+    try:
+        if payload.name is not None:
+            function.name = payload.name
+        if payload.description is not None:
+            function.description = payload.description
+        if payload.argument_schema is not None:
+            function.argument_schema = payload.argument_schema
+        if payload.code is not None:
+            function.code = payload.code
+        if payload.extra_context is not None:
+            function.extra_context = payload.extra_context
+        if payload.result_type is not None:
+            function.result_type = payload.result_type
+
+        await function.asave()
+
+        response_data = {
+            "uuid": str(function.uuid),
+            "name": function.name,
+            "description": function.description,
+            "argument_schema": function.argument_schema,
+            "code": function.code,
+            "extra_context": function.extra_context,
+            "result_type": function.result_type,
+            "version": function.version,
+        }
+        return JsonResponse(response_data)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
 
 
 @api.post("/save_function")
