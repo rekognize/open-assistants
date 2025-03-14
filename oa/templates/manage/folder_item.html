@@ -13,15 +13,19 @@
                         ${folderName}
                     </h6>
 
+                    <div>
+                        <span class="small text-secondary"
+                              data-bs-toggle="tooltip"
+                              data-bs-title="${fileCount} file(s)">
+                            ${fileCount} file(s)
+                        </span>
+                    </div>
+
                 </div>
 
                 <div class="collapse show">
 
-                    <div class="info-box">
-                        <p class="info-value">${fileCount} file(s)</p>
-                    </div>
-
-                    <div class="info-box">
+                    <div class="info-box mt-4">
                         <span class="info-label">Created ${createdAgo} ago</span>
                         <p class="info-value">${createdDate}</p>
                     </div>

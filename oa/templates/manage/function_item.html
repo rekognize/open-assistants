@@ -9,6 +9,14 @@
                     ${funcName}
                 </h6>
 
+                <div>
+                    <span class="small text-secondary"
+                          data-bs-toggle="tooltip"
+                          data-bs-title="Version: ${func.version}">
+                        ${func.type}
+                    </span>
+                </div>
+
             </div>
 
             <!-- Info -->
@@ -16,6 +24,21 @@
             <div class="brief-info">
 
                 <div class="collapse show">
+
+                    <div class="info-box mt-4">
+                        <span class="info-label">Description</span>
+                        <p class="info-value">${funcDesc}</p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label">Created ${createdAgo} ago</span>
+                        <p class="info-value">${createdDate}</p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label">Last modified ${modifiedAgo} ago</span>
+                        <p class="info-value">${modifiedDate}</p>
+                    </div>
 
                 </div>
 

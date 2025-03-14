@@ -58,6 +58,8 @@ let folderFiles = {};  // {folderId: [file1, file2, ...]}
 let fileFolders = {};  // {fileId: [folder1, folder2, ...]}
 let assistantFoldersMapping = {}; // { assistantId: [folderUUID, ...], ... }
 let folderAssistantsMapping = {}; // { folderUUID: [assistantId, ...], ... }
+let assistantFunctionsMapping = {}; // { assistantId: [functionUUID, ...], ... }
+let functionAssistantsMapping = {}; // { functionUUID: [assistantId, ...], ... }
 let selectedFiles = [];
 
 let foldersLoaded = false;
@@ -76,6 +78,7 @@ let assistantFilters = {
     startDate: null,
     endDate: null,
     folderId: '',
+    functionId: '',
     model: ''
 };
 let folderSortField = 'created_at';  // Options: 'name', 'created_at', 'modified_at'
@@ -107,6 +110,7 @@ async function loadAndDisplayFolders() {
 async function loadAndDisplayAssistants() {
     await fetchAssistantFoldersMapping();
     const assistants = await fetchAssistants();
+    await fetchAssistantFunctionsMapping();
     displayAssistants();
     populateFolderFilterOptions();
     return assistants;
@@ -125,10 +129,10 @@ async function initializePage() {
     toggleLoading('assistants', true);
     toggleLoading('functions', true);
 
-    folders = await loadAndDisplayFolders();
+    await loadAndDisplayFolders();
+    await loadAndDisplayFunctions();
     populateAssistantFilterOptions();
     loadAndDisplayAssistants();
-    loadAndDisplayFunctions();
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -391,6 +395,7 @@ function applyAssistantFilters() {
     }
 
     assistantFilters.folderId = document.getElementById('filterFolder').value;
+    assistantFilters.functionId = document.getElementById('filterFunction').value;
     assistantFilters.model = document.getElementById('filterModel').value;
 
     displayAssistants(); // Re-display assistants with filters applied
@@ -416,6 +421,7 @@ function resetAssistantFilters() {
         startDate: null,
         endDate: null,
         folderId: '',
+        functionId: '',
         model: ''
     };
     displayAssistants();
@@ -559,19 +565,32 @@ function resetFunctionFilters() {
 
 function populateAssistantFilterOptions() {
     const filterFolder = document.getElementById('filterFolder');
-    filterFolder.innerHTML = '<option value="">All</option>'; // Reset options
+    const filterFunction = document.getElementById('filterFunction');
+     // Reset options
+    filterFolder.innerHTML = '<option value="">All</option>';
+    filterFunction.innerHTML = '<option value="">All</option>';
 
-    // Add option for "None" (assistants without any folders)
-    const noneOption = document.createElement('option');
-    noneOption.value = "none";
-    noneOption.textContent = "None";
-    filterFolder.appendChild(noneOption);
+    // Add options for "None"
+    const noneOptionFolder = document.createElement('option');
+    noneOptionFolder.value = "none";
+    noneOptionFolder.textContent = "None";
+    filterFolder.appendChild(noneOptionFolder);
+    const noneOptionFunction = document.createElement('option');
+    noneOptionFunction.value = "none";
+    noneOptionFunction.textContent = "None";
+    filterFunction.appendChild(noneOptionFunction);
 
     for (const [folderId, folder] of Object.entries(folders)) {
         const option = document.createElement('option');
         option.value = folderId;
         option.textContent = folder.name || 'Untitled folder';
         filterFolder.appendChild(option);
+    }
+    for (const [functionId, func] of Object.entries(functions)) {
+        const option = document.createElement('option');
+        option.value = functionId;
+        option.textContent = func.name || 'Untitled function';
+        filterFunction.appendChild(option);
     }
 }
 
@@ -1051,6 +1070,43 @@ async function fetchAssistantFoldersMapping() {
     }
 }
 
+async function fetchAssistantFunctionsMapping(){
+    try {
+        if (functions && assistants) {
+            const mapping = {};
+
+            Object.keys(assistants).forEach(assistantId => {
+                const tools = Array.isArray(assistants[assistantId].tools)
+                    ? assistants[assistantId].tools
+                    : [];
+
+                const selectedFunctions = tools
+                    .filter(tool => tool.type === 'function' && tool.function && tool.function.name)
+                    .map(tool => {
+                        // Find matching function in global functions by comparing tool.function.name with function.slug
+                        const match = Object.entries(functions).find(
+                            ([uuid, func]) => func.slug === tool.function.name
+                        );
+                        return match ? match[0] : undefined;
+                    })
+                    .filter(uuid => uuid !== undefined);
+
+                mapping[assistantId] = selectedFunctions;
+
+            });
+
+            assistantFunctionsMapping = mapping;
+
+        } else {
+            showToast("Failed!", "Failed to fetch assistant functions.");
+            console.error("Global variables 'functions' or 'assistants' are missing.");
+        }
+    } catch (error) {
+        showToast("Failed to fetch assistant functions:", error);
+        console.error('Error fetching assistant functions mapping:', error);
+    }
+}
+
 const assistantItemTemplate = document.getElementById("assistant-item-template").innerHTML;
 
 function renderAssistant(assistant) {
@@ -1072,11 +1128,23 @@ function renderAssistant(assistant) {
         }
     }
 
+    // Prepare function names
+    let functionNames = 'No functions assigned';
+    if (assistantFunctionsMapping && assistantFunctionsMapping[assistant.id]) {
+        const matchingFunctions = assistantFunctionsMapping[assistant.id]
+            .map(functionUUID => functions[functionUUID])
+            .filter(func => func !== undefined);
+        if (matchingFunctions.length > 0) {
+            functionNames = matchingFunctions.map(func => func.name || "Untitled function").join(', ');
+        }
+    }
+
     // The template context
     const data = {
         assistant: assistant,
         assistantName: assistantName,
-        folderNames: folderNames
+        folderNames: folderNames,
+        functionNames: functionNames
     };
 
     // Compile the template into a function
@@ -1124,6 +1192,19 @@ function displayAssistants() {
                 }
             } else {
                 if (!folderUUIDs.includes(assistantFilters.folderId)) {
+                    return false;
+                }
+            }
+        }
+        // Filter by function
+        if (assistantFilters.functionId) {
+            const functionUUIDs = (assistantFunctionsMapping && assistantFunctionsMapping[assistant.id]) || [];
+            if (assistantFilters.functionId === "none") {
+                if (functionUUIDs.length > 0) {
+                    return false;
+                }
+            } else {
+                if (!functionUUIDs.includes(assistantFilters.functionId)) {
                     return false;
                 }
             }
@@ -1321,11 +1402,21 @@ function renderFunction(func) {
     functionItem.id = `function-${func.uuid}`;
 
     const funcName = func.name || 'Untitled function';
+    const funcDesc = func.description || 'No description provided';
+    const createdDate = formatDbDate(func.created_at);
+    const modifiedDate = formatDbDate(func.modified_at);
+    const createdAgo = timeSinceDB(func.created_at);
+    const modifiedAgo = timeSinceDB(func.modified_at);
 
     // The template context
     const data = {
         func: func,
         funcName: funcName,
+        funcDesc: funcDesc,
+        createdDate: createdDate,
+        modifiedDate: modifiedDate,
+        createdAgo: createdAgo,
+        modifiedAgo: modifiedAgo,
     };
 
     // Compile the template into a function

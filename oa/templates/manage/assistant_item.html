@@ -14,11 +14,11 @@
                     </h6>
 
                     <div>
-                        <small class="small text-secondary"
+                        <span class="small text-secondary"
                                data-bs-toggle="tooltip"
                                data-bs-title="created at ${formatUnixTimestamp(assistant.created_at)}">
                             ${timeSince(assistant.created_at * 1000)} ago
-                        </small>
+                        </span>
                     </div>
 
                 </div>
@@ -27,13 +27,20 @@
 
                     <div class="info-box mt-4">
                         <span class="info-label">Description</span>
-                        <p class="info-value" id="info-description-${assistant.id}">${assistant.description || 'No description given'}</p>
+                        <p class="info-value">${assistant.description || 'No description given'}</p>
                     </div>
 
                     <div class="info-box">
                         <span class="info-label">Folders</span>
-                        <p class="info-value" id="info-folders-${assistant.id}">
+                        <p class="info-value">
                             ${folderNames}
+                        </p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label">Functions</span>
+                        <p class="info-value">
+                            ${functionNames}
                         </p>
                     </div>
 
