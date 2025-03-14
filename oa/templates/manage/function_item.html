@@ -55,6 +55,13 @@
                         data-bs-toggle="tooltip" data-bs-title="Edit">
                     <i class="bi bi-pencil"></i>
                 </a>
+
+                <button type="button" class="btn btn-sm btn-outline-secondary function-assistants-button"
+                        data-bs-toggle="tooltip" data-bs-title="Filter assistants"
+                        data-function-uuid="${func.uuid}"
+                        onclick="hideTooltip(this); toggleAssistantFilterByFunction('${func.uuid}', this)">
+                    <i class="bi bi-collection"></i>
+                </button>
             </div>
 
         </div>

@@ -1680,6 +1680,54 @@ async function editFunction(funcId) {
     });
 }
 
+// Called when a function card’s “Filter assistants” button is clicked
+function toggleAssistantFilterByFunction(functionId, buttonElement) {
+    hideTooltip(buttonElement);
+
+    if (assistantFilters.functionId === functionId) {
+        // Remove the function filter
+        assistantFilters.functionId = '';
+    } else {
+        // Set the function filter to this functionId
+        assistantFilters.functionId = functionId;
+    }
+
+    // Update the assistant filter dropdown to reflect the selected function
+    document.getElementById('filterFunction').value = assistantFilters.functionId;
+
+    // Update the styles and icons of all function card 'Filter assistants' buttons
+    updateFilterAssistantsByFunctionButtonStyles();
+
+    // Display the assistants with the updated filters
+    displayAssistants();
+
+    // Update the filter icon based on active filters
+    updateFilterIcon('assistantFilterDropdown', assistantFilters);
+}
+
+function updateFilterAssistantsByFunctionButtonStyles() {
+    const buttons = document.querySelectorAll('.function-assistants-button');
+    buttons.forEach(button => {
+        // Assume each button has a data attribute named "data-function-uuid"
+        const functionId = button.getAttribute('data-function-uuid');
+        const iconElement = button.querySelector('i');
+
+        if (assistantFilters.functionId === functionId && assistantFilters.functionId !== '') {
+            // Active: use secondary style and fill icon
+            button.classList.remove('btn-outline-secondary');
+            button.classList.add('btn-secondary');
+            iconElement.classList.remove('bi-collection');
+            iconElement.classList.add('bi-collection-fill');
+        } else {
+            // Inactive: use outline style and empty icon
+            button.classList.remove('btn-secondary');
+            button.classList.add('btn-outline-secondary');
+            iconElement.classList.remove('bi-collection-fill');
+            iconElement.classList.add('bi-collection');
+        }
+    });
+}
+
 
 /* File Uploads */
 
