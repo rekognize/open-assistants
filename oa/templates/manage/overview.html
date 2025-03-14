@@ -219,7 +219,7 @@
                                 onclick="hideTooltip(this); refreshAssistantsList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
                             <a href="#" class="text-light-emphasis bi bi-plus-lg ms-2"
-                               onclick="clickAssistantsTab()"
+                               onclick="hideTooltip(this); clickAssistantsTab()"
                                data-bs-toggle="tooltip" data-bs-title="Create a new assistant"></a>
                         </div>
                     </div>
@@ -346,7 +346,7 @@
                                 onclick="hideTooltip(this); refreshFolderList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
                             <a href="#" class="text-light-emphasis bi bi-plus-lg ms-2"
-                               onclick="clickKnowledgeTab()"
+                               onclick="hideTooltip(this); clickKnowledgeTab()"
                                data-bs-toggle="tooltip" data-bs-title="Create a new folder"></a>
                         </div>
                     </div>
@@ -403,6 +403,16 @@
                                             Name (Z to A)
                                         </a>
                                     </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('modified_at', 'desc', event);">
+                                            Modified Time (Newest First)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="hideTooltip(this); setFunctionSort('modified_at', 'asc', event);">
+                                            Modified Time (Oldest First)
+                                        </a>
+                                    </li>
                                 </ul>
                             </div>
 
@@ -417,19 +427,26 @@
                                             <label for="functionFilterName" class="form-label">Name</label>
                                             <input type="text" class="form-control form-control-sm" id="functionFilterName" placeholder="Search by name">
                                         </div>
-                                        <!-- Creation Date Filter -->
+                                        <!-- Created At Filter -->
                                         <div class="mb-2">
-                                            <label class="form-label">Creation Date</label>
+                                            <label class="form-label">Created</label>
                                             <div class="d-flex">
-                                                <input type="date" class="form-control form-control-sm me-1" id="functionFilterStartDate">
-                                                <input type="date" class="form-control form-control-sm" id="functionFilterEndDate">
+                                                <input type="date" class="form-control form-control-sm me-1" id="functionFilterCreatedStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="functionFilterCreatedEndDate">
+                                            </div>
+                                        </div>
+                                        <!-- Last Modified Filter -->
+                                        <div class="mb-2">
+                                            <label class="form-label">Last Modified</label>
+                                            <div class="d-flex">
+                                                <input type="date" class="form-control form-control-sm me-1" id="functionFilterModifiedStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="functionFilterModifiedEndDate">
                                             </div>
                                         </div>
                                         <!-- Assistant Filter -->
                                         <div class="mb-2">
                                             <label for="functionFilterAssistant" class="form-label">Assistant</label>
                                             <select class="form-select form-select-sm" id="functionFilterAssistant">
-                                                <option value="">All</option>
                                                 <!-- List of assistants will be populated dynamically -->
                                             </select>
                                         </div>
@@ -437,7 +454,7 @@
                                         <div class="mb-2">
                                             <label for="functionFilterType" class="form-label">Function Type</label>
                                             <select class="form-select form-select-sm" id="functionFilterType">
-                                                <option value="">All</option>
+                                                <option value="all">All</option>
                                                 <option value="local">Local</option>
                                                 <option value="external">External</option>
                                             </select>
@@ -455,7 +472,8 @@
                                 onclick="hideTooltip(this); refreshFunctionsList();"
                                 data-bs-toggle="tooltip" data-bs-title="Refresh"></a>
                             <a href="#" class="text-light-emphasis bi bi-plus-lg ms-2"
-                                data-bs-toggle="tooltip" data-bs-title="Add function"></a>
+                               onclick="hideTooltip(this); clickToolsTab()"
+                               data-bs-toggle="tooltip" data-bs-title="Create a new function"></a>
                         </div>
                     </div>
                 </div>

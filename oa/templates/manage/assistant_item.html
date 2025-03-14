@@ -72,6 +72,13 @@
                         onclick="hideTooltip(this); toggleFolderFilterByAssistant('${assistant.id}', this)">
                     <i class="bi bi-archive"></i>
                 </button>
+
+                <button type="button" class="btn btn-sm btn-outline-secondary assistant-functions-button"
+                        data-bs-toggle="tooltip" data-bs-title="Filter functions"
+                        data-folder-uuid="${assistant.id}"
+                        onclick="hideTooltip(this); toggleFunctionFilterByAssistant('${assistant.id}', this)">
+                    <i class="bi bi-file-code"></i>
+                </button>
             </div>
 
             <!-- Action Buttons -->

@@ -96,7 +96,12 @@ let functionSortField = 'created_at'; // default sort field
 let functionSortOrder = 'desc';       // default sort order
 let functionFilters = {
     name: '',
-    functionType: ''
+    createdStartDate: null,
+    createdEndDate: null,
+    modifiedStartDate: null,
+    modifiedEndDate: null,
+    assistant: '',      // Assistant filter: empty means "All", "none" means folders with no assistants
+    functionType: 'all'
 };
 
 
@@ -111,8 +116,10 @@ async function loadAndDisplayAssistants() {
     await fetchAssistantFoldersMapping();
     const assistants = await fetchAssistants();
     await fetchAssistantFunctionsMapping();
+    await fetchFunctionAssistantsMapping();
     displayAssistants();
     populateFolderFilterOptions();
+    populateFunctionFilterOptions();
     return assistants;
 }
 
@@ -506,31 +513,31 @@ function resetFolderFilters() {
 function applyFunctionFilters() {
     // Read filter values
     functionFilters.name = document.getElementById('functionFilterName').value.toLowerCase();
-    functionFilters.startDate = document.getElementById('functionFilterStartDate').value
-        ? new Date(document.getElementById('functionFilterStartDate').value)
-        : null;
-    functionFilters.endDate = document.getElementById('functionFilterEndDate').value
-        ? new Date(document.getElementById('functionFilterEndDate').value)
-        : null;
 
-    // Adjust dates
-    if (functionFilters.startDate) {
-        functionFilters.startDate.setHours(0, 0, 0, 0);
-    }
-    if (functionFilters.endDate) {
-        functionFilters.endDate.setHours(23, 59, 59, 999);
+    functionFilters.createdStartDate = document.getElementById('functionFilterCreatedStartDate').value
+        ? new Date(document.getElementById('functionFilterCreatedStartDate').value)
+        : null;
+    functionFilters.createdEndDate = document.getElementById('functionFilterCreatedEndDate').value
+        ? new Date(document.getElementById('functionFilterCreatedEndDate').value)
+        : null;
+    if (functionFilters.createdEndDate) {
+        functionFilters.createdEndDate.setHours(23, 59, 59, 999);
     }
 
-    functionFilters.folderId = document.getElementById('functionFilterFolder').value;
+    functionFilters.modifiedStartDate = document.getElementById('functionFilterModifiedStartDate').value
+        ? new Date(document.getElementById('functionFilterModifiedStartDate').value)
+        : null;
+    functionFilters.modifiedEndDate = document.getElementById('functionFilterModifiedEndDate').value
+        ? new Date(document.getElementById('functionFilterModifiedEndDate').value)
+        : null;
+    if (functionFilters.modifiedEndDate) {
+        functionFilters.modifiedEndDate.setHours(23, 59, 59, 999);
+    }
+
+    functionFilters.assistant = document.getElementById('functionFilterAssistant').value;
     functionFilters.functionType = document.getElementById('functionFilterType').value;
 
     displayFunctions();
-
-    // Update button styles and icons
-    updateFolderFilesButtonStyles();
-
-    // Update the filter icon
-    updateFilterIcon('functionFilterDropdown', functionFilters);
 
     // Close the dropdown menu
     const dropdownElement = document.getElementById('functionFilterDropdown');
@@ -538,22 +545,27 @@ function applyFunctionFilters() {
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
+
+    // Update button styles and icons
+    updateFilterFunctionsButtonStyles();
+
+    // Update the filter icon
+    updateFilterIcon('functionFilterDropdown', functionFilters);
 }
 
 function resetFunctionFilters() {
     document.getElementById('functionFilterForm').reset();
     functionFilters = {
         name: '',
-        functionType: ''
+        createdStartDate: null,
+        createdEndDate: null,
+        modifiedStartDate: null,
+        modifiedEndDate: null,
+        assistant: '',
+        functionType: 'all'
     };
 
     displayFunctions();
-
-    // Update button styles and icons
-    updateFolderFilesButtonStyles();
-
-    // Update the filter icon
-    updateFilterIcon('functionFilterDropdown', functionFilters);
 
     // Close the dropdown menu
     const dropdownElement = document.getElementById('functionFilterDropdown');
@@ -561,6 +573,12 @@ function resetFunctionFilters() {
     if (dropdownInstance) {
         dropdownInstance.hide();
     }
+
+    // Update button styles and icons
+    updateFilterFunctionsButtonStyles();
+
+    // Update the filter icon
+    updateFilterIcon('functionFilterDropdown', functionFilters);
 }
 
 function populateAssistantFilterOptions() {
@@ -622,8 +640,21 @@ function populateFolderFilterOptions() {
 
 function populateFunctionFilterOptions() {
     const filterAssistant = document.getElementById('functionFilterAssistant');
-    filterAssistant.innerHTML = '<option value="">All</option>'; // Reset options
+    filterAssistant.innerHTML = ''; // Clear existing options
 
+    // Add "All" option
+    const allOption = document.createElement('option');
+    allOption.value = '';
+    allOption.textContent = 'All';
+    filterAssistant.appendChild(allOption);
+
+    // Add "None" option
+    const noneOption = document.createElement('option');
+    noneOption.value = 'none';
+    noneOption.textContent = 'None';
+    filterAssistant.appendChild(noneOption);
+
+    // Add each assistant
     for (const [assistantId, assistant] of Object.entries(assistants)) {
         const option = document.createElement('option');
         option.value = assistantId;
@@ -650,8 +681,6 @@ function updateSortDropdownUI(dropdownId, field, order) {
         sortIcon.classList.add(order === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-down-alt');
     } else if (field === 'created_at') {
         sortIcon.classList.add(order === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down');
-    } else if (field === 'size' || field === 'bytes') {
-        sortIcon.classList.add(order === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-down-alt');
     } else if (field === 'modified_at') {
         sortIcon.classList.add(order === 'asc' ? 'bi-clock-history' : 'bi-clock');
     }
@@ -675,7 +704,8 @@ function areFiltersActive(filters) {
     return Object.keys(filters).some(key => {
         const value = filters[key];
         if (typeof value === 'string') {
-            if (key === 'fileFilter') {
+            // For fileFilter and functionType, treat the default 'all' as inactive
+            if (key === 'fileFilter' || key === 'functionType') {
                 return value !== 'all';
             }
             return value.trim() !== '';
@@ -1102,8 +1132,51 @@ async function fetchAssistantFunctionsMapping(){
             console.error("Global variables 'functions' or 'assistants' are missing.");
         }
     } catch (error) {
-        showToast("Failed to fetch assistant functions:", error);
+        showToast("Failed to fetch assistant functions", error);
         console.error('Error fetching assistant functions mapping:', error);
+    }
+}
+
+async function fetchFunctionAssistantsMapping() {
+    try {
+        if (functions && assistants) {
+            const mapping = {};
+
+            // Iterate over each assistant
+            Object.keys(assistants).forEach(assistantId => {
+                const tools = Array.isArray(assistants[assistantId].tools)
+                    ? assistants[assistantId].tools
+                    : [];
+
+                // Process each tool that qualifies as a function tool with a valid function name
+                tools
+                    .filter(tool => tool.type === 'function' && tool.function && tool.function.name)
+                    .forEach(tool => {
+                        // Find matching function in global functions by comparing tool.function.name with function.slug
+                        const match = Object.entries(functions).find(
+                            ([uuid, func]) => func.slug === tool.function.name
+                        );
+                        if (match) {
+                            const functionUUID = match[0];
+                            // Initialize the array if this functionUUID hasn't been added yet
+                            if (!mapping[functionUUID]) {
+                                mapping[functionUUID] = [];
+                            }
+                            // Add the assistantId to the array for this function
+                            mapping[functionUUID].push(assistantId);
+                        }
+                    });
+            });
+
+            // Assign the computed mapping to the global variable
+            functionAssistantsMapping = mapping;
+        } else {
+            showToast("Failed!", "Failed to fetch function assistants.");
+            console.error("Global variables 'functions' or 'assistants' are missing.");
+        }
+    } catch (error) {
+        showToast("Failed to fetch function assistants", error);
+        console.error('Error fetching function assistants mapping:', error);
     }
 }
 
@@ -1322,6 +1395,31 @@ function toggleFolderFilterByAssistant(assistantId, buttonElement) {
     updateFilterIcon('folderFilterDropdown', folderFilters);
 }
 
+// Called when an assistant card’s “Filter functions” button is clicked
+function toggleFunctionFilterByAssistant(assistantId, buttonElement) {
+    hideTooltip(buttonElement);
+
+    if (functionFilters.assistant === assistantId) {
+        // Remove the assistant filter
+        functionFilters.assistant = '';
+    } else {
+        // Set the assistant filter to this assistantId
+        functionFilters.assistant = assistantId;
+    }
+
+    // Update the function filter dropdown to reflect the selected assistant filter
+    document.getElementById('functionFilterAssistant').value = functionFilters.assistant;
+
+    // Update the styles and icons of all assistant 'Filter functions' buttons
+    updateFilterFunctionsButtonStyles();
+
+    // Re-display functions with the updated filters
+    displayFunctions();
+
+    // Update the filter icon in the function filter dropdown
+    updateFilterIcon('functionFilterDropdown', functionFilters);
+}
+
 // Updates the styling for assistant card buttons (for filtering folders)
 function updateFilterFoldersButtonStyles() {
     // Select buttons by their updated class name
@@ -1342,6 +1440,29 @@ function updateFilterFoldersButtonStyles() {
             button.classList.add('btn-outline-secondary');
             iconElement.classList.remove('bi-archive-fill');
             iconElement.classList.add('bi-archive');
+        }
+    });
+}
+
+function updateFilterFunctionsButtonStyles() {
+    // Select buttons by their updated class name
+    const buttons = document.querySelectorAll('.assistant-functions-button');
+    buttons.forEach(button => {
+        const assistantId = button.getAttribute('data-folder-uuid');
+        const iconElement = button.querySelector('i');
+
+        if (functionFilters.assistant === assistantId && functionFilters.assistant !== '') {
+            // Active filter: use secondary style and change icon to file-code-fill
+            button.classList.remove('btn-outline-secondary');
+            button.classList.add('btn-secondary');
+            iconElement.classList.remove('bi-file-code');
+            iconElement.classList.add('bi-file-code-fill');
+        } else {
+            // Inactive: reset to outline style and file-code icon
+            button.classList.remove('btn-secondary');
+            button.classList.add('btn-outline-secondary');
+            iconElement.classList.remove('bi-file-code-fill');
+            iconElement.classList.add('bi-file-code');
         }
     });
 }
@@ -1430,14 +1551,11 @@ function renderFunction(func) {
 
 function displayFunctions() {
     const functionsList = document.getElementById('functions-list');
-
     // Dispose of existing tooltips within the functions list
     disposeTooltips(functionsList);
-
     functionsList.innerHTML = '';  // Clear any existing functions
 
     const totalFunctions = Object.values(functions).length;
-
     // Convert the functions object into an array
     let functionsArray = Object.values(functions);
 
@@ -1447,14 +1565,51 @@ function displayFunctions() {
         if (functionFilters.name && !func.name.toLowerCase().includes(functionFilters.name)) {
             return false;
         }
-        // Filter by function type
-        if (functionFilters.functionType && func.functionType !== functionFilters.functionType) {
+        // Created At Date Filter
+        const createdAt = new Date(func.created_at);
+        if (functionFilters.createdStartDate && createdAt < functionFilters.createdStartDate) {
+            return false;
+        }
+        if (functionFilters.createdEndDate && createdAt > functionFilters.createdEndDate) {
+            return false;
+        }
+        // Last Modified Date Filter
+        const modifiedAt = new Date(func.modified_at);
+        if (functionFilters.modifiedStartDate && modifiedAt < functionFilters.modifiedStartDate) {
+            return false;
+        }
+        if (functionFilters.modifiedEndDate && modifiedAt > functionFilters.modifiedEndDate) {
+            return false;
+        }
+        // Assistant Filter
+        if (functionFilters.assistant) {
+            const assignedAssistants = functionAssistantsMapping[func.uuid] || [];
+            if (functionFilters.assistant === 'none') {
+                if (assignedAssistants.length > 0) {
+                    return false;
+                }
+            } else {
+                if (!assignedAssistants.includes(functionFilters.assistant)) {
+                    return false;
+                }
+            }
+        }
+        // Function Type filter
+        if (functionFilters.functionType && functionFilters.functionType !== 'all' && func.type !== functionFilters.functionType) {
             return false;
         }
         return true;
     });
 
     const filteredFunctionsCount = functionsArray.length;
+
+    const functionsCountElement = document.getElementById('functions-count');
+    if (areFiltersActive(functionFilters)) {
+        functionsCountElement.innerHTML = `${filteredFunctionsCount} functions (<a class="text-decoration-none" href="#" onclick="resetFunctionFilters(); return false;">${totalFunctions} total</a>)`;
+    } else {
+        functionsCountElement.textContent = `${totalFunctions} functions`;
+    }
+    functionsCountElement.style.display = 'inline';
 
     // Handle different cases based on total functions and filtered functions
     if (totalFunctions === 0) {
@@ -1486,13 +1641,13 @@ function displayFunctions() {
     // Sort the array according to the selected sort options
     functionsArray.sort((a, b) => {
         let compareResult = 0;
-
         if (functionSortField === 'name') {
-            compareResult = a.name.localeCompare(b.name);
+            compareResult = (a.name || '').localeCompare(b.name || '');
         } else if (functionSortField === 'created_at') {
-            compareResult = a.created_at - b.created_at;
+            compareResult = new Date(a.created_at) - new Date(b.created_at);
+        } else if (functionSortField === 'modified_at') {
+            compareResult = new Date(a.modified_at) - new Date(b.modified_at);
         }
-
         return functionSortOrder === 'asc' ? compareResult : -compareResult;
     });
 
