@@ -128,7 +128,11 @@
         // Compute function names from the assistant’s tools (if any)
         const functionNames = (assistant.tools || [])
             .filter(tool => tool.type === 'function' && tool.function && tool.function.name)
-            .map(tool => tool.function.name)
+            .map(tool => {
+                const functionSlug = tool.function.name;
+                const matchingFunction = Object.values(functions).find(f => f.slug === functionSlug);
+                return matchingFunction ? matchingFunction.name : functionSlug;
+            })
             .join(', ') || 'No functions in use';
 
         return `
@@ -445,7 +449,9 @@
         }
 
         functionDefinitions.forEach(funcDef => {
-            const functionName = funcDef.name;
+            const functionSlug = funcDef.name;
+            const matchingFunction = Object.values(functions).find(f => f.slug === functionSlug);
+            const displayName = matchingFunction ? matchingFunction.name : functionSlug;
 
             // Create checkbox container
             const checkboxDiv = document.createElement('div');
@@ -455,18 +461,18 @@
             const input = document.createElement('input');
             input.classList.add('form-check-input');
             input.type = 'checkbox';
-            input.value = functionName;
-            input.id = `function-${functionName}-${assistantId}`;
+            input.value = functionSlug;
+            input.id = `function-${functionSlug}-${assistantId}`;
             // Pre-select the checkbox if the function is already in the assistant's tools
-            if (selectedFunctions.includes(functionName)) {
+            if (selectedFunctions.includes(functionSlug)) {
                 input.checked = true;
             }
 
             // Create the label element
             const label = document.createElement('label');
             label.classList.add('form-check-label');
-            label.setAttribute('for', `function-${functionName}-${assistantId}`);
-            label.textContent = functionName;
+            label.setAttribute('for', `function-${functionSlug}-${assistantId}`);
+            label.textContent = displayName;
 
             // Append the input and label to the container and add to the list div
             checkboxDiv.appendChild(input);
