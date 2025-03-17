@@ -425,16 +425,6 @@
         return base + (mode === 'inline' ? '-inline-' : '-') + assistantId;
     }
 
-    // Helper: checks input length and gives user a warning
-    function checkInputLength(inputElement, helpElementId, maxLength = 256) {
-        const helpElement = document.getElementById(helpElementId);
-        if (inputElement.value.length >= maxLength) {
-            helpElement.classList.remove('d-none');
-        } else {
-            helpElement.classList.add('d-none');
-        }
-    }
-
     // Helper: renders function checkboxes for the assistant
     function renderFunctionCheckboxes(assistantId) {
         const functionsListDiv = document.getElementById(`functions-list-${assistantId}`);

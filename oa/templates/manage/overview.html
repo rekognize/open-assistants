@@ -606,6 +606,16 @@
         });
     });
 
+    // Helper: checks input length and gives user a warning
+    function checkInputLength(inputElement, helpElementId, maxLength = 256) {
+        const helpElement = document.getElementById(helpElementId);
+        if (inputElement.value.length >= maxLength) {
+            helpElement.classList.remove('d-none');
+        } else {
+            helpElement.classList.add('d-none');
+        }
+    }
+
 </script>
 
 <script id="function-item-template" type="text/template">

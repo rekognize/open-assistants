@@ -28,7 +28,7 @@ class BaseAPIFunction(models.Model):
     """
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
-    slug = models.SlugField(max_length=100, blank=True, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -43,8 +43,8 @@ class BaseAPIFunction(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
+        # Always update the slug to match the current name
+        self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
     def get_definition(self):

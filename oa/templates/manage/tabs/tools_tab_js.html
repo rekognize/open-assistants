@@ -295,8 +295,10 @@
                 <!-- Form fields for editing the function -->
                 <form class="mt-3">
                     <div class="form-floating mb-3">
-                        <input type="text" class="form-control" id="edit-function-name-${func.uuid}" value="${func.name}">
+                        <input type="text" class="form-control" id="edit-function-name-${func.uuid}" maxlength="100" value="${func.name}"
+                               oninput="checkInputLength(this, 'editFunctionNameHelp-${func.uuid}', 100)">
                         <label for="edit-function-name-${func.uuid}">Name</label>
+                        <small id="editFunctionNameHelp-${func.uuid}" class="form-text text-danger d-none">The maximum character length is reached.</small>
                     </div>
                     <div class="form-floating mb-3">
                         <textarea class="form-control" id="edit-function-description-${func.uuid}" rows="3">${func.description || ''}</textarea>
@@ -372,8 +374,10 @@
                     </div>
                     <form class="mt-3" id="newFunctionForm">
                         <div class="form-floating mb-3">
-                            <input type="text" class="form-control" id="new-function-name" placeholder="Name" maxlength="100" value="">
+                            <input type="text" class="form-control" id="new-function-name" placeholder="Name" maxlength="100" value=""
+                                   oninput="checkInputLength(this, 'newFunctionNameHelp', 100)">
                             <label for="new-function-name" class="form-label">Name</label>
+                            <small id="newFunctionNameHelp" class="form-text text-danger d-none">The maximum character length is reached.</small>
                         </div>
                         <div class="form-floating mb-3">
                             <textarea class="form-control" id="new-function-description" placeholder="Description" rows="3"></textarea>
