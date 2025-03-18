@@ -166,12 +166,14 @@ async def create_function(request, payload: FunctionCreateSchema):
         response_data = {
             "uuid": str(function.uuid),
             "name": function.name,
+            "slug": function.slug,
             "description": function.description,
             "argument_schema": function.argument_schema,
             "code": function.code,
             "extra_context": function.extra_context,
             "result_type": function.result_type,
             "version": function.version,
+            "assistant_ids": function.assistant_ids,
         }
         return JsonResponse(response_data)
     except Exception as e:
@@ -185,6 +187,7 @@ class FunctionUpdateSchema(Schema):
     code: str = None
     extra_context: dict = None
     result_type: str = None
+    assistant_ids: list = None
 
 
 @api.post("/update_function/{function_uuid}", auth=BearerAuth())
@@ -206,18 +209,22 @@ async def update_function(request, function_uuid, payload: FunctionUpdateSchema)
             function.extra_context = payload.extra_context
         if payload.result_type is not None:
             function.result_type = payload.result_type
+        if payload.assistant_ids is not None:
+            function.assistant_ids = payload.assistant_ids
 
         await function.asave()
 
         response_data = {
             "uuid": str(function.uuid),
             "name": function.name,
+            "slug": function.slug,
             "description": function.description,
             "argument_schema": function.argument_schema,
             "code": function.code,
             "extra_context": function.extra_context,
             "result_type": function.result_type,
             "version": function.version,
+            "assistant_ids": function.assistant_ids,
         }
         return JsonResponse(response_data)
     except Exception as e:

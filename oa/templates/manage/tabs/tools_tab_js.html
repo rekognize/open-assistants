@@ -278,7 +278,7 @@
                     <div class="action-buttons">
                         <button type="button" class="btn btn-sm btn-outline-success"
                                 id="saveEditFunctionBtn-${func.uuid}"
-                                onclick="updateFunction('${func.uuid}');">
+                                onclick="modifyFunction('${func.uuid}');">
                             <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                             <span class="button-text">Save</span>
                         </button>
@@ -560,7 +560,7 @@
 
     /* Modify Function */
 
-    async function updateFunction(functionId) {
+    async function modifyFunction(functionId) {
         const saveBtn = document.getElementById(`saveEditFunctionBtn-${functionId}`);
         const spinner = saveBtn.querySelector('.spinner-border');
         const buttonText = saveBtn.querySelector('.button-text');

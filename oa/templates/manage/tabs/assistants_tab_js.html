@@ -628,11 +628,15 @@
             const vectorStoreFilesData = await updateVectorStoreFiles(vsData.id, assistantFoldersData.union_file_ids);
             console.log("Updated Vector Store files:", vectorStoreFilesData);
 
-            await fetchAssistants();
-            await fetchAssistantFoldersMapping();
+            // Update selected functions with the new assistant
+            await updateDbFunctions(assistantData.id, selectedFunctions);
+
+            // Refresh the assistants list and update the UI
+            await loadAndDisplayAssistants();
             await fetchAssistantsTab();
-            displayAssistants(); // Refresh overview assistants list
+            await fetchFolderAssistantsMapping();
             fetchFoldersTab(); // Refresh knowledge tab
+            fetchFunctionsTab(); // Refresh tools tab
 
             showToast("Assistant created successfully", name || 'Untitled assistant', "success");
         } catch (error) {
@@ -716,6 +720,70 @@
         if (!response.ok) {
             const errorResponse = await response.json();
             throw new Error(errorResponse.error || response.statusText);
+        }
+        return response.json();
+    }
+
+    // Helper: Updates the assistant_ids for functions when creating, modifying or deleting an assistant
+    async function updateDbFunctions(assistantId, selectedFunctions) {
+        // Convert global functions to an array
+        const functionsArr = Array.isArray(functions) ? functions : Object.values(functions);
+
+        // Build a set of selected function uuids
+        const selectedFunctionUUIDs = new Set(
+            selectedFunctions.map(sf => {
+                // Lookup by matching slug (from global functions) with the function name provided in selectedFunctions.
+                const found = functionsArr.find(f => f.slug === sf.function.name);
+                return found ? found.uuid : null;
+
+            }).filter(uuid => uuid !== null)
+        );
+        console.log('selectedFunctionUUIDs:', selectedFunctionUUIDs);
+
+        // Iterate over all functions to update assistant_ids
+        for (const func of functionsArr) {
+            const currentAssistantIds = func.assistant_ids || [];
+            let newAssistantIds;
+
+            if (selectedFunctionUUIDs.has(func.uuid)) {
+                // For selected functions, add the assistantId if it isn't already there
+                newAssistantIds = currentAssistantIds.includes(assistantId)
+                    ? currentAssistantIds
+                    : [...currentAssistantIds, assistantId];
+            } else {
+                // For functions not selected, remove the assistantId if it exists
+                newAssistantIds = currentAssistantIds.filter(id => id !== assistantId);
+            }
+
+            // Only update if there's been a change
+            if (JSON.stringify(newAssistantIds) !== JSON.stringify(currentAssistantIds)) {
+                try {
+                    const payload = { assistant_ids: newAssistantIds };
+                    const updatedFunction = await updateFunction(func.uuid, payload);
+                    console.log(`Updated function ${func.name} assistant_ids to:`, updatedFunction.assistant_ids);
+                    // Update local state for consistency
+                    func.assistant_ids = updatedFunction.assistant_ids;
+                } catch (error) {
+                    console.error(`Failed to update function ${func.name}:`, error);
+                }
+            }
+        }
+    }
+
+    async function updateFunction(functionUuid, payload) {
+        const url = updateFunctionUrl.replace('FUNCTION_UUID_PLACEHOLDER', functionUuid);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || errorData.detail || 'Unknown error occurred while updating function.');
         }
         return response.json();
     }
@@ -808,12 +876,15 @@
                 console.log("No vector store found for this assistant. Skipping vector store update.");
             }
 
+            // Add or remove assistant_ids accordingly from functions
+            await updateDbFunctions(updatedAssistantData.id, selectedFunctions);
+
             // Refresh the assistants list and update the UI accordingly
-            await fetchAssistants();
-            await fetchAssistantFoldersMapping();
+            await loadAndDisplayAssistants();
             await fetchAssistantsTab();
-            displayAssistants(); // Refresh overview assistants list
+            await fetchFolderAssistantsMapping();
             fetchFoldersTab(); // Refresh knowledge tab
+            fetchFunctionsTab(); // Refresh tools tab
 
             // TODO: Go back to the assistant
             showToast("Assistant updated successfully", name, "success");
@@ -913,12 +984,15 @@
                     }
                 }
 
+                // Remove the assistant's ID from all functions
+                await updateDbFunctions(assistantId, []);
+
                 // Refresh lists and UI
-                await fetchAssistants();
-                await fetchAssistantFoldersMapping();
+                await loadAndDisplayAssistants();
                 await fetchAssistantsTab();
-                displayAssistants(); // Refresh overview assistants list
+                await fetchFolderAssistantsMapping();
                 fetchFoldersTab(); // Refresh knowledge tab
+                fetchFunctionsTab(); // Refresh tools tab
 
                 deleteModal.hide();
 
