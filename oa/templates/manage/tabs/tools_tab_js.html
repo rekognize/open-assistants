@@ -223,10 +223,10 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <h4 class="d-inline me-2">${func.name || 'Untitled function'}</h4>
                     <div class="action-buttons">
-                        <a class="small text-secondary text-decoration-none" href="#"
-                           onclick="toggleEditFunction('${func.uuid}')">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="toggleEditFunction('${func.uuid}')">
+                            Edit
+                        </button>
                     </div>
                 </div>
                 <p class="text-secondary small">
@@ -542,12 +542,20 @@
 
             console.log("Created new function:", newFunction);
 
-            await fetchFunctions();
+            // Refresh the functions list and update the UI
+            await loadAndDisplayFunctions();
             await fetchFunctionsTab();
+            await loadAndDisplayAssistants();
+            fetchAssistantsTab(); // Refresh assistants tab
 
             showToast("Function created successfully", name, "success");
         } catch (error) {
-            showToast("Error creating function", error.message, "error");
+            // Check for unique slug conflict error
+            if (error.message.includes("UNIQUE constraint failed: function_calls_baseapifunction.slug")) {
+                showToast("Error creating function", "A function with that name already exists. Please choose a different name.", "error");
+            } else {
+                showToast("Error creating function", error.message, "error");
+            }
             console.error(error);
         } finally {
             spinner.classList.add('d-none');
@@ -569,6 +577,7 @@
         buttonText.textContent = 'Saving...';
 
         try {
+            // Get new function values
             const name = document.getElementById(`edit-function-name-${functionId}`).value;
             const description = document.getElementById(`edit-function-description-${functionId}`).value;
             const code = document.getElementById(`edit-function-code-${functionId}`).value;
@@ -588,6 +597,10 @@
                 showToast("Error", "Invalid JSON in Extra Context", "error");
                 return;
             }
+            const assistantIds = functions[functionId].assistant_ids
+
+            // Capture the old slug before updating
+            const oldSlug = functions[functionId].slug;
 
             const payload = {
                 name: name,
@@ -595,6 +608,7 @@
                 argument_schema: argumentSchema,
                 code: code,
                 extra_context: extraContext,
+                assistant_ids: assistantIds
             };
 
             const url = updateFunctionUrl.replace('FUNCTION_UUID_PLACEHOLDER', functionId);
@@ -615,18 +629,99 @@
 
             console.log("Updated function:", updatedFunction);
 
-            await fetchFunctions();
+            // Update assistants that uses the function
+            await updateFunctionAssistants(updatedFunction, oldSlug);
+
+            // Refresh the functions list and update the UI
+            await loadAndDisplayFunctions();
             await fetchFunctionsTab();
+            await loadAndDisplayAssistants();
+            fetchAssistantsTab(); // Refresh assistants tab
 
             showToast("Function updated successfully", name, "success");
         } catch (error) {
-            showToast("Error updating function", error.message, "error");
+            // Check for unique slug conflict error
+            if (error.message.includes("UNIQUE constraint failed: function_calls_baseapifunction.slug")) {
+                showToast("Error updating function", "A function with that name already exists. Please choose a different name.", "error");
+            } else {
+                showToast("Error updating function", error.message, "error");
+            }
             console.error(error);
         } finally {
             spinner.classList.add('d-none');
             buttonText.textContent = 'Save';
             saveBtn.disabled = false;
         }
+    }
+
+    async function updateFunctionAssistants(updatedFunction, oldSlug) {
+        // If no assistants are associated, nothing to update
+        if (!updatedFunction.assistant_ids || updatedFunction.assistant_ids.length === 0) {
+            return;
+        }
+
+        // Build the new function definition (keep the same structure)
+        const newFunctionDefinition = {
+            name: updatedFunction.slug,
+            description: updatedFunction.description,
+            parameters: updatedFunction.argument_schema.parameters || updatedFunction.argument_schema,
+            strict: updatedFunction.argument_schema.strict || false,
+        };
+
+        // Process each assistant that uses this function concurrently
+        const updatePromises = updatedFunction.assistant_ids.map(async (assistantId) => {
+            const assistant = assistants[assistantId];
+            if (!assistant || !assistant.tools || !Array.isArray(assistant.tools)) return;
+
+            // Create a new tools array updating tools that match either the old or new function slug.
+            const newTools = assistant.tools.map(tool => {
+                if (tool.type === "function" && tool.function) {
+                    // Update if the function name is either the new slug or the old slug.
+                    if (tool.function.name === updatedFunction.slug || tool.function.name === oldSlug) {
+                        return Object.assign({}, tool, { function: newFunctionDefinition });
+                    }
+                }
+                return tool;
+            });
+
+            // Only update if any tool has changed
+            if (JSON.stringify(newTools) === JSON.stringify(assistant.tools)) {
+                return;
+            }
+
+            const updatePayload = {
+                name: assistant.name,
+                description: assistant.description,
+                instructions: assistant.instructions,
+                model: assistant.model,
+                tools: newTools,
+                tool_resources: assistant.tool_resources || {},
+                metadata: assistant.metadata || {}
+            };
+
+            const url = modifyAssistantUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN
+                    },
+                    body: JSON.stringify(updatePayload)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || response.statusText);
+                }
+                const updatedAssistantData = await response.json();
+                console.log(`Assistant ${assistantId} updated via updateFunctionAssistants:`, updatedAssistantData);
+            } catch (err) {
+                console.error("Error updating assistant " + assistantId, err);
+            }
+        });
+
+        await Promise.all(updatePromises);
     }
 
 </script>

@@ -143,10 +143,10 @@
                         <a class="small text-secondary text-decoration-none ms-auto me-2" href="#">
                             <i class="bi bi-bar-chart"></i> Threads
                         </a>
-                        <a class="small text-secondary text-decoration-none" href="#"
-                           onclick="toggleEditMode('${assistant.id}', 'assistant')">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="toggleEditMode('${assistant.id}', 'assistant')">
+                            Edit
+                        </button>
                     </div>
                 </div>
                 <p class="text-secondary small">
@@ -738,7 +738,6 @@
 
             }).filter(uuid => uuid !== null)
         );
-        console.log('selectedFunctionUUIDs:', selectedFunctionUUIDs);
 
         // Iterate over all functions to update assistant_ids
         for (const func of functionsArr) {
@@ -760,7 +759,7 @@
                 try {
                     const payload = { assistant_ids: newAssistantIds };
                     const updatedFunction = await updateFunction(func.uuid, payload);
-                    console.log(`Updated function ${func.name} assistant_ids to:`, updatedFunction.assistant_ids);
+
                     // Update local state for consistency
                     func.assistant_ids = updatedFunction.assistant_ids;
                 } catch (error) {
