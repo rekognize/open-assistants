@@ -125,15 +125,16 @@
 
     // View mode template for an assistant
     function getAssistantViewTemplate(assistant, folderNames) {
-        // Compute function names from the assistant’s tools (if any)
-        const functionNames = (assistant.tools || [])
-            .filter(tool => tool.type === 'function' && tool.function && tool.function.name)
-            .map(tool => {
-                const functionSlug = tool.function.name;
-                const matchingFunction = Object.values(functions).find(f => f.slug === functionSlug);
-                return matchingFunction ? matchingFunction.name : functionSlug;
-            })
-            .join(', ') || 'No functions in use';
+        // Prepare function names
+        let functionNames = 'No functions assigned';
+        if (assistantFunctionsMapping && assistantFunctionsMapping[assistant.id]) {
+            const matchingFunctions = assistantFunctionsMapping[assistant.id]
+                .map(functionUUID => functions[functionUUID])
+                .filter(func => func !== undefined);
+            if (matchingFunctions.length > 0) {
+                functionNames = matchingFunctions.map(func => func.name || "Untitled function").join(', ');
+            }
+        }
 
         return `
             <div class="view-mode">
