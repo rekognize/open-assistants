@@ -745,12 +745,12 @@
         const assistantsUsingFunction = functionAssistantsMapping[functionId] || [];
 
         // Update the modal content
-        const assistantNamesListElement = document.getElementById('assistantNamesList');
+        const assistantsUsingFunctionListElement = document.getElementById('assistantsUsingFunctionList');
         const assistantsUsingFunctionDiv = document.getElementById('assistantsUsingFunction');
         const functionInfo = document.getElementById('functionInfo');
 
         // Clear previous list
-        assistantNamesListElement.innerHTML = '';
+        assistantsUsingFunctionListElement.innerHTML = '';
 
         // Add info
         functionInfo.textContent = '';
@@ -759,13 +759,13 @@
             : 'Untitled function';
 
         if (assistantsUsingFunction.length > 0) {
-            // Show the list of vector stores
+            // Show the list of assistants using this function
             assistantsUsingFunctionDiv.classList.remove('d-none');
             assistantsUsingFunction.forEach(assistantId => {
                 const assistantName = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
                 const li = document.createElement('li');
                 li.textContent = assistantName;
-                assistantNamesListElement.appendChild(li);
+                assistantsUsingFunctionListElement.appendChild(li);
             });
         } else {
             assistantsUsingFunctionDiv.classList.add('d-none');

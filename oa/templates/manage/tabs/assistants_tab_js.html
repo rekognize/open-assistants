@@ -1114,7 +1114,8 @@
             // Hide the inline folder management UI and show the folder display area again
             cancelInlineFolders(assistantId);
 
-            displayAssistants(); // Refresh overview assistants list
+            await loadAndDisplayAssistants();
+            await fetchFolderAssistantsMapping();
             fetchFoldersTab(); // Refresh knowledge tab
         }
     }
