@@ -231,6 +231,19 @@ async def update_function(request, function_uuid, payload: FunctionUpdateSchema)
         return JsonResponse({"error": str(e)}, status=400)
 
 
+@api.delete("/delete_function/{function_uuid}", auth=BearerAuth())
+async def delete_function(request, function_uuid):
+    try:
+        function = await LocalAPIFunction.objects.aget(uuid=function_uuid, projects=request.auth['project'])
+    except LocalAPIFunction.DoesNotExist:
+        return JsonResponse({"error": "Function not found."}, status=404)
+    try:
+        await function.adelete()
+        return JsonResponse({"function_uuid": function_uuid})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
 @api.post("/save_function")
 def save_function(request, payload):
     LocalAPIFunction.objects.create(

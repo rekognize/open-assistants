@@ -317,6 +317,13 @@
                         <label for="edit-function-extra-context-${func.uuid}">Extra Context</label>
                     </div>
                 </form>
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            id="deleteTabFunctionBtn-${func.uuid}"
+                            onclick="deleteFunction('${func.uuid}')">
+                        <span class="button-text">Delete</span>
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -721,6 +728,178 @@
             }
         });
 
+        await Promise.all(updatePromises);
+    }
+
+
+    /* Delete Function */
+
+    // Global variable to store the ID of the function to delete
+    let functionToDeleteId = null;
+
+    // Called when the user clicks the delete button for a function
+    async function deleteFunction(functionId) {
+        functionToDeleteId = functionId;
+
+        // Collect assistants associated with this function
+        const assistantsUsingFunction = functionAssistantsMapping[functionId] || [];
+
+        // Update the modal content
+        const assistantNamesListElement = document.getElementById('assistantNamesList');
+        const assistantsUsingFunctionDiv = document.getElementById('assistantsUsingFunction');
+        const functionInfo = document.getElementById('functionInfo');
+
+        // Clear previous list
+        assistantNamesListElement.innerHTML = '';
+
+        // Add info
+        functionInfo.textContent = '';
+        functionInfo.textContent = functions[functionId] && functions[functionId].name && functions[functionId].name.trim() !== ''
+            ? functions[functionId].name
+            : 'Untitled function';
+
+        if (assistantsUsingFunction.length > 0) {
+            // Show the list of vector stores
+            assistantsUsingFunctionDiv.classList.remove('d-none');
+            assistantsUsingFunction.forEach(assistantId => {
+                const assistantName = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
+                const li = document.createElement('li');
+                li.textContent = assistantName;
+                assistantNamesListElement.appendChild(li);
+            });
+        } else {
+            assistantsUsingFunctionDiv.classList.add('d-none');
+        }
+
+        // Show the delete confirmation modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('functionDeleteModal'));
+        deleteModal.show();
+
+        // Attach event listener to the confirm delete button
+        const confirmDeleteBtn = document.getElementById('confirmDeleteFunctionBtn');
+        confirmDeleteBtn.onclick = confirmDeleteFunction;
+    }
+
+    // Called when the user confirms deletion of the function
+    async function confirmDeleteFunction() {
+        const functionId = functionToDeleteId;
+        const functionName = functions[functionId] && functions[functionId].name && functions[functionId].name.trim() !== ''
+            ? functions[functionId].name
+            : 'Untitled function';
+
+        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('functionDeleteModal'));
+
+        // Show a spinner on the confirm button
+        const confirmBtn = document.getElementById('confirmDeleteFunctionBtn');
+        const cancelBtn = document.getElementById('cancelFunctionDeleteModalBtn');
+        const spinner = confirmBtn.querySelector('.spinner-border');
+        const buttonText = confirmBtn.querySelector('.button-text');
+        confirmBtn.disabled = true;
+        cancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Deleting...';
+
+        try {
+            // Update all assistants that use this function by removing the tool entry
+            await updateAssistantsForFunctionDelete(functionId);
+
+            // Delete the function from the backend
+            const url = deleteFunctionUrl.replace('FUNCTION_UUID_PLACEHOLDER', functionId);
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                }
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || response.statusText);
+            }
+
+            // Refresh the functions list and UI
+            await loadAndDisplayFunctions();
+            await fetchFunctionsTab();
+            // Also update the assistants tab as their tools have changed
+            await loadAndDisplayAssistants();
+            fetchAssistantsTab();
+
+            deleteModal.hide();
+            showToast("Function deleted!", functionName, "success");
+            console.log(`Function with ID ${functionId} deleted successfully.`);
+        } catch (error) {
+            showToast("Failed to delete function", error.message, "error");
+            console.error(error);
+        } finally {
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Delete';
+            confirmBtn.disabled = false;
+            cancelBtn.disabled = false;
+        }
+    }
+
+    // Helper: Update each assistant by removing the deleted function from its tools array
+    async function updateAssistantsForFunctionDelete(functionId) {
+        const func = functions[functionId];
+        if (!func) return;
+        const funcSlug = func.slug;
+
+        // If no assistants are associated, nothing to update
+        if (!func.assistant_ids || func.assistant_ids.length === 0) {
+            return;
+        }
+
+        // Iterate over each assistant associated with this function
+        const updatePromises = func.assistant_ids.map(async (assistantId) => {
+            const assistant = assistants[assistantId];
+            if (!assistant || !assistant.tools || !Array.isArray(assistant.tools)) return;
+
+            // Filter out tools that use the deleted function (matched by function name equals funcSlug)
+            const newTools = assistant.tools.filter(tool => {
+                // Only remove if it's a function tool with a matching function name
+                if (tool.type === "function" && tool.function && tool.function.name === funcSlug) {
+                    return false;
+                }
+                return true;
+            });
+
+            // If no change occurred, skip updating this assistant
+            if (JSON.stringify(newTools) === JSON.stringify(assistant.tools)) {
+                return;
+            }
+
+            const updatePayload = {
+                name: assistant.name,
+                description: assistant.description,
+                instructions: assistant.instructions,
+                model: assistant.model,
+                tools: newTools,
+                tool_resources: assistant.tool_resources || {},
+                metadata: assistant.metadata || {}
+            };
+
+            const url = modifyAssistantUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN
+                    },
+                    body: JSON.stringify(updatePayload)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || response.statusText);
+                }
+                const updatedAssistantData = await response.json();
+                console.log(`Assistant ${assistantId} updated after function delete:`, updatedAssistantData);
+            } catch (err) {
+                console.error("Error updating assistant " + assistantId, err);
+            }
+        });
         await Promise.all(updatePromises);
     }
 
