@@ -1,0 +1,1193 @@
+<script>
+    /* Assistants */
+
+    async function fetchAssistantsTab() {
+        toggleLoading('loadingAssistantsTab', true);
+        try {
+            // Wait until assistants are loaded or an error occurs
+            while (!assistantsLoaded) {
+                if (assistantsError) {
+                    throw new Error(assistantsError);
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            populateAssistantsTabsAndContent(assistants);
+
+            // Make Create Assistant button visible if assistants list not empty
+            if (assistants && Object.keys(assistants).length > 0) {
+                document.getElementById('createNewAssistantBtn').classList.remove('d-none');
+            }
+
+        } catch (error) {
+            const contentContainer = document.getElementById('assistants-tab-container');
+            contentContainer.innerHTML = `
+                <div class="text-center text-danger">Failed to load assistants!</div>
+            `;
+            console.error(error);
+        } finally {
+            toggleLoading('loadingAssistantsTab', false);
+        }
+    }
+
+    function populateAssistantsTabsAndContent(assistants) {
+        const tabsContainer = document.getElementById('assistantsNavTabs');
+        const contentContainer = document.getElementById('assistantContent');
+
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        // Check if the global dict is empty
+        if (!assistants || Object.keys(assistants).length === 0) {
+            document.getElementById('no-assistants').classList.remove('d-none');
+            return;
+        }
+
+        // Convert the assistants object into an array of assistant objects
+        const assistantsArr = Object.values(assistants);
+        assistantsArr.forEach((assistant, index) => {
+            // Create the tab element container
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            // Create the tab link
+            const tabLink = document.createElement('a');
+            tabLink.className = index === 0
+                ? 'nav-link py-1 px-2 bg-secondary text-white active'
+                : 'nav-link py-1 px-2 bg-white text-secondary';
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#assistants-tab-${assistant.id}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `assistants-tab-${assistant.id}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.id = `assistants-tab-${assistant.id}-tab`;
+            tabLink.textContent = assistant.name || 'Untitled assistant';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            // Get folder names for the assistant
+            const folderNames = (assistantFoldersMapping && assistantFoldersMapping[assistant.id]
+                ? assistantFoldersMapping[assistant.id]
+                    .map(uuid => folders[uuid] ? (folders[uuid].name || "Untitled folder") : null)
+                    .filter(name => name)
+                    .join(', ')
+                : `<span>No folders assigned</span>`);
+
+            // Build the card content with separate view and edit templates
+            const viewTemplate = getAssistantViewTemplate(assistant, folderNames);
+            const editTemplate = getAssistantEditTemplate(assistant);
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `assistants-tab-${assistant.id}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `assistants-tab-${assistant.id}-tab`);
+            contentPane.innerHTML = `
+                <div class="card border-0">
+                    <div class="card-body px-0 py-0" id="tab-card-${assistant.id}">
+                        ${viewTemplate}
+                        <div class="edit-mode d-none">
+                            ${editTemplate}
+                        </div>
+                    </div>
+                </div>
+            `;
+            contentContainer.appendChild(contentPane);
+        });
+    }
+
+
+    /* Templates */
+
+    // Helper: Toggle between view and edit modes
+    function toggleEditMode(assistantId, type) {
+        // Close inline folder management if open
+        cancelInlineFolders(assistantId);
+
+        const cardBody = document.getElementById(`tab-card-${assistantId}`);
+        if (!cardBody) return;
+
+        const viewMode = cardBody.querySelector('.view-mode');
+        const editMode = cardBody.querySelector('.edit-mode');
+
+        // If view mode is currently visible, reset the edit mode by re-rendering the edit template
+        if (!viewMode.classList.contains('d-none')) {
+            // Reinitialize edit form fields with current values from the assistant object
+            editMode.innerHTML = getAssistantEditTemplate(assistants[assistantId]);
+        }
+
+        renderFunctionCheckboxes(assistantId);
+
+        // Toggle the visibility of the view and edit modes
+        viewMode.classList.toggle('d-none');
+        editMode.classList.toggle('d-none');
+    }
+
+    // View mode template for an assistant
+    function getAssistantViewTemplate(assistant, folderNames) {
+        // Prepare function names
+        let functionNames = 'No functions assigned';
+        if (assistantFunctionsMapping && assistantFunctionsMapping[assistant.id]) {
+            const matchingFunctions = assistantFunctionsMapping[assistant.id]
+                .map(functionUUID => functions[functionUUID])
+                .filter(func => func !== undefined);
+            if (matchingFunctions.length > 0) {
+                functionNames = matchingFunctions.map(func => func.name || "Untitled function").join(', ');
+            }
+        }
+
+        return `
+            <div class="view-mode">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="card-title">${assistant.name || 'Untitled assistant'}</h4>
+                    <div class="action-buttons">
+                        <a class="small text-secondary text-decoration-none ms-auto me-2" href="#">
+                            <i class="bi bi-bar-chart"></i> Threads
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="toggleEditMode('${assistant.id}', 'assistant')">
+                            Edit
+                        </button>
+                    </div>
+                </div>
+                <p class="text-secondary small">
+                    Created: ${formatUnixTimestamp(assistant.created_at)}
+                    (${timeSince(assistant.created_at * 1000)} ago)
+                </p>
+                <div class="accordion" id="foldersAccordion-${assistant.id}">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-${assistant.id}">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#collapse-${assistant.id}" aria-expanded="false"
+                                    aria-controls="collapse-${assistant.id}">
+                                <span class="text-secondary small">Folders</span>
+                            </button>
+                        </h2>
+                        <div id="collapse-${assistant.id}" class="accordion-collapse collapse show"
+                             aria-labelledby="heading-${assistant.id}" data-bs-parent="#foldersAccordion-${assistant.id}">
+                            <div id="folder-display-${assistant.id}"
+                                 class="accordion-body d-flex justify-content-between align-items-center">
+                                ${folderNames}
+                                <a href="#" onclick="hideTooltip(this); toggleInlineFolderManagement('${assistant.id}')"
+                                   class="text-secondary text-decoration-none" data-bs-toggle="tooltip"
+                                   data-bs-title="Manage folders">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                            </div>
+                            <!-- Inline folder management container (hidden by default) -->
+                            <div id="folder-management-container-${assistant.id}" class="d-none"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Description</span>
+                    <p class="info-value" id="info-description-${assistant.id}">${assistant.description || 'No description given'}</p>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Instructions</span>
+                    <p class="info-value" id="info-instructions-${assistant.id}">${assistant.instructions || 'No instructions'}</p>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Model</span>
+                    <p class="info-value" id="info-model-${assistant.id}">${assistant.model}</p>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Functions</span>
+                    <p class="info-value" id="info-functions-${assistant.id}">${functionNames}</p>
+                </div>
+            </div>
+      `;
+    }
+
+    // Edit mode template for an assistant
+    function getAssistantEditTemplate(assistant) {
+        return `
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="card-title">Edit: ${assistant.name || 'Untitled assistant'}</h4>
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-sm btn-outline-success"
+                            id="saveModifyAssistantBtn-${assistant.id}"
+                            onclick="modifyAssistant('${assistant.id}');">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        <span class="button-text">Save</span>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            id="cancelModifyAssistantBtn-${assistant.id}"
+                            onclick="toggleEditMode('${assistant.id}', 'assistant')">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+            <p class="text-secondary small">
+                Created: ${formatUnixTimestamp(assistant.created_at)}
+                (${timeSince(assistant.created_at * 1000)} ago)
+            </p>
+            <form class="mt-3">
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="edit-name-${assistant.id}" maxlength="256" value="${assistant.name}"
+                           oninput="checkInputLength(this, 'editNameHelp-${assistant.id}', 256)">
+                    <label for="edit-name-${assistant.id}" class="form-label">Name</label>
+                    <small id="editNameHelp-${assistant.id}" class="form-text text-danger d-none">The maximum character length is reached.</small>
+                </div>
+                <!-- Folders management section using template -->
+                ${getFolderManagementTemplate(assistant, "edit")}
+                <!-- Other fields... -->
+                <div class="form-floating mb-3">
+                    <textarea class="form-control" id="edit-description-${assistant.id}" placeholder="Description" rows="3" maxlength="512"
+                              oninput="checkInputLength(this, 'editDescHelp-${assistant.id}', 512)">${assistant.description || ''}</textarea>
+                    <label for="edit-description-${assistant.id}">Description</label>
+                    <small id="editDescHelp-${assistant.id}" class="form-text text-danger d-none">The maximum character length is reached.</small>
+                </div>
+                <div class="form-floating mb-3">
+                    <textarea class="form-control" id="edit-instructions-${assistant.id}" placeholder="Instructions"
+                              style="height: 100px">${assistant.instructions || ''}</textarea>
+                    <label for="edit-instructions-${assistant.id}">Instructions</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <select class="form-select" id="edit-model-${assistant.id}">
+                        <option value="gpt-4o" ${assistant.model === 'gpt-4o' ? 'selected' : ''}>gpt-4o</option>
+                        <option value="gpt-4o-mini" ${assistant.model === 'gpt-4o-mini' ? 'selected' : ''}>gpt-4o-mini</option>
+                    </select>
+                    <label for="edit-model-${assistant.id}">Model</label>
+                </div>
+                <!-- Functions Section -->
+                <div class="mb-3">
+                    <h5>Functions</h5>
+                    <div id="functions-list-${assistant.id}"></div>
+                </div>
+            </form>
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-sm btn-outline-danger"
+                        id="deleteTabAssistantBtn-${assistant.id}"
+                        onclick="deleteAssistant('${assistant.id}')">
+                    <span class="button-text">Delete</span>
+                </button>
+            </div>
+      `;
+    }
+
+    // Folder management template: mode is either "edit" (used in full edit mode) or "inline" (used in the accordion)
+    function getFolderManagementTemplate(assistant, mode) {
+        // Precompute the available and chosen options using the global "folders" and "assistantFoldersMapping"
+        let availableOptions = '';
+        let chosenOptions = '';
+        if (typeof folders !== 'undefined') {
+            for (const [folderId, folder] of Object.entries(folders)) {
+                const displayName = folder.name || "Untitled folder";
+                if (assistantFoldersMapping && assistantFoldersMapping[assistant.id] && assistantFoldersMapping[assistant.id].includes(folderId)) {
+                    chosenOptions += `<option value="${folderId}">${displayName}</option>`;
+                } else {
+                    availableOptions += `<option value="${folderId}">${displayName}</option>`;
+                }
+            }
+        }
+        let html = '';
+        // For inline mode, add Save/Cancel header on top
+        if (mode === 'inline') {
+            html += `
+                <div class="d-flex justify-content-end mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-success me-1"
+                            id="saveInlineFoldersBtn-${assistant.id}"
+                            onclick="hideTooltip(this); saveInlineFolders('${assistant.id}');"
+                            data-bs-toggle="tooltip" data-bs-title="Save">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            id="cancelInlineFoldersBtn-${assistant.id}"
+                            onclick="hideTooltip(this); cancelInlineFolders('${assistant.id}')"
+                            data-bs-toggle="tooltip" data-bs-title="Cancel">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+        `;
+        }
+        html += `
+            <fieldset class="mb-3">
+                <div class="dual-listbox d-flex flex-column flex-md-row justify-content-between align-items-stretch">
+                    <!-- Available folders list -->
+                    <div class="available-folders mb-2 mb-md-0" style="flex: 1;">
+                        <legend class="small text-secondary">Available Folders</legend>
+                        <input type="text" class="form-control mb-2"
+                               id="${getFolderElementId('search-available', assistant.id, mode)}" placeholder="Filter"
+                               oninput="filterFolders('${assistant.id}', 'available', '${mode}')">
+                        <div class="select-container" style="min-height: 160px;">
+                            <select multiple class="form-control"
+                                    id="${getFolderElementId('available-folders', assistant.id, mode)}" size="10"
+                                    onchange="updateFolderButtons('${assistant.id}', '${mode}')">
+                                ${availableOptions}
+                            </select>
+                        </div>
+                        <div class="text-center mt-2">
+                            <button type="button" class="btn btn-link btn-sm text-secondary-emphasis text-decoration-none"
+                                    id="${getFolderElementId('choose-all', assistant.id, mode)}"
+                                    onclick="chooseAll('${assistant.id}', '${mode}')" ${availableOptions.trim() === '' ? 'disabled' : ''}>
+                                Choose All <i class="bi bi-chevron-double-right d-none d-md-inline"></i><i class="bi bi-chevron-double-down d-inline d-md-none"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Controls to move options -->
+                    <div class="listbox-controls d-flex flex-row flex-md-column justify-content-center align-items-center mx-md-2 mb-2 mb-md-0">
+                        <button type="button" class="btn btn-secondary btn-sm me-2 me-md-0 mb-0 mb-md-2"
+                                id="${getFolderElementId('move-right', assistant.id, mode)}"
+                                onclick="moveFolder('${assistant.id}', 'right', '${mode}')" disabled>
+                            <i class="bi bi-caret-right-fill d-none d-md-inline"></i><i
+                                class="bi bi-caret-down-fill d-inline d-md-none"></i>
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm"
+                                id="${getFolderElementId('move-left', assistant.id, mode)}"
+                                onclick="moveFolder('${assistant.id}', 'left', '${mode}')" disabled>
+                            <i class="bi bi-caret-left-fill d-none d-md-inline"></i><i
+                                class="bi bi-caret-up-fill d-inline d-md-none"></i>
+                        </button>
+                    </div>
+                    <!-- Chosen folders list -->
+                    <div class="chosen-folders" style="flex: 1;">
+                        <legend class="small text-secondary">Chosen Folders</legend>
+                        <input type="text" class="form-control mb-2" id="${getFolderElementId('search-chosen', assistant.id, mode)}"
+                               placeholder="Filter" oninput="filterFolders('${assistant.id}', 'chosen', '${mode}')">
+                        <div class="select-container" style="min-height: 160px;">
+                            <select multiple class="form-control" id="${getFolderElementId('chosen-folders', assistant.id, mode)}"
+                                    size="10" onchange="updateFolderButtons('${assistant.id}', '${mode}')">
+                                ${chosenOptions}
+                            </select>
+                        </div>
+                        <div class="text-center mt-2">
+                            <button type="button" class="btn btn-link btn-sm text-secondary-emphasis text-decoration-none"
+                                    id="${getFolderElementId('remove-all', assistant.id, mode)}"
+                                    onclick="removeAll('${assistant.id}', '${mode}')" ${chosenOptions.trim() === '' ? 'disabled' : ''}>
+                                <i class="bi bi-chevron-double-left d-none d-md-inline"></i><i class="bi bi-chevron-double-up d-inline d-md-none"></i> Remove All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+      `;
+        return html;
+    }
+
+    // New assistant form template
+    function getNewAssistantTemplate() {
+        return `
+            <div class="card border-0" id="newAssistantCard">
+                <div class="card-body px-0 py-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="card-title">New Assistant</h4>
+                        <div class="action-buttons">
+                            <button type="button" class="btn btn-sm btn-outline-success" id="saveNewAssistantBtn" onclick="saveNewAssistant();">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span class="button-text">Create</span>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="cancelNewAssistantBtn" onclick="cancelNewAssistantForm();">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                    <form class="mt-3" id="newAssistantForm">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="new-assistant-name" placeholder="Name" maxlength="256" value=""
+                                   oninput="checkInputLength(this, 'newNameHelp', 256)">
+                            <label for="new-assistant-name" class="form-label">Name</label>
+                            <small id="newNameHelp" class="form-text text-danger d-none">The maximum character length is reached.</small>
+                        </div>
+                        <!-- Reuse folder management template; pass a dummy assistant object with id 'new-assistant' -->
+                        ${getFolderManagementTemplate({id: 'new-assistant', name: '', description: '', instructions: '', model: 'gpt-4o'}, "edit")}
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="new-assistant-description" placeholder="Description" rows="3" maxlength="512"
+                                      oninput="checkInputLength(this, 'newDescHelp', 512)"></textarea>
+                            <label for="new-assistant-description">Description</label>
+                            <small id="newDescHelp" class="form-text text-danger d-none">The maximum character length is reached.</small>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="new-assistant-instructions" placeholder="Instructions" style="height: 100px"></textarea>
+                            <label for="new-assistant-instructions">Instructions</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="new-assistant-model">
+                                <option value="gpt-4o">gpt-4o</option>
+                                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                            </select>
+                            <label for="new-assistant-model">Model</label>
+                        </div>
+                        <!-- Functions Section -->
+                        <div class="mb-3">
+                            <h5>Functions</h5>
+                            <div id="functions-list-new-assistant"></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    // Helper: returns an element ID based on a base name, assistant ID, and mode.
+    function getFolderElementId(base, assistantId, mode) {
+        // mode: "inline" or "edit"
+        return base + (mode === 'inline' ? '-inline-' : '-') + assistantId;
+    }
+
+    // Helper: renders function checkboxes for the assistant
+    function renderFunctionCheckboxes(assistantId) {
+        const functionsListDiv = document.getElementById(`functions-list-${assistantId}`);
+        functionsListDiv.innerHTML = ''; // Clear any existing content
+
+        // Determine which functions are already selected for this assistant
+        let selectedFunctions = [];
+        if (assistants[assistantId] && Array.isArray(assistants[assistantId].tools)) {
+            selectedFunctions = assistants[assistantId].tools
+                .filter(tool => tool.type === 'function' && tool.function && tool.function.name)
+                .map(tool => tool.function.name);
+        }
+
+        functionDefinitions.forEach(funcDef => {
+            const functionSlug = funcDef.name;
+            const matchingFunction = Object.values(functions).find(f => f.slug === functionSlug);
+            const displayName = matchingFunction ? matchingFunction.name : functionSlug;
+
+            // Create checkbox container
+            const checkboxDiv = document.createElement('div');
+            checkboxDiv.classList.add('form-check');
+
+            // Create the checkbox input element
+            const input = document.createElement('input');
+            input.classList.add('form-check-input');
+            input.type = 'checkbox';
+            input.value = functionSlug;
+            input.id = `function-${functionSlug}-${assistantId}`;
+            // Pre-select the checkbox if the function is already in the assistant's tools
+            if (selectedFunctions.includes(functionSlug)) {
+                input.checked = true;
+            }
+
+            // Create the label element
+            const label = document.createElement('label');
+            label.classList.add('form-check-label');
+            label.setAttribute('for', `function-${functionSlug}-${assistantId}`);
+            label.textContent = displayName;
+
+            // Append the input and label to the container and add to the list div
+            checkboxDiv.appendChild(input);
+            checkboxDiv.appendChild(label);
+            functionsListDiv.appendChild(checkboxDiv);
+        });
+    }
+
+
+    /* Create New Assistant */
+
+    // Function to create the new assistant tab
+    function createNewAssistant() {
+        const newTabId = "assistants-tab-new-assistant-tab";
+        const newPaneId = "assistants-tab-new-assistant";
+
+        // If the new assistant tab already exists, simply activate it
+        if (document.getElementById(newTabId)) {
+            new bootstrap.Tab(document.getElementById(newTabId)).show();
+            document.getElementById(newPaneId).classList.add("active", "show");
+            return;
+        }
+
+        const contentContainer = document.getElementById("assistantContent");
+        // Remove active classes from any currently active tab pane
+        const activePane = contentContainer.querySelector(".tab-pane.active");
+        if (activePane) {
+            activePane.classList.remove("active", "show");
+        }
+        // Hide any "no assistant" message
+        document.getElementById("no-assistants").classList.add("d-none");
+
+        // Remove active classes from any currently active nav items
+        document.querySelectorAll('#assistantsNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
+            tab.classList.remove("active", "bg-secondary", "text-white");
+            tab.classList.add("bg-white", "text-secondary");
+        });
+
+        // Create a new nav tab item
+        const tabsContainer = document.getElementById("assistantsNavTabs");
+        const li = document.createElement("li");
+        li.className = "nav-item";
+        const a = document.createElement("a");
+        a.className = "nav-link py-1 px-2 active bg-secondary text-white";
+        a.setAttribute("data-bs-toggle", "tab");
+        a.setAttribute("href", "#" + newPaneId);
+        a.setAttribute("role", "tab");
+        a.setAttribute("aria-controls", newPaneId);
+        a.setAttribute("aria-selected", "true");
+        a.id = newTabId;
+        a.textContent = "New Assistant";
+        li.appendChild(a);
+        // Insert the new tab at the top of the nav
+        tabsContainer.insertBefore(li, tabsContainer.firstChild);
+
+        // Create the corresponding tab pane for the new assistant form
+        const tabPane = document.createElement("div");
+        tabPane.className = "tab-pane fade"; // initially not active
+        tabPane.id = newPaneId;
+        tabPane.setAttribute("role", "tabpanel");
+        tabPane.setAttribute("aria-labelledby", newTabId);
+        tabPane.innerHTML = getNewAssistantTemplate();
+        contentContainer.insertBefore(tabPane, contentContainer.firstChild);
+
+        renderFunctionCheckboxes('new-assistant');
+
+        // Activate the new assistant tab and force the content pane to become active
+        const newTabInstance = new bootstrap.Tab(a);
+        newTabInstance.show();
+        document.getElementById(newPaneId).classList.add("active", "show");
+    }
+
+    // Cancel new assistant creation: removes the new tab and its pane, then activates the first available tab
+    function cancelNewAssistantForm() {
+        const newTabId = "assistants-tab-new-assistant-tab";
+        const newPaneId = "assistants-tab-new-assistant";
+        const newTab = document.getElementById(newTabId);
+        if (newTab && newTab.parentElement) {
+            newTab.parentElement.remove();
+        }
+        const newPane = document.getElementById(newPaneId);
+        if (newPane) {
+            newPane.remove();
+        }
+        // Check if any assistant tabs remain
+        const remainingTab = document.querySelector('#assistantsNavTabs a[data-bs-toggle="tab"]');
+        if (remainingTab) {
+            new bootstrap.Tab(remainingTab).show();
+        } else {
+            // No assistants left: show the "no assistants" message
+            document.getElementById('no-assistants').classList.remove('d-none');
+            document.getElementById('assistantContent').innerHTML = "";
+        }
+    }
+
+    async function saveNewAssistant() {
+        const name = document.getElementById('new-assistant-name').value;
+        const description = document.getElementById('new-assistant-description').value;
+        const instructions = document.getElementById('new-assistant-instructions').value;
+        const model = document.getElementById('new-assistant-model').value;
+
+        const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', 'new-assistant', 'edit'));
+        const chosenFolders = [];
+        if (chosenSelect) {
+            for (let i = 0; i < chosenSelect.options.length; i++) {
+                chosenFolders.push(chosenSelect.options[i].value);
+            }
+        }
+
+        // Gather selected function checkboxes
+        const functionCheckboxes = document.querySelectorAll('#functions-list-new-assistant input[type="checkbox"]');
+        const selectedFunctions = [];
+        functionCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                const funcDef = functionDefinitions.find(fd => fd.name === cb.value);
+                if (funcDef) {
+                    selectedFunctions.push({
+                        type: "function",
+                        function: funcDef
+                    });
+                }
+            }
+        });
+
+        // Show a spinner on the save button
+        const saveBtn = document.getElementById('saveNewAssistantBtn');
+        const cancelBtn = document.getElementById('cancelNewAssistantBtn');
+        const spinner = saveBtn.querySelector('.spinner-border');
+        const buttonText = saveBtn.querySelector('.button-text');
+        saveBtn.disabled = true;
+        cancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Creating...';
+
+        try {
+            // Create vector store
+            const vsData = await createVectorStore(name);
+            console.log("Created vector store for assistant:", vsData);
+
+            // Construct payload for assistant creation
+            const assistantPayload = {
+                name: name,
+                description: description,
+                instructions: instructions,
+                model: model,
+                tools: [
+                    {"type": "code_interpreter"},
+                    {"type": "file_search"},
+                    ...selectedFunctions
+                ],
+                tool_resources: {"file_search": {"vector_store_ids": [vsData.id]}},
+            };
+
+            // Create the assistant
+            const assistantData = await createAssistant(assistantPayload);
+            console.log("Created new assistant:", assistantData);
+
+            // Update assistant folders
+            const assistantFoldersData = await updateAssistantFolders(assistantData.id, chosenFolders);
+            console.log("Union files to add VS:", assistantFoldersData);
+
+            // Update vector store files
+            const vectorStoreFilesData = await updateVectorStoreFiles(vsData.id, assistantFoldersData.union_file_ids);
+            console.log("Updated Vector Store files:", vectorStoreFilesData);
+
+            // Update selected functions with the new assistant
+            await updateDbFunctions(assistantData.id, selectedFunctions);
+
+            // Refresh the assistants list and update the UI
+            await loadAndDisplayAssistants();
+            await fetchAssistantsTab();
+            await fetchFolderAssistantsMapping();
+            fetchFoldersTab(); // Refresh knowledge tab
+            fetchFunctionsTab(); // Refresh tools tab
+
+            showToast("Assistant created successfully", name || 'Untitled assistant', "success");
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        } finally {
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Create';
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+        }
+    }
+
+    async function createVectorStore(name) {
+        const vectorStorePayload = {name: `Store for ${name || 'Untitled assistant'}`};
+        const vsResponse = await fetch(createVectorStoreUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify(vectorStorePayload)
+        });
+        if (!vsResponse.ok) {
+            const errorVsData = await vsResponse.json();
+            throw new Error(errorVsData.error || vsResponse.statusText);
+        }
+        return vsResponse.json();
+    }
+
+    async function createAssistant(payload) {
+        const response = await fetch(createAssistantUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            let errorMessage = errorData.error || errorData.detail || 'Unknown error occurred.';
+            throw new Error(errorMessage);
+        }
+        return response.json();
+    }
+
+    // Helper: Updates assistant-folder relations
+    async function updateAssistantFolders(assistantId, chosenFolders) {
+        const url = updateAssistantFoldersUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({folder_uuids: chosenFolders})
+        });
+        if (!response.ok) {
+            const errorFoldersResponse = await response.json();
+            throw new Error(errorFoldersResponse.error || response.statusText);
+        }
+        return response.json();
+    }
+
+    // Helper: Updates vector store files
+    async function updateVectorStoreFiles(vsId, file_ids) {
+        const url = syncVectorStoreFilesUrl.replace('VS_ID_PLACEHOLDER', vsId);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({ file_ids: file_ids })
+        });
+        if (!response.ok) {
+            const errorResponse = await response.json();
+            throw new Error(errorResponse.error || response.statusText);
+        }
+        return response.json();
+    }
+
+    // Helper: Updates the assistant_ids for functions when creating, modifying or deleting an assistant
+    async function updateDbFunctions(assistantId, selectedFunctions) {
+        // Convert global functions to an array
+        const functionsArr = Array.isArray(functions) ? functions : Object.values(functions);
+
+        // Build a set of selected function uuids
+        const selectedFunctionUUIDs = new Set(
+            selectedFunctions.map(sf => {
+                // Lookup by matching slug (from global functions) with the function name provided in selectedFunctions.
+                const found = functionsArr.find(f => f.slug === sf.function.name);
+                return found ? found.uuid : null;
+
+            }).filter(uuid => uuid !== null)
+        );
+
+        // Iterate over all functions to update assistant_ids
+        for (const func of functionsArr) {
+            const currentAssistantIds = func.assistant_ids || [];
+            let newAssistantIds;
+
+            if (selectedFunctionUUIDs.has(func.uuid)) {
+                // For selected functions, add the assistantId if it isn't already there
+                newAssistantIds = currentAssistantIds.includes(assistantId)
+                    ? currentAssistantIds
+                    : [...currentAssistantIds, assistantId];
+            } else {
+                // For functions not selected, remove the assistantId if it exists
+                newAssistantIds = currentAssistantIds.filter(id => id !== assistantId);
+            }
+
+            // Only update if there's been a change
+            if (JSON.stringify(newAssistantIds) !== JSON.stringify(currentAssistantIds)) {
+                try {
+                    const payload = { assistant_ids: newAssistantIds };
+                    const updatedFunction = await updateFunction(func.uuid, payload);
+
+                    // Update local state for consistency
+                    func.assistant_ids = updatedFunction.assistant_ids;
+                } catch (error) {
+                    console.error(`Failed to update function ${func.name}:`, error);
+                }
+            }
+        }
+    }
+
+    async function updateFunction(functionUuid, payload) {
+        const url = updateFunctionUrl.replace('FUNCTION_UUID_PLACEHOLDER', functionUuid);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || errorData.detail || 'Unknown error occurred while updating function.');
+        }
+        return response.json();
+    }
+
+
+    /* Modify Assistant */
+
+    async function modifyAssistant(assistantId) {
+        console.log('modifyAssistant:', assistantId);
+
+        const saveModifyBtn = document.getElementById(`saveModifyAssistantBtn-${assistantId}`);
+        const cancelModifyBtn = document.getElementById(`cancelModifyAssistantBtn-${assistantId}`);
+        const spinner = saveModifyBtn.querySelector('.spinner-border');
+        const buttonText = saveModifyBtn.querySelector('.button-text');
+
+        // Set loading state on the modify button
+        saveModifyBtn.disabled = true;
+        cancelModifyBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Saving...';
+
+        try {
+            // Gather updated values from the edit form
+            const name = document.getElementById(`edit-name-${assistantId}`).value;
+            const description = document.getElementById(`edit-description-${assistantId}`).value;
+            const instructions = document.getElementById(`edit-instructions-${assistantId}`).value;
+            const model = document.getElementById(`edit-model-${assistantId}`).value;
+
+            // Get updated folder selections from the edit mode multi-select element
+            const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', assistantId, 'edit'));
+            const chosenFolders = [];
+            if (chosenSelect) {
+                for (let i = 0; i < chosenSelect.options.length; i++) {
+                    chosenFolders.push(chosenSelect.options[i].value);
+                }
+            }
+
+            // Gather selected function checkboxes in edit mode
+            const functionCheckboxes = document.querySelectorAll(`#functions-list-${assistantId} input[type="checkbox"]`);
+            const selectedFunctions = [];
+            functionCheckboxes.forEach(cb => {
+                if (cb.checked) {
+                    const funcDef = functionDefinitions.find(fd => fd.name === cb.value);
+                    if (funcDef) {
+                        selectedFunctions.push({
+                            type: "function",
+                            function: funcDef
+                        });
+                    }
+                }
+            });
+
+            // Retrieve the current assistant from the global state
+            const currentAssistant = assistants[assistantId] || {};
+
+            // Keep any tools that are not of type "function"
+            const nonFunctionTools = (currentAssistant.tools || []).filter(tool => tool.type !== 'function');
+            const updatedTools = nonFunctionTools.concat(selectedFunctions);
+
+            // Build payload
+            const updatePayload = {
+                name: name,
+                description: description,
+                instructions: instructions,
+                model: model,
+                tools: updatedTools,
+                tool_resources: currentAssistant.tool_resources || {},
+                metadata: currentAssistant.metadata || {}
+            };
+
+            // Update assistant via the API endpoint
+            const updatedAssistantData = await updateAssistant(assistantId, updatePayload);
+            console.log("Assistant updated:", updatedAssistantData);
+
+            // Update folder associations
+            const assistantFoldersData = await updateAssistantFolders(assistantId, chosenFolders);
+            console.log("Assistant folders updated:", assistantFoldersData);
+
+            // Update vector store files
+            const vsIds = currentAssistant.tool_resources?.file_search?.vector_store_ids;
+            if (vsIds && vsIds.length > 0) {
+                try {
+                    const vectorStoreFilesData = await updateVectorStoreFiles(vsIds[0], assistantFoldersData.union_file_ids);
+                    console.log("Updated vector store files:", vectorStoreFilesData);
+                } catch (vsError) {
+                    console.error("Failed to update vector store files:", vsError);
+                }
+            } else {
+                // TODO: Create vector store for the assistant
+                console.log("No vector store found for this assistant. Skipping vector store update.");
+            }
+
+            // Add or remove assistant_ids accordingly from functions
+            await updateDbFunctions(updatedAssistantData.id, selectedFunctions);
+
+            // Refresh the assistants list and update the UI accordingly
+            await loadAndDisplayAssistants();
+            await fetchAssistantsTab();
+            await fetchFolderAssistantsMapping();
+            fetchFoldersTab(); // Refresh knowledge tab
+            fetchFunctionsTab(); // Refresh tools tab
+
+            // TODO: Go back to the assistant
+            showToast("Assistant updated successfully", name, "success");
+        } catch (error) {
+            console.error("Error in modifyAssistant:", error);
+            showToast("Error updating assistant", error);
+        } finally {
+            // Reset the button state
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Save';
+            saveModifyBtn.disabled = false;
+            cancelModifyBtn.disabled = false;
+        }
+    }
+
+    async function updateAssistant(assistantId, payload) {
+        const url = modifyAssistantUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || errorData.detail || 'Unknown error occurred.');
+        }
+        return response.json();
+    }
+
+
+    /* Delete Assistant */
+
+    let assistantToDeleteId = null; // To store the ID of the assistant to delete
+
+    async function deleteAssistant(assistantId) {
+        assistantToDeleteId = assistantId; // Store the assistant ID for use in the confirm deletion function
+
+        const assistantInfo = document.getElementById('assistantInfo');
+
+        // Add assistant info
+        assistantInfo.textContent = '';
+        assistantInfo.textContent = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
+
+        // Show the modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('assistantDeleteModal'));
+        deleteModal.show();
+
+        // Attach event listener to the confirm delete button
+        const confirmDeleteBtn = document.getElementById('confirmDeleteAssistantBtn');
+        confirmDeleteBtn.onclick = confirmDeleteAssistant;
+    }
+
+    async function confirmDeleteAssistant() {
+        const assistantId = assistantToDeleteId;
+        const assistantName = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
+
+        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('assistantDeleteModal'));
+
+        // Show a spinner on the confirm button
+        const confirmBtn = document.getElementById('confirmDeleteAssistantBtn');
+        const cancelBtn = document.getElementById('cancelAssistantDeleteModalBtn');
+        const spinner = confirmBtn.querySelector('.spinner-border');
+        const buttonText = confirmBtn.querySelector('.button-text');
+        confirmBtn.disabled = true;
+        cancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Deleting...';
+
+        try {
+            // Clear the assistant-folder relations
+            await updateAssistantFolders(assistantId, []);
+
+            // Delete the assistant
+            const response = await fetch(deleteAssistantUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId), {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                }
+            });
+
+            if (response.ok) {
+                // After deletion, delete the vector store if it exists
+                const vsIds = assistants[assistantId]?.tool_resources?.file_search?.vector_store_ids;
+                if (vsIds && vsIds.length > 0) {
+                    try {
+                        await deleteVectorStore(vsIds[0]);
+                        console.log(`Vector store ${vsIds[0]} deleted successfully.`);
+                    } catch (vsError) {
+                        console.error("Failed to delete vector store:", vsError);
+                        showToast("Failed to delete vector store:", vsError);
+                    }
+                }
+
+                // Remove the assistant's ID from all functions
+                await updateDbFunctions(assistantId, []);
+
+                // Refresh lists and UI
+                await loadAndDisplayAssistants();
+                await fetchAssistantsTab();
+                await fetchFolderAssistantsMapping();
+                fetchFoldersTab(); // Refresh knowledge tab
+                fetchFunctionsTab(); // Refresh tools tab
+
+                deleteModal.hide();
+
+                showToast("Assistant deleted!", assistantName, "success");
+                console.log(`Assistant with ID ${assistantId} deleted successfully.`);
+            } else {
+                const errorData = await response.json();
+                const parsedError = parseErrorText(errorData.error);
+                showToast("Failed to delete assistant!", parsedError.errorMessage);
+                console.error('Failed to delete assistant!', parsedError);
+            }
+        } catch (error) {
+            showToast("Unexpected error:", error);
+            console.error('Unexpected error:', error);
+        } finally {
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Delete';
+            confirmBtn.disabled = false;
+            cancelBtn.disabled = false;
+        }
+    }
+
+    async function deleteVectorStore(vsId) {
+        const response = await fetch(deleteVectorStoreUrl.replace('VS_ID_PLACEHOLDER', vsId), {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || response.statusText);
+        }
+        return response.json();
+    }
+
+
+    /* View mode helpers */
+
+    function toggleInlineFolderManagement(assistantId) {
+        // Hide the folder display area
+        document.getElementById('folder-display-' + assistantId).classList.add('d-none');
+        // Inject the inline folder management UI wrapped in accordion-body
+        const assistant = assistants[assistantId];
+        const container = document.getElementById('folder-management-container-' + assistantId);
+        container.innerHTML = `<div class="accordion-body">${getFolderManagementTemplate(assistant, "inline")}</div>`;
+        container.classList.remove('d-none');
+    }
+
+    function cancelInlineFolders(assistantId) {
+        document.getElementById('folder-management-container-' + assistantId).innerHTML = '';
+        document.getElementById('folder-management-container-' + assistantId).classList.add('d-none');
+        document.getElementById('folder-display-' + assistantId).classList.remove('d-none');
+    }
+
+    async function saveInlineFolders(assistantId) {
+        // Get the inline save button and its spinner
+        const inlineSaveBtn = document.getElementById(`saveInlineFoldersBtn-${assistantId}`);
+        const inlineCancelBtn = document.getElementById(`cancelInlineFoldersBtn-${assistantId}`);
+        const spinner = inlineSaveBtn.querySelector('.spinner-border');
+
+        // Disable buttons and show the spinner
+        inlineSaveBtn.disabled = true;
+        inlineCancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+
+        const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', assistantId, "inline"));
+        const selectedFolderIds = [];
+        for (const option of chosenSelect.options) {
+            selectedFolderIds.push(option.value);
+        }
+
+        try {
+            // Update assistant-folder relations on the backend
+            const assistantFoldersData = await updateAssistantFolders(assistantId, selectedFolderIds);
+            console.log("Assistant folders updated (inline):", assistantFoldersData);
+
+            // Update the global mapping with the new folder selection
+            assistantFoldersMapping[assistantId] = selectedFolderIds;
+
+            // Update vector store files
+            const currentAssistant = assistants[assistantId];
+            const vsIds = currentAssistant.tool_resources?.file_search?.vector_store_ids;
+            if (vsIds && vsIds.length > 0) {
+                try {
+                    const vectorStoreFilesData = await updateVectorStoreFiles(vsIds[0], assistantFoldersData.union_file_ids);
+                    console.log("Updated vector store files (inline):", vectorStoreFilesData);
+                } catch (vsError) {
+                    console.error("Failed to update vector store files (inline):", vsError);
+                }
+            } else {
+                // TODO: Create vector store for the assistant
+                console.log("No vector store found for this assistant. Skipping vector store update.");
+            }
+
+            // Update the folder display UI with new folder names
+            let folderNames = 'No folders assigned';
+            if (assistantFoldersMapping[assistantId] && assistantFoldersMapping[assistantId].length > 0) {
+                folderNames = assistantFoldersMapping[assistantId]
+                    .map(uuid => folders[uuid] ? (folders[uuid].name || "Untitled folder") : null)
+                    .filter(name => name)
+                    .join(', ');
+            }
+            document.getElementById('folder-display-' + assistantId).innerHTML = folderNames +
+                ` <a href="#" onclick="hideTooltip(this); toggleInlineFolderManagement('${assistantId}')" class="text-secondary text-decoration-none" data-bs-toggle="tooltip" data-bs-title="Manage folders">
+                    <i class="bi bi-pencil-square"></i>
+                </a>`;
+        } catch (error) {
+            console.error("Error saving inline folders:", error);
+            showToast("Error", "Failed to update folders.", "error");
+        } finally {
+            // Re-enable the inline save button and hide the spinner
+            inlineSaveBtn.disabled = false;
+            inlineCancelBtn.disabled = false;
+            spinner.classList.add('d-none');
+
+            // Hide the inline folder management UI and show the folder display area again
+            cancelInlineFolders(assistantId);
+
+            await loadAndDisplayAssistants();
+            await fetchFolderAssistantsMapping();
+            fetchFoldersTab(); // Refresh knowledge tab
+        }
+    }
+
+
+    /* Folder management helpers */
+
+    // Moves selected options from one select box to the other
+    function moveFolder(assistantId, direction, mode) {
+        const availableSelect = document.getElementById(getFolderElementId('available-folders', assistantId, mode));
+        const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', assistantId, mode));
+        if (direction === 'right') {
+            // Move selected options from available to chosen
+            [...availableSelect.selectedOptions].forEach(option => {
+                chosenSelect.appendChild(option);
+            });
+        } else if (direction === 'left') {
+            // Move selected options from chosen back to available
+            [...chosenSelect.selectedOptions].forEach(option => {
+                availableSelect.appendChild(option);
+            });
+        }
+        updateFolderButtons(assistantId, mode);
+    }
+
+    // Filters the options in the select box based on the search input
+    function filterFolders(assistantId, type, mode) {
+        // type is either "available" or "chosen"
+        const inputId = getFolderElementId('search-' + type, assistantId, mode);
+        const selectId = getFolderElementId(type + '-folders', assistantId, mode);
+        const filter = document.getElementById(inputId).value.toLowerCase();
+        const select = document.getElementById(selectId);
+        for (const option of select.options) {
+            option.style.display = option.text.toLowerCase().includes(filter) ? '' : 'none';
+        }
+    }
+
+    // Update the state of arrow and "all" buttons based on selection and box content
+    function updateFolderButtons(assistantId, mode) {
+        const availableSelect = document.getElementById(getFolderElementId('available-folders', assistantId, mode));
+        const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', assistantId, mode));
+        const moveRightButton = document.getElementById(getFolderElementId('move-right', assistantId, mode));
+        const moveLeftButton = document.getElementById(getFolderElementId('move-left', assistantId, mode));
+        const chooseAllButton = document.getElementById(getFolderElementId('choose-all', assistantId, mode));
+        const removeAllButton = document.getElementById(getFolderElementId('remove-all', assistantId, mode));
+        moveRightButton.disabled = availableSelect.selectedOptions.length === 0;
+        moveLeftButton.disabled = chosenSelect.selectedOptions.length === 0;
+
+        // "Choose All" button disabled if no available options
+        chooseAllButton.disabled = availableSelect.options.length === 0;
+        // "Remove All" button disabled if no chosen options
+        removeAllButton.disabled = chosenSelect.options.length === 0;
+    }
+
+    // Moves all available options to the chosen list
+    function chooseAll(assistantId, mode) {
+        const availableSelect = document.getElementById(getFolderElementId('available-folders', assistantId, mode));
+        const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', assistantId, mode));
+        [...availableSelect.options].forEach(option => {
+            chosenSelect.appendChild(option);
+        });
+        updateFolderButtons(assistantId, mode);
+    }
+
+    // Moves all chosen options back to the available list
+    function removeAll(assistantId, mode) {
+        const availableSelect = document.getElementById(getFolderElementId('available-folders', assistantId, mode));
+        const chosenSelect = document.getElementById(getFolderElementId('chosen-folders', assistantId, mode));
+        [...chosenSelect.options].forEach(option => {
+            availableSelect.appendChild(option);
+        });
+        updateFolderButtons(assistantId, mode);
+    }
+
+</script>

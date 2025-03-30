@@ -55,6 +55,10 @@ class VectorStoreSchema(Schema):
     _validate_metadata = field_validator('metadata')(validate_metadata)
 
 
+class VectorStoreFilesUpdateSchema(Schema):
+    file_ids: list[str] | None = Field(default=None)
+
+
 class VectorStoreIdsSchema(Schema):
     vector_store_ids: List[str]
 

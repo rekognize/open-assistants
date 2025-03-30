@@ -1,0 +1,65 @@
+<div class="col">
+    <div class="card">
+
+        <div class="card-body" id="${folder.uuid}">
+
+            <!-- Info -->
+
+            <div class="brief-info">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <h6 class="card-title my-0">
+                        ${folderName}
+                    </h6>
+
+                    <div>
+                        <span class="small text-secondary"
+                              data-bs-toggle="tooltip"
+                              data-bs-title="${fileCount} file(s)">
+                            ${fileCount} file(s)
+                        </span>
+                    </div>
+
+                </div>
+
+                <div class="collapse show">
+
+                    <div class="info-box mt-4">
+                        <span class="info-label">Created ${createdAgo} ago</span>
+                        <p class="info-value">${createdDate}</p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label">Last modified ${modifiedAgo} ago</span>
+                        <p class="info-value">${modifiedDate}</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-footer d-flex justify-content-between align-items-center">
+
+            <div class="brief-info">
+                <a href="#" onclick="hideTooltip(this); editFolder('${folder.uuid}');"
+                        class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="tooltip" data-bs-title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </a>
+
+                <button type="button" class="btn btn-sm btn-outline-secondary folder-assistants-button"
+                        data-bs-toggle="tooltip" data-bs-title="Filter assistants"
+                        data-folder-uuid="${folder.uuid}"
+                        onclick="hideTooltip(this); toggleAssistantFilterByFolder('${folder.uuid}', this)">
+                    <i class="bi bi-collection"></i>
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+</div>

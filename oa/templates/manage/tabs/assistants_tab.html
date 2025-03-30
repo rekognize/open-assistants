@@ -1,0 +1,24 @@
+<div id="assistants-tab-container" class="my-4">
+    {% include 'partials/loading_indicator.html' with content_id='loadingAssistantsTab' content_name='assistants' %}
+    <div class="row">
+        <div class="col-3">
+            <button class="btn btn-outline-success w-100 mb-3 d-none"
+                    id="createNewAssistantBtn"
+                    onclick="createNewAssistant()">Create Assistant</button>
+            <ul class="nav nav-pills flex-column" role="tablist" id="assistantsNavTabs">
+            </ul>
+        </div>
+        <div class="col-9">
+            <div class="tab-content" id="assistantContent">
+            </div>
+        </div>
+    </div>
+    <div id="no-assistants" class="text-center text-secondary d-none">
+        <p>No assistants available.</p>
+        <span class="text-secondary">
+            <a href="#" class="btn btn-outline-success" onclick="createNewAssistant()">
+                Create Assistant
+            </a>
+        </span>
+    </div>
+</div>

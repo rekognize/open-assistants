@@ -1,0 +1,544 @@
+<script>
+    /* Folders */
+
+    // Global variables to hold fetched data
+    let allFiles = [];
+    let allFolders = [];
+    let allFolderAssistants = [];
+
+    async function fetchFiles() {
+        const url = "{% url 'api-1.0.0:list_files' %}";
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching files:', error);
+        }
+    }
+
+    async function fetchFolderAssistants() {
+        try {
+            const response = await fetch(listFolderAssistantsUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching folders:', error);
+        }
+    }
+
+    async function fetchFoldersTab() {
+        toggleLoading('loadingFoldersTab', true);
+        try {
+            // Wait until folders are loaded or an error occurs
+            while (!foldersLoaded) {
+                if (foldersError) {
+                    throw new Error(foldersError);
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            const foldersData = Object.values(folders);
+            const filesData = await fetchFiles();
+            const folderAssistantsData = await fetchFolderAssistants();
+
+            // Fill global variables with arrays
+            allFolders = foldersData;
+            allFiles = filesData.files;
+            allFolderAssistants = folderAssistantsData.folder_assistants;
+
+            populateFoldersTabsAndContent(allFolders, allFiles, allFolderAssistants);
+
+            // Make Create Folder button visible if folders list not empty
+            if (folders && Object.keys(folders).length > 0) {
+                document.getElementById('createNewFolderBtn').classList.remove('d-none');
+            }
+
+        } catch (error) {
+            const contentContainer = document.getElementById('folders-tab-container');
+            contentContainer.innerHTML = `
+                <div class="text-center text-danger">Failed to load folders!</div>
+            `;
+            console.error(error);
+        } finally {
+            toggleLoading('loadingFoldersTab', false);
+        }
+    }
+
+    // Build folder tabs and for each, display a dual-list widget with a folder name input,
+    // filter inputs, scrollable lists, and a right-floating delete button.
+    function populateFoldersTabsAndContent(folders, files, folderAssistants) {
+        const tabsContainer = document.getElementById('foldersNavTabs');
+        const contentContainer = document.getElementById('folderContent');
+
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        // Check if the global dict is empty
+        if (!folders || Object.keys(folders).length === 0) {
+            document.getElementById('no-folders').classList.remove('d-none');
+            return;
+        }
+
+        folders.forEach((folder, index) => {
+            // Create the tab element container
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            // Create the tab link
+            const tabLink = document.createElement('a');
+            tabLink.className = index === 0
+                ? 'nav-link py-1 px-2 bg-secondary text-white active'
+                : 'nav-link py-1 px-2 bg-white text-secondary';
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#folders-tab-${folder.uuid}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `folders-tab-${folder.uuid}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.id = `folders-tab-${folder.uuid}-tab`;
+            tabLink.textContent = folder.name || 'Untitled folder';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            // Create the content pane for this folder
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `folders-tab-${folder.uuid}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `folders-tab-${folder.uuid}-tab`);
+
+            // Build the dual list widget HTML along with a folder name input field
+            const dualListHTML = buildDualListHTML(folder, files);
+
+            // Build the assistants list for this folder
+            const assistantsListHTML = document.createElement('ul');
+            (folderAssistants[folder.uuid] || []).forEach(function (assistantId) {
+                const li = document.createElement('li');
+                // Get the assistant object using the assistantId
+                const assistant = assistants[assistantId];
+                li.textContent = assistant ? (assistant.name || 'Untitled assistant') : assistantId;
+                assistantsListHTML.appendChild(li);
+            });
+
+            // Set the updated content pane HTML with the new subheaders and collapse for dual-list
+            contentPane.innerHTML = `
+              <div class="mb-3 d-flex justify-content-between align-items-center">
+                <input type="text" class="form-control form-control-lg me-2" id="folder-name-${folder.uuid}" value="${folder.name || 'Untitled folder'}" onblur="updateFolderName('${folder.uuid}')">
+                <button class="btn btn-outline-danger btn-sm" onclick="hideTooltip(this); deleteFolder('${folder.uuid}')"
+                        data-bs-toggle="tooltip" data-bs-title="Delete folder">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+              <p class="text-secondary small">
+                Created: ${formatDbDate(folder.created_at)} (${timeSinceDB(folder.created_at)} ago) | Modified: ${formatDbDate(folder.modified_at)} (${timeSinceDB(folder.modified_at)} ago)
+              </p>
+              <p class="text-secondary small">
+                Created by: ${folder.created_by || 'N/A'}
+              </p
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">Files in this folder</h5>
+                  <button class="btn btn-link btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDualList-${folder.uuid}" aria-expanded="false" aria-controls="collapseDualList-${folder.uuid}">Manage</button>
+                </div>
+                <p class="text-secondary small">${folder.file_ids.length} files</p>
+                <div class="collapse" id="collapseDualList-${folder.uuid}">
+                  ${dualListHTML}
+                </div>
+              </div>
+              <div class="mb-3">
+                <h5>Assistants using this folder</h5>
+                <div id="assistants-list-${folder.uuid}"></div>
+              </div>
+            `;
+
+            contentContainer.appendChild(contentPane);
+
+            // Append the assistants list into the designated container
+            document.getElementById(`assistants-list-${folder.uuid}`).appendChild(assistantsListHTML);
+        });
+    }
+
+    // Helper: build the dual list widget for a folder with filter inputs and scrollable divs.
+    function buildDualListHTML(folder, files) {
+        const selectedFileIds = new Set(folder.file_ids);
+        let availableFilesForFolder = files.filter(file => !selectedFileIds.has(file.id));
+        const selectedFilesForFolder = files.filter(file => selectedFileIds.has(file.id));
+
+        return `
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <h6 class="card-title mb-0 py-2">Available Files</h6>
+              <button class="btn btn-secondary btn-sm">
+                <i class="bi bi-plus-lg"></i>
+                Upload
+              </button>
+            </div>
+            <div class="card-header bg-white">
+              <input type="text" class="form-control form-control-sm" placeholder="Filter available files" id="filter-available-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
+            </div>
+            <div class="card-body p-1" style="height: 300px; overflow-y: auto;">
+              <ul class="list-group list-group-flush" id="available-files-${folder.uuid}">
+                ${availableFilesForFolder.map(file => `
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${file.filename}
+                    <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folder.uuid}')">
+                      <i class="bi bi-box-arrow-in-right"></i>
+                    </button>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card border-success">
+            <div class="card-header d-flex align-items-center justify-content-between bg-success-subtle">
+              <h6 class="card-title mb-0 py-2">Selected Files</h6>
+              <div class="spinner-border spinner-border-sm text-secondary d-none" id="updatingSpinner" role="status">
+                <span class="visually-hidden">Updating...</span>
+              </div>
+            </div>
+            <div class="card-header bg-white">
+              <input type="text" class="form-control form-control-sm" placeholder="Filter selected files" id="filter-selected-${folder.uuid}" onkeyup="updateFolderContent('${folder.uuid}')">
+            </div>
+            <div class="card-body p-1" style="height: 300px; overflow-y: auto;">
+              <ul class="list-group list-group-flush" id="selected-files-${folder.uuid}">
+                ${selectedFilesForFolder.map(file => `
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${file.filename}
+                    <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folder.uuid}')">
+                      <i class="bi bi-box-arrow-left"></i>
+                    </button>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    }
+
+
+    /* Folder and file operations */
+
+    // Call the backend to update the folder's file_ids and name.
+    // The spinner is shown while the update is in progress.
+    async function updateFolderBackend(folder) {
+        const spinner = document.getElementById('updatingSpinner');
+        spinner.classList.remove('d-none');
+        try {
+            // Construct the endpoint URL. Adjust as needed based on your backend routing.
+            const urlTemplate = "{% url 'folders-api:update_folder' folder_uuid='FOLDER_UUID_PLACEHOLDER' %}";
+            const url = urlTemplate.replace('FOLDER_UUID_PLACEHOLDER', folder.uuid);
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                // Send both file_ids and name in the payload.
+                body: JSON.stringify({ file_ids: folder.file_ids, name: folder.name }),
+            });
+            if (!response.ok) {
+                console.error("Error updating folder on backend:", response.statusText);
+            }
+        } catch (error) {
+            console.error("Error updating folder on backend:", error);
+        } finally {
+            spinner.classList.add('d-none');
+            // After the folder is updated on the backend, sync the vector stores of all assistants that are using this folder
+            await syncFolderAssistantsVectorStore(folder);
+        }
+    }
+
+    // Add file to folder (update local state, re-render the UI, then call backend)
+    async function addFileToFolder(fileId, folderUuid) {
+        const folder = allFolders.find(f => f.uuid === folderUuid);
+        if (!folder) return;
+        if (!folder.file_ids.includes(fileId)) {
+            folder.file_ids.push(fileId);
+        }
+        updateFolderContent(folderUuid);
+        await updateFolderBackend(folder);
+    }
+
+    // Remove file from folder (update local state, re-render the UI, then call backend)
+    async function removeFileFromFolder(fileId, folderUuid) {
+        const folder = allFolders.find(f => f.uuid === folderUuid);
+        if (!folder) return;
+        folder.file_ids = folder.file_ids.filter(id => id !== fileId);
+        updateFolderContent(folderUuid);
+        await updateFolderBackend(folder);
+    }
+
+    // Update the folder name when the user leaves (blurs) the name input field.
+    function updateFolderName(folderUuid) {
+        const folder = allFolders.find(f => f.uuid === folderUuid);
+        if (!folder) return;
+        const nameInput = document.getElementById(`folder-name-${folderUuid}`);
+        if (!nameInput) return;
+        folder.name = nameInput.value;
+        // Update the tab label with the new folder name.
+        const tabLink = document.getElementById(`folders-tab-${folderUuid}-tab`);
+        if (tabLink) {
+            tabLink.textContent = folder.name || 'Untitled folder';
+        }
+        updateFolderBackend(folder);
+    }
+
+
+    /* Delete Folder */
+
+    // Global variables
+    let folderToDeleteUuid = null;
+    let folderToDeleteAssistants = [];
+
+    // Called when the user clicks the delete button for a folder
+    async function deleteFolder(folderUuid) {
+        folderToDeleteUuid = folderUuid;
+
+        // Capture assistants associated with this folder before deletion
+        folderToDeleteAssistants = folderAssistantsMapping[folderUuid] || [];
+
+        // Update the modal content
+        const assistantsUsingFolderListElement = document.getElementById('assistantsUsingFolderList');
+        const assistantsUsingFolderDiv = document.getElementById('assistantsUsingFolder');
+        const folderInfo = document.getElementById('folderInfo');
+
+        // Clear previous list
+        assistantsUsingFolderListElement.innerHTML = '';
+
+        // Add info
+        folderInfo.textContent = '';
+        folderInfo.textContent = folders[folderUuid] && folders[folderUuid].name && folders[folderUuid].name.trim() !== ''
+            ? folders[folderUuid].name
+            : 'Untitled folder';
+
+        if (folderToDeleteAssistants.length > 0) {
+            // Show the list of assistants using this folder
+            assistantsUsingFolderDiv.classList.remove('d-none');
+            folderToDeleteAssistants.forEach(assistantId => {
+                const assistantName = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
+                const li = document.createElement('li');
+                li.textContent = assistantName;
+                assistantsUsingFolderListElement.appendChild(li);
+            });
+        } else {
+            assistantsUsingFolderDiv.classList.add('d-none');
+        }
+
+        // Show the delete confirmation modal
+        const folderDeleteModal = new bootstrap.Modal(document.getElementById('folderDeleteModal'));
+        folderDeleteModal.show();
+
+        // Attach event listener to the confirm delete button
+        const confirmDeleteBtn = document.getElementById('confirmDeleteFolderBtn');
+        confirmDeleteBtn.onclick = confirmDeleteFolder;
+    }
+
+    // Called when the user confirms deletion of the folder
+    async function confirmDeleteFolder() {
+        const folderUuid = folderToDeleteUuid;
+        const folderName = folders[folderUuid] && folders[folderUuid].name && folders[folderUuid].name.trim() !== ''
+            ? folders[folderUuid].name
+            : 'Untitled folder';
+
+        const folderDeleteModal = bootstrap.Modal.getInstance(document.getElementById('folderDeleteModal'));
+
+        // Show spinner on the confirm button and disable buttons to prevent multiple clicks
+        const confirmBtn = document.getElementById('confirmDeleteFolderBtn');
+        const cancelBtn = document.getElementById('cancelFolderDeleteModalBtn');
+        const spinner = confirmBtn.querySelector('.spinner-border');
+        const buttonText = confirmBtn.querySelector('.button-text');
+        confirmBtn.disabled = true;
+        cancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Deleting...';
+
+        try {
+            const response = await fetch(deleteFolderUrl.replace('FOLDER_UUID_PLACEHOLDER', folderUuid), {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || response.statusText);
+            }
+
+            // Refresh the folders UI after deletion
+            await loadAndDisplayFolders();
+            await fetchFoldersTab();
+
+            // Update vector stores for assistants that used this folder
+            await syncAssistantsVectorStoreForDeletedFolder(folderToDeleteAssistants);
+
+            // Refresh the assistants UI
+            await loadAndDisplayAssistants();
+            fetchAssistantsTab(); // Refresh assistants tab
+
+            folderDeleteModal.hide();
+            showToast("Folder deleted!", folderName, "success");
+            console.log(`Folder with UUID ${folderUuid} deleted successfully.`);
+        } catch (error) {
+            showToast("Failed to delete folder", error.message, "error");
+            console.error(error);
+        } finally {
+            // Reset button states
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Delete';
+            confirmBtn.disabled = false;
+            cancelBtn.disabled = false;
+        }
+    }
+
+
+    /* Create Folder */
+
+    async function createNewFolder() {
+        try {
+            const url = "{% url 'folders-api:create_folder' %}";
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!response.ok) {
+                console.error("Error creating new folder:", response.statusText);
+                return;
+            }
+            const data = await response.json();
+            const newFolderUuid = data.folder_uuid;
+
+            // Refresh the folder list and UI.
+            await fetchFolders();
+            await fetchFoldersTab();
+
+            // After reloading, select the new folder's tab.
+            const newTabEl = document.getElementById(`folders-tab-${newFolderUuid}-tab`);
+            if (newTabEl) {
+                const newTab = new bootstrap.Tab(newTabEl);
+                newTab.show();
+            }
+        } catch (error) {
+            console.error("Error creating new folder:", error);
+        }
+    }
+
+    // Update the dual list widget for a given folder and apply filtering to both available and selected files.
+    function updateFolderContent(folderUuid) {
+        const folder = allFolders.find(f => f.uuid === folderUuid);
+        if (!folder) return;
+        const selectedFileIds = new Set(folder.file_ids);
+        let availableFilesForFolder = allFiles.filter(file => !selectedFileIds.has(file.id));
+        let selectedFilesForFolder = allFiles.filter(file => selectedFileIds.has(file.id));
+
+        // Apply filter for available files if provided
+        const filterAvailableInput = document.getElementById(`filter-available-${folderUuid}`);
+        if (filterAvailableInput && filterAvailableInput.value) {
+            const filterValue = filterAvailableInput.value.toLowerCase();
+            availableFilesForFolder = availableFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
+        }
+
+        // Apply filter for selected files if provided
+        const filterSelectedInput = document.getElementById(`filter-selected-${folderUuid}`);
+        if (filterSelectedInput && filterSelectedInput.value) {
+            const filterValue = filterSelectedInput.value.toLowerCase();
+            selectedFilesForFolder = selectedFilesForFolder.filter(file => file.filename.toLowerCase().includes(filterValue));
+        }
+
+        const availableList = document.getElementById(`available-files-${folderUuid}`);
+        const selectedList = document.getElementById(`selected-files-${folderUuid}`);
+
+        if (availableList && selectedList) {
+            availableList.innerHTML = availableFilesForFolder.map(file => `
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          ${file.filename}
+          <button class="btn btn-sm btn-outline-secondary" onclick="addFileToFolder('${file.id}', '${folderUuid}')">
+            <i class="bi bi-box-arrow-in-right"></i>
+          </button>
+        </li>
+      `).join('');
+
+            selectedList.innerHTML = selectedFilesForFolder.map(file => `
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          ${file.filename}
+          <button class="btn btn-sm btn-outline-secondary" onclick="removeFileFromFolder('${file.id}', '${folderUuid}')">
+            <i class="bi bi-box-arrow-left"></i>
+          </button>
+        </li>
+      `).join('');
+        }
+    }
+
+
+    /* Vector Store Helpers */
+
+    // Update given assistant's vector store files
+    async function updateAssistantVectorStore(assistantId) {
+        const folderIds = assistantFoldersMapping[assistantId];
+        if (!folderIds || folderIds.length === 0) {
+            console.log(`Assistant ${assistantId} has no associated folders. Skipping vector store sync.`);
+            return;
+        }
+        // Compute union of file_ids from all associated folders
+        const unionFileIdsSet = new Set();
+        folderIds.forEach(folderId => {
+            const folder = allFolders.find(f => f.uuid === folderId);
+            if (folder && folder.file_ids) {
+                folder.file_ids.forEach(fileId => unionFileIdsSet.add(fileId));
+            }
+        });
+        const unionFileIds = Array.from(unionFileIdsSet);
+        // Get the assistant's vector store ID from the global "assistants" object
+        const currentAssistant = assistants[assistantId];
+        const vsIds = currentAssistant?.tool_resources?.file_search?.vector_store_ids;
+        if (vsIds && vsIds.length > 0) {
+            try {
+                const vectorStoreFilesData = await updateVectorStoreFiles(vsIds[0], unionFileIds);
+                console.log(`Updated vector store files for assistant ${assistantId}:`, vectorStoreFilesData);
+            } catch (vsError) {
+                console.error(`Failed to update vector store files for assistant ${assistantId}:`, vsError);
+                showToast("Warning", `Failed to sync vector store for assistant ${assistantId}`, "warning");
+            }
+        } else {
+            // TODO: Create vector store for the assistant
+            console.log(`No vector store found for assistant ${assistantId}.`);
+        }
+    }
+
+    // For a given folder, look up the related assistant IDs and sync their vector stores
+    async function syncFolderAssistantsVectorStore(folder) {
+        const assistantIds = allFolderAssistants[folder.uuid] || [];
+        for (const assistantId of assistantIds) {
+            await updateAssistantVectorStore(assistantId);
+        }
+    }
+
+    async function syncAssistantsVectorStoreForDeletedFolder(assistantIds) {
+        for (const assistantId of assistantIds) {
+            await updateAssistantVectorStore(assistantId);
+        }
+    }
+
+</script>

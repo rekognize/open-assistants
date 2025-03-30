@@ -6,19 +6,19 @@ import os
 import httpx
 from asgiref.sync import sync_to_async
 from django.urls import reverse
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from ninja import NinjaAPI, File, Form
 from ninja.errors import AuthenticationError
 from ninja.security import HttpBearer
 from ninja.files import UploadedFile
 from typing import List
 from openai import AsyncOpenAI, OpenAIError
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, Http404, HttpResponseNotFound
 from .schemas import AssistantSchema, VectorStoreSchema, VectorStoreIdsSchema, FileUploadSchema, ThreadSchema, \
-    AssistantSharedLink
+    AssistantSharedLink, VectorStoreFilesUpdateSchema
 from .utils import serialize_to_dict, APIError, EventHandler
+from ..function_calls.models import BaseAPIFunction, LocalAPIFunction, ExternalAPIFunction, FunctionExecution
 from ..main.models import Project, SharedLink, Thread
 from ..main.utils import format_time
-from ..tools import FUNCTION_IMPLEMENTATIONS
 
 
 api = NinjaAPI()
@@ -303,7 +303,7 @@ async def create_vector_store(request, payload: VectorStoreSchema):
         }
 
     try:
-        vector_store = await request.auth['client'].beta.vector_stores.create(
+        vector_store = await request.auth['client'].vector_stores.create(
             name=payload.name,
             expires_after=expires_after,
             metadata=payload.metadata
@@ -317,7 +317,7 @@ async def create_vector_store(request, payload: VectorStoreSchema):
 @api.get("/vector_stores", auth=BearerAuth())
 async def list_vector_stores(request):
     try:
-        vector_stores = await request.auth['client'].beta.vector_stores.list(
+        vector_stores = await request.auth['client'].vector_stores.list(
             order="desc",
             limit=100,
         )
@@ -330,7 +330,7 @@ async def list_vector_stores(request):
 @api.get("/vector_stores/{vector_store_id}", auth=BearerAuth())
 async def retrieve_vector_store(request, vector_store_id):
     try:
-        vector_store = await request.auth['client'].beta.vector_stores.retrieve(vector_store_id)
+        vector_store = await request.auth['client'].vector_stores.retrieve(vector_store_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -347,7 +347,7 @@ async def modify_vector_store(request, vector_store_id, payload: VectorStoreSche
         }
 
     try:
-        vector_store = await request.auth['client'].beta.vector_stores.update(
+        vector_store = await request.auth['client'].vector_stores.update(
             vector_store_id,
             name=payload.name,
             expires_after=expires_after,
@@ -362,7 +362,7 @@ async def modify_vector_store(request, vector_store_id, payload: VectorStoreSche
 @api.delete("/vector_stores/{vector_store_id}", auth=BearerAuth())
 async def delete_vector_store(request, vector_store_id):
     try:
-        vector_store = await request.auth['client'].beta.vector_stores.delete(vector_store_id)
+        vector_store = await request.auth['client'].vector_stores.delete(vector_store_id)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -374,7 +374,7 @@ async def delete_vector_store(request, vector_store_id):
 @api.get("/vector_stores/{vector_store_id}/files", auth=BearerAuth())
 async def list_vector_store_files(request, vector_store_id):
     try:
-        vector_store_files = await request.auth['client'].beta.vector_stores.files.list(
+        vector_store_files = await request.auth['client'].vector_stores.files.list(
             vector_store_id=vector_store_id,
             order="desc",
             limit=100,
@@ -388,7 +388,7 @@ async def list_vector_store_files(request, vector_store_id):
 @api.get("/vector_stores/{vector_store_id}/files/{file_id}", auth=BearerAuth())
 async def retrieve_vector_store_file(request, vector_store_id, file_id):
     try:
-        vector_store_file = await request.auth['client'].beta.vector_stores.files.retrieve(
+        vector_store_file = await request.auth['client'].vector_stores.files.retrieve(
             vector_store_id=vector_store_id,
             file_id=file_id
         )
@@ -396,6 +396,64 @@ async def retrieve_vector_store_file(request, vector_store_id, file_id):
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse(serialize_to_dict(vector_store_file))
+
+
+@api.post("/vector_stores/{vector_store_id}/sync", auth=BearerAuth())
+async def sync_vector_store_files(request, vector_store_id, payload: VectorStoreFilesUpdateSchema):
+    try:
+        new_file_ids = set(payload.file_ids)
+
+        # Retrieve current files in the vector store
+        current_files = await request.auth['client'].vector_stores.files.list(
+            vector_store_id=vector_store_id,
+            order="desc",
+            limit=100,
+        )
+        # TODO: Pagination will be added for 100+ files
+
+        current_file_ids = {file.id for file in current_files.data}
+
+        # Files to add and remove
+        file_ids_to_add = new_file_ids - current_file_ids
+        file_ids_to_remove = current_file_ids - new_file_ids
+
+        print('current_file_ids:', current_file_ids)
+        print('file_ids_to_add:', file_ids_to_add)
+        print('file_ids_to_remove:', file_ids_to_remove)
+
+        # Remove files not in new_file_ids
+        if file_ids_to_remove:
+            async def delete_vector_store_file(file_id):
+                try:
+                    await request.auth['client'].vector_stores.files.delete(
+                        vector_store_id=vector_store_id,
+                        file_id=file_id
+                    )
+                except OpenAIError as e:
+                    logger.warning(f"Failed to delete file {file_id}: {e}")
+
+            # Create deletion tasks concurrently
+            delete_tasks = [delete_vector_store_file(file_id) for file_id in file_ids_to_remove]
+            await asyncio.gather(*delete_tasks)
+
+        # Add new files (using batch if more than one)
+        if file_ids_to_add:
+            if len(file_ids_to_add) > 1:
+                response = await request.auth['client'].vector_stores.file_batches.create(
+                    vector_store_id=vector_store_id,
+                    file_ids=list(file_ids_to_add)
+                )
+            else:
+                response = await request.auth['client'].vector_stores.files.create(
+                    vector_store_id=vector_store_id,
+                    file_id=list(file_ids_to_add)[0]
+                )
+        else:
+            response = {"message": "No new files added."}
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse(serialize_to_dict(response))
 
 
 # Files
@@ -461,13 +519,13 @@ async def upload_files(
     for vector_store_id in vector_store_ids:
         if len(supported_files) > 1:
             # Batch assignment for multiple files
-            await request.auth['client'].beta.vector_stores.file_batches.create(
+            await request.auth['client'].vector_stores.file_batches.create(
                 vector_store_id=vector_store_id,
                 file_ids=[f['id'] for f in supported_files]
             )
         elif len(supported_files) == 1:
             # Assign a single file
-            await request.auth['client'].beta.vector_stores.files.create(
+            await request.auth['client'].vector_stores.files.create(
                 vector_store_id=vector_store_id,
                 file_id=supported_files[0]['id']
             )
@@ -484,7 +542,9 @@ async def upload_files(
 async def list_files(request):
     try:
         files = await request.auth['client'].files.list(
-            purpose='assistants'
+            purpose='assistants',
+            limit=10000,  # Default = Max = 10,000
+            order='desc',
         )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
@@ -509,7 +569,7 @@ async def add_file_to_vector_stores(request, file_id, payload: VectorStoreIdsSch
 
     for vector_store_id in payload.vector_store_ids:
         try:
-            vector_store_file = await request.auth['client'].beta.vector_stores.files.create(
+            vector_store_file = await request.auth['client'].vector_stores.files.create(
                 vector_store_id=vector_store_id,
                 file_id=file_id
             )
@@ -527,7 +587,7 @@ async def remove_file_from_vector_stores(request, file_id, payload: VectorStoreI
 
     for vector_store_id in payload.vector_store_ids:
         try:
-            vector_store_file = await request.auth['client'].beta.vector_stores.files.delete(
+            vector_store_file = await request.auth['client'].vector_stores.files.delete(
                 vector_store_id=vector_store_id,
                 file_id=file_id
             )
@@ -691,12 +751,26 @@ async def cancel_run(request, thread_id, run_id):
 
 # Chat
 
+@sync_to_async
+def log_function_execution(function, thread, arguments, result, status_code, error_message):
+    return FunctionExecution.objects.create(
+        function=function,
+        executed_version=function.version,
+        thread=thread,
+        arguments=arguments,
+        result=result,
+        status_code=status_code,
+        error_message=error_message,
+    )
+
 @api.get("/stream/{assistant_id}/{thread_id}", auth=BearerAuth())
 async def stream_responses(request, assistant_id: str, thread_id: str):
     async def event_stream():
         shared_data = []
         event_handler = EventHandler(request=request, shared_data=shared_data)
         try:
+            thread = await Thread.objects.filter(openai_id=thread_id).afirst()
+
             async with request.auth['client'].beta.threads.runs.stream(
                 thread_id=thread_id,
                 assistant_id=assistant_id,
@@ -713,34 +787,57 @@ async def stream_responses(request, assistant_id: str, thread_id: str):
                             tool_outputs = []
 
                             for tool_call in tool_calls:
-                                tool_call_id = tool_call.id
-                                function_name = tool_call.function.name
-                                function_args_json = tool_call.function.arguments
-                                function_args = json.loads(function_args_json)
+                                # function = await ExternalAPIFunction.objects.filter(slug=tool_call.function.name).afirst()
+                                function = await LocalAPIFunction.objects.filter(slug=tool_call.function.name).afirst()
 
-                                # Execute the function and get the output
-                                if function_name in FUNCTION_IMPLEMENTATIONS:
-                                    function_class = FUNCTION_IMPLEMENTATIONS[function_name]
-                                    try:
-                                        # Instantiate the class with the arguments
-                                        function_instance = function_class(**function_args)
-                                        # If 'main' is synchronous, run it in a thread
-                                        output = await asyncio.to_thread(function_instance.main)
-                                        # Ensure the output is JSON-serializable
-                                        output_json = json.dumps(output)
-                                    except Exception as e:
-                                        output = f"Error executing function {function_name}: {str(e)}"
-                                        output_json = json.dumps({"error": output})
-                                else:
-                                    output = f"Function {function_name} not found"
-                                    output_json = json.dumps({"error": output})
+                                if not function:
+                                    tool_outputs.append({
+                                        "tool_call_id": tool_call.id,
+                                        "output": json.dumps(
+                                            {"error": f"No function named '{tool_call.function.name}'"}
+                                        ),
+                                    })
+                                    continue
 
-                                tool_outputs.append({"tool_call_id": tool_call_id, "output": output_json})
+                                try:
+                                    args_dict = json.loads(tool_call.function.arguments or "{}")
+                                except Exception as e:
+                                    tool_outputs.append({
+                                        "tool_call_id": tool_call.id,
+                                        "output": json.dumps(
+                                            {"error": f"Invalid arguments JSON: {str(e)}"}
+                                        ),
+                                    })
+                                    continue
 
-                            # Create a new EventHandler instance for the submit_tool_outputs_stream
-                            tool_output_event_handler = EventHandler(request=request, shared_data=shared_data)
+                                try:
+                                    result = await function.execute(**args_dict)
+                                    status_code = "200"
+                                    error_message = None
+                                except Exception as e:
+                                    result = {"error": str(e)}
+                                    status_code = "400"
+                                    error_message = str(e)
 
-                            # Submit tool outputs
+                                # Log the execution
+                                await log_function_execution(
+                                    function=function,
+                                    thread=thread,
+                                    arguments=args_dict,
+                                    result=result,
+                                    status_code=status_code,
+                                    error_message=error_message
+                                )
+
+                                # Prepare output for the assistant
+                                tool_outputs.append({
+                                    "tool_call_id": tool_call.id,
+                                    "output": json.dumps(result)
+                                })
+
+                            tool_output_event_handler = EventHandler(
+                                request=request, shared_data=shared_data
+                            )
                             async with request.auth['client'].beta.threads.runs.submit_tool_outputs_stream(
                                 thread_id=thread_id,
                                 run_id=run_id,

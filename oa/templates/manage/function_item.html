@@ -1,0 +1,70 @@
+<div class="col">
+    <div class="card">
+
+        <div class="card-body" id="${func.id}">
+
+            <div class="d-flex justify-content-between align-items-center">
+
+                <h6 class="card-title my-0">
+                    ${funcName}
+                </h6>
+
+                <div>
+                    <span class="small text-secondary"
+                          data-bs-toggle="tooltip"
+                          data-bs-title="Version: ${func.version}">
+                        ${func.type}
+                    </span>
+                </div>
+
+            </div>
+
+            <!-- Info -->
+
+            <div class="brief-info">
+
+                <div class="collapse show">
+
+                    <div class="info-box mt-4">
+                        <span class="info-label">Description</span>
+                        <p class="info-value">${funcDesc}</p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label">Created ${createdAgo} ago</span>
+                        <p class="info-value">${createdDate}</p>
+                    </div>
+
+                    <div class="info-box">
+                        <span class="info-label">Last modified ${modifiedAgo} ago</span>
+                        <p class="info-value">${modifiedDate}</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-footer d-flex justify-content-between align-items-center">
+
+            <div class="brief-info">
+                <a href="#" onclick="hideTooltip(this); editFunction('${func.uuid}');"
+                        class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="tooltip" data-bs-title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </a>
+
+                <button type="button" class="btn btn-sm btn-outline-secondary function-assistants-button"
+                        data-bs-toggle="tooltip" data-bs-title="Filter assistants"
+                        data-function-uuid="${func.uuid}"
+                        onclick="hideTooltip(this); toggleAssistantFilterByFunction('${func.uuid}', this)">
+                    <i class="bi bi-collection"></i>
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+</div>

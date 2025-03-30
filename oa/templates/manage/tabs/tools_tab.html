@@ -1,0 +1,24 @@
+<div id="tools-tab-container" class="my-4">
+    {% include 'partials/loading_indicator.html' with content_id='loadingToolsTab' content_name='functions' %}
+    <div class="row">
+        <div class="col-3">
+            <button class="btn btn-outline-success w-100 mb-3 d-none"
+                    id="createNewFunctionBtn"
+                    onclick="createNewFunction()">Create Function</button>
+            <ul class="nav nav-pills flex-column" role="tablist" id="functionsNavTabs">
+            </ul>
+        </div>
+        <div class="col-9">
+            <div class="tab-content" id="functionContent">
+            </div>
+        </div>
+    </div>
+    <div id="no-functions" class="text-center text-secondary d-none">
+        <p>No functions available.</p>
+        <span class="text-secondary">
+            <a href="#" class="btn btn-outline-success" onclick="createNewFunction()">
+                Create Function
+            </a>
+        </span>
+    </div>
+</div>

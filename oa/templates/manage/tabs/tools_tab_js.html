@@ -1,0 +1,906 @@
+<script>
+    /* Functions*/
+
+    async function fetchFunctionsTab() {
+        toggleLoading('loadingToolsTab', true);
+        try {
+            // Wait until functions are loaded or an error occurs
+            while (!functionsLoaded) {
+                if (functionsError) {
+                    throw new Error(functionsError);
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            populateFunctionsTabsAndContent(functions);
+
+            // Make Create Function button visible if functions list not empty
+            if (functions && Object.keys(functions).length > 0) {
+                document.getElementById('createNewFunctionBtn').classList.remove('d-none');
+            }
+
+        } catch (error) {
+            const contentContainer = document.getElementById('tools-tab-container');
+            contentContainer.innerHTML = `
+                <div class="text-center text-danger">Failed to load functions!</div>
+            `;
+            console.error(error);
+        } finally {
+            toggleLoading('loadingToolsTab', false);
+        }
+    }
+
+    async function fetchExecutions(functionSlug) {
+        const fetchExecutionsUrlTemplate = "{% url 'functions-api:get_function_executions' slug='FUNCTION_SLUG_PLACEHOLDER' %}";
+        const fetchExecutionsUrl = fetchExecutionsUrlTemplate.replace('FUNCTION_SLUG_PLACEHOLDER', functionSlug);
+
+        try {
+            const response = await fetch(fetchExecutionsUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            console.log(data);
+
+            return data.executions || [];
+        } catch (error) {
+            console.error('Error fetching executions for function ', error);
+            return [];
+        }
+    }
+
+    function populateFunctionsTabsAndContent(functions) {
+        const tabsContainer = document.getElementById('functionsNavTabs');
+        const contentContainer = document.getElementById('functionContent');
+
+        // Clear any existing content
+        tabsContainer.innerHTML = '';
+        contentContainer.innerHTML = '';
+
+        if (!functions || Object.keys(functions).length === 0) {
+            document.getElementById('no-functions').classList.remove('d-none');
+            return;
+        }
+
+        const functionsArr = Object.values(functions);
+        functionsArr.forEach((func, index) => {
+            // Create nav tab item
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+
+            const tabLink = document.createElement('a');
+            tabLink.className = index === 0
+                ? 'nav-link py-1 px-2 bg-secondary text-white active'
+                : 'nav-link py-1 px-2 bg-white text-secondary';
+            tabLink.setAttribute('data-bs-toggle', 'tab');
+            tabLink.setAttribute('href', `#functions-tab-${func.uuid}`);
+            tabLink.setAttribute('role', 'tab');
+            tabLink.setAttribute('aria-controls', `functions-tab-${func.uuid}`);
+            tabLink.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+            tabLink.id = `functions-tab-${func.uuid}-tab`;
+            tabLink.textContent = func.name || 'Untitled function';
+
+            tabItem.appendChild(tabLink);
+            tabsContainer.appendChild(tabItem);
+
+            // Create content pane with view and edit modes
+            const contentPane = document.createElement('div');
+            contentPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            contentPane.setAttribute('id', `functions-tab-${func.uuid}`);
+            contentPane.setAttribute('role', 'tabpanel');
+            contentPane.setAttribute('aria-labelledby', `functions-tab-${func.uuid}-tab`);
+
+            const viewTemplate = getFunctionViewTemplate(func);
+            const editTemplate = getFunctionEditTemplate(func);
+            contentPane.innerHTML = `
+                <div class="card border-0">
+                    <div class="card-body px-0 py-0" id="function-card-${func.uuid}">
+                        ${viewTemplate}
+                        <div class="edit-mode d-none">
+                            ${editTemplate}
+                        </div>
+                    </div>
+                </div>
+            `;
+            contentContainer.appendChild(contentPane);
+
+            // Set up collapse events for executions
+            const collapseElement = document.getElementById(`collapse-${func.uuid}`);
+            if (collapseElement) {
+                collapseElement.addEventListener('show.bs.collapse', async function () {
+                    const tbody = document.getElementById(`executionsTable-${func.uuid}`);
+                    if (tbody && tbody.dataset.loaded !== "true") {
+                        tbody.innerHTML = `<tr><td colspan="6" class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                              <span class="visually-hidden">Loading...</span>
+                            </div> Loading executions...
+                        </td></tr>`;
+                        try {
+                            const executions = await fetchExecutions(func.slug);
+                            tbody.innerHTML = ''; // Clear loading indicator
+                            if (executions && executions.length > 0) {
+                                executions.forEach(exec => {
+                                    const row = document.createElement('tr');
+                                    // Populate row cells (Thread ID, Time, etc.)
+                                    const threadTd = document.createElement('td');
+                                    threadTd.textContent = exec.thread_id ? '...' + exec.thread_id.slice(-5) : 'N/A';
+                                    row.appendChild(threadTd);
+
+                                    const timeTd = document.createElement('td');
+                                    timeTd.textContent = exec.time ? formatDbDate(exec.time) : 'N/A';
+                                    row.appendChild(timeTd);
+
+                                    const statusTd = document.createElement('td');
+                                    statusTd.textContent = exec.status_code || 'N/A';
+                                    statusTd.classList.add(exec.error_message ? 'text-danger' : 'text-success');
+                                    row.appendChild(statusTd);
+
+                                    const versionTd = document.createElement('td');
+                                    versionTd.textContent = exec.executed_version || 'N/A';
+                                    row.appendChild(versionTd);
+
+                                    const argsTd = document.createElement('td');
+                                    argsTd.textContent = JSON.stringify(exec.arguments);
+                                    row.appendChild(argsTd);
+
+                                    const assistantTd = document.createElement('td');
+                                    if (exec.thread_metadata && exec.thread_metadata._asst) {
+                                        const assistantId = exec.thread_metadata._asst;
+                                        const assistant = assistants[assistantId];
+                                        assistantTd.textContent = assistant ? (assistant.name || 'Untitled assistant') : assistantId;
+                                    } else {
+                                        assistantTd.textContent = 'N/A';
+                                    }
+                                    row.appendChild(assistantTd);
+                                    tbody.appendChild(row);
+                                });
+                            } else {
+                                const row = document.createElement('tr');
+                                const td = document.createElement('td');
+                                td.setAttribute('colspan', '6');
+                                td.textContent = 'No executions found.';
+                                row.appendChild(td);
+                                tbody.appendChild(row);
+                            }
+                        } catch (error) {
+                            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading executions.</td></tr>`;
+                        } finally {
+                            tbody.dataset.loaded = "true";
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+
+    /* Templates */
+
+    function toggleEditFunction(functionId) {
+        // Locate the card container for this function
+        const functionPane = document.getElementById(`functions-tab-${functionId}`);
+        if (!functionPane) return;
+
+        // If the pane has not yet been split into view and edit parts, render both now
+        if (!functionPane.querySelector('.edit-mode')) {
+            const func = functions[functionId];
+            const viewTemplate = getFunctionViewTemplate(func);
+            const editTemplate = getFunctionEditTemplate(func);
+            functionPane.innerHTML = `
+                <div class="card border-0">
+                    <div class="card-body px-0 py-0" id="function-card-${functionId}">
+                        ${viewTemplate}
+                        <div class="edit-mode d-none">
+                            ${editTemplate}
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // Toggle the visibility between view and edit modes
+        const cardBody = document.getElementById(`function-card-${functionId}`);
+        const viewMode = cardBody.querySelector('.view-mode');
+        const editMode = cardBody.querySelector('.edit-mode');
+
+        // When switching from view to edit mode, re-render the edit template with fresh data
+        if (!viewMode.classList.contains('d-none')) {
+            editMode.innerHTML = getFunctionEditTemplate(functions[functionId]);
+        }
+
+        // Toggle visibility: this effectively acts as both "Edit" and "Cancel" when unsaved changes are discarded
+        viewMode.classList.toggle('d-none');
+        editMode.classList.toggle('d-none');
+    }
+
+    function getFunctionViewTemplate(func) {
+        return `
+            <div class="view-mode" id="function-view-${func.uuid}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="d-inline me-2">${func.name || 'Untitled function'}</h4>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="toggleEditFunction('${func.uuid}')">
+                            Edit
+                        </button>
+                    </div>
+                </div>
+                <p class="text-secondary small">
+                    Created: ${formatDbDate(func.created_at)}
+                    (${timeSinceDB(func.created_at)} ago)
+                    | Modified: ${formatDbDate(func.modified_at)} (${timeSinceDB(func.modified_at)} ago)
+                </p>
+                <p class="text-secondary small">Version: ${func.version}</p>
+
+                ${getExecutionsAccordionTemplate(func)}
+
+                <div class="info-box mt-4">
+                    <span class="info-label">Description</span>
+                    <p class="info-value" id="info-function-description-${func.uuid}">${func.description || 'No description provided'}</p>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Result Type</span>
+                    <p class="info-value" id="info-function-result-type-${func.uuid}">
+                        <code>${func.result_type}</code>
+                    </p>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Argument Schema</span>
+                    <p class="info-value" id="info-function-argument-schema-${func.uuid}">
+                        <pre class="bg-light p-2"><code>${JSON.stringify(func.argument_schema, null, 2)}</code></pre>
+                    </p>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Code</span>
+                    <p class="info-value" id="info-function-code-${func.uuid}">
+                        <pre class="bg-light p-2"><code>${func.code || 'No code provided'}</code></pre>
+                    </p>
+                </div>
+                <div class="info-box mt-4">
+                    <span class="info-label">Extra Context</span>
+                    <p class="info-value" id="info-function-extra-context-${func.uuid}">
+                        <pre class="bg-light p-2"><code>${JSON.stringify(func.extra_context, null, 2)}</code></pre>
+                    </p>
+                </div>
+            </div>
+        `;
+    }
+
+    function getFunctionEditTemplate(func) {
+        return `
+            <div class="edit-mode-inner">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4>Edit: ${func.name || 'Untitled function'}</h4>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-sm btn-outline-success"
+                                id="saveEditFunctionBtn-${func.uuid}"
+                                onclick="modifyFunction('${func.uuid}');">
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            <span class="button-text">Save</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="toggleEditFunction('${func.uuid}')">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+                <p class="text-secondary small">
+                    Created: ${formatDbDate(func.created_at)}
+                    (${timeSinceDB(func.created_at)} ago)
+                </p>
+                <!-- Form fields for editing the function -->
+                <form class="mt-3">
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="edit-function-name-${func.uuid}" maxlength="100" value="${func.name}"
+                               oninput="checkInputLength(this, 'editFunctionNameHelp-${func.uuid}', 100)">
+                        <label for="edit-function-name-${func.uuid}">Name</label>
+                        <small id="editFunctionNameHelp-${func.uuid}" class="form-text text-danger d-none">The maximum character length is reached.</small>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="edit-function-description-${func.uuid}" rows="3">${func.description || ''}</textarea>
+                        <label for="edit-function-description-${func.uuid}">Description</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="edit-function-argument-schema-${func.uuid}" rows="5">${JSON.stringify(func.argument_schema, null, 2)}</textarea>
+                        <label for="edit-function-argument-schema-${func.uuid}">Argument Schema</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="edit-function-code-${func.uuid}" rows="5">${func.code || ''}</textarea>
+                        <label for="edit-function-code-${func.uuid}">Code</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="edit-function-extra-context-${func.uuid}" rows="3">${JSON.stringify(func.extra_context, null, 2)}</textarea>
+                        <label for="edit-function-extra-context-${func.uuid}">Extra Context</label>
+                    </div>
+                </form>
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            id="deleteTabFunctionBtn-${func.uuid}"
+                            onclick="deleteFunction('${func.uuid}')">
+                        <span class="button-text">Delete</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function getExecutionsAccordionTemplate(func) {
+        return `
+            <div class="accordion" id="executionsAccordion-${func.uuid}">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-${func.uuid}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${func.uuid}" aria-expanded="false" aria-controls="collapse-${func.uuid}">
+                            <span class="text-secondary small">Executions</span>
+                        </button>
+                    </h2>
+                    <div id="collapse-${func.uuid}" class="accordion-collapse collapse" aria-labelledby="heading-${func.uuid}" data-bs-parent="#executionsAccordion-${func.uuid}">
+                        <div class="accordion-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Thread ID</th>
+                                            <th>Time</th>
+                                            <th>Status Code</th>
+                                            <th>Version</th>
+                                            <th>Arguments</th>
+                                            <th>Assistant</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="executionsTable-${func.uuid}">
+                                        <!-- Execution rows will be appended here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function getNewFunctionTemplate() {
+        return `
+            <div class="card border-0" id="newFunctionCard">
+                <div class="card-body px-0 py-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="card-title">New Function</h4>
+                        <div class="action-buttons">
+                            <button type="button" class="btn btn-sm btn-outline-success" id="saveNewFunctionBtn" onclick="saveNewFunction();">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span class="button-text">Create</span>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="cancelNewFunctionBtn" onclick="cancelNewFunctionForm();">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                    <form class="mt-3" id="newFunctionForm">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="new-function-name" placeholder="Name" maxlength="100" value=""
+                                   oninput="checkInputLength(this, 'newFunctionNameHelp', 100)">
+                            <label for="new-function-name" class="form-label">Name</label>
+                            <small id="newFunctionNameHelp" class="form-text text-danger d-none">The maximum character length is reached.</small>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="new-function-description" placeholder="Description" rows="3"></textarea>
+                            <label for="new-function-description">Description</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="new-function-argument-schema" placeholder="Argument Schema (JSON)" rows="5"></textarea>
+                            <label for="new-function-argument-schema">Argument Schema</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="new-function-code" rows="5" placeholder="Python code..."></textarea>
+                            <label class="new-function-code">Code</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="new-function-extra-context" placeholder="Extra Context (JSON)" rows="3"></textarea>
+                            <label for="new-function-extra-context">Extra Context</label>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+
+    /* Create New Function */
+
+    function createNewFunction() {
+        const newTabId = "functions-tab-new-function-tab";
+        const newPaneId = "functions-tab-new-function";
+
+        // If the new function tab already exists, simply activate it
+        if (document.getElementById(newTabId)) {
+            new bootstrap.Tab(document.getElementById(newTabId)).show();
+            document.getElementById(newPaneId).classList.add("active", "show");
+            return;
+        }
+
+        const contentContainer = document.getElementById("functionContent");
+        // Remove active classes from any currently active tab pane
+        const activePane = contentContainer.querySelector(".tab-pane.active");
+        if (activePane) {
+            activePane.classList.remove("active", "show");
+        }
+        // Hide the "no functions" message
+        document.getElementById("no-functions").classList.add("d-none");
+
+        // Remove active classes from any currently active nav items
+        document.querySelectorAll('#functionsNavTabs a[data-bs-toggle="tab"]').forEach(function (tab) {
+            tab.classList.remove("active", "bg-secondary", "text-white");
+            tab.classList.add("bg-white", "text-secondary");
+        });
+
+        // Create a new nav tab item for the function
+        const tabsContainer = document.getElementById("functionsNavTabs");
+        const li = document.createElement("li");
+        li.className = "nav-item";
+        const a = document.createElement("a");
+        a.className = "nav-link py-1 px-2 active bg-secondary text-white";
+        a.setAttribute("data-bs-toggle", "tab");
+        a.setAttribute("href", "#" + newPaneId);
+        a.setAttribute("role", "tab");
+        a.setAttribute("aria-controls", newPaneId);
+        a.setAttribute("aria-selected", "true");
+        a.id = newTabId;
+        a.textContent = "New Function";
+        li.appendChild(a);
+        tabsContainer.insertBefore(li, tabsContainer.firstChild);
+
+        // Create the corresponding tab pane using the new function template
+        const tabPane = document.createElement("div");
+        tabPane.className = "tab-pane fade"; // initially not active
+        tabPane.id = newPaneId;
+        tabPane.setAttribute("role", "tabpanel");
+        tabPane.setAttribute("aria-labelledby", newTabId);
+        tabPane.innerHTML = getNewFunctionTemplate();
+        contentContainer.insertBefore(tabPane, contentContainer.firstChild);
+
+        // Activate the new function tab
+        const newTabInstance = new bootstrap.Tab(a);
+        newTabInstance.show();
+        document.getElementById(newPaneId).classList.add("active", "show");
+    }
+
+    function cancelNewFunctionForm() {
+        const newTabId = "functions-tab-new-function-tab";
+        const newPaneId = "functions-tab-new-function";
+        const newTab = document.getElementById(newTabId);
+        if (newTab && newTab.parentElement) {
+            newTab.parentElement.remove();
+        }
+        const newPane = document.getElementById(newPaneId);
+        if (newPane) {
+            newPane.remove();
+        }
+        // Activate the first available tab if any, else show "no functions" message
+        const remainingTab = document.querySelector('#functionsNavTabs a[data-bs-toggle="tab"]');
+        if (remainingTab) {
+            new bootstrap.Tab(remainingTab).show();
+        } else {
+            document.getElementById('no-functions').classList.remove('d-none');
+            document.getElementById('functionContent').innerHTML = "";
+        }
+    }
+
+    async function saveNewFunction() {
+        const name = document.getElementById('new-function-name').value;
+        const description = document.getElementById('new-function-description').value;
+        const code = document.getElementById('new-function-code').value;
+        const argumentSchemaText = document.getElementById('new-function-argument-schema').value;
+        let argumentSchema;
+        try {
+            argumentSchema = argumentSchemaText ? JSON.parse(argumentSchemaText) : {};
+        } catch (e) {
+            showToast("Error", "Invalid JSON in Argument Schema", "error");
+            return;
+        }
+        const extraContextText = document.getElementById('new-function-extra-context').value;
+        let extraContext;
+        try {
+            extraContext = extraContextText ? JSON.parse(extraContextText) : {};
+        } catch (e) {
+            showToast("Error", "Invalid JSON in Extra Context", "error");
+            return;
+        }
+
+        // Show a spinner on the save button
+        const saveBtn = document.getElementById('saveNewFunctionBtn');
+        const cancelBtn = document.getElementById('cancelNewFunctionBtn');
+        const spinner = saveBtn.querySelector('.spinner-border');
+        const buttonText = saveBtn.querySelector('.button-text');
+        saveBtn.disabled = true;
+        cancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Creating...';
+
+        try {
+            // Construct payload for function creation
+            const payload = {
+                name: name,
+                description: description,
+                argument_schema: argumentSchema,
+                code: code,
+                extra_context: extraContext,
+                version: 1
+            };
+
+            const response = await fetch(createFunctionUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || response.statusText);
+            }
+            const newFunction = await response.json();
+
+            console.log("Created new function:", newFunction);
+
+            // Refresh the functions list and update the UI
+            await loadAndDisplayFunctions();
+            await fetchFunctionsTab();
+            await loadAndDisplayAssistants();
+            fetchAssistantsTab(); // Refresh assistants tab
+
+            showToast("Function created successfully", name, "success");
+        } catch (error) {
+            // Check for unique slug conflict error
+            if (error.message.includes("UNIQUE constraint failed: function_calls_baseapifunction.slug")) {
+                showToast("Error creating function", "A function with that name already exists. Please choose a different name.", "error");
+            } else {
+                showToast("Error creating function", error.message, "error");
+            }
+            console.error(error);
+        } finally {
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Create';
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+        }
+    }
+
+
+    /* Modify Function */
+
+    async function modifyFunction(functionId) {
+        const saveBtn = document.getElementById(`saveEditFunctionBtn-${functionId}`);
+        const spinner = saveBtn.querySelector('.spinner-border');
+        const buttonText = saveBtn.querySelector('.button-text');
+        saveBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Saving...';
+
+        try {
+            // Get new function values
+            const name = document.getElementById(`edit-function-name-${functionId}`).value;
+            const description = document.getElementById(`edit-function-description-${functionId}`).value;
+            const code = document.getElementById(`edit-function-code-${functionId}`).value;
+            const argumentSchemaText = document.getElementById(`edit-function-argument-schema-${functionId}`).value;
+            let argumentSchema;
+            try {
+                argumentSchema = argumentSchemaText ? JSON.parse(argumentSchemaText) : {};
+            } catch (e) {
+                showToast("Error", "Invalid JSON in Argument Schema", "error");
+                return;
+            }
+            const extraContextText = document.getElementById(`edit-function-extra-context-${functionId}`).value;
+            let extraContext;
+            try {
+                extraContext = extraContextText ? JSON.parse(extraContextText) : {};
+            } catch (e) {
+                showToast("Error", "Invalid JSON in Extra Context", "error");
+                return;
+            }
+            const assistantIds = functions[functionId].assistant_ids
+
+            // Capture the old slug before updating
+            const oldSlug = functions[functionId].slug;
+
+            const payload = {
+                name: name,
+                description: description,
+                argument_schema: argumentSchema,
+                code: code,
+                extra_context: extraContext,
+                assistant_ids: assistantIds
+            };
+
+            const url = updateFunctionUrl.replace('FUNCTION_UUID_PLACEHOLDER', functionId);
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || response.statusText);
+            }
+            const updatedFunction = await response.json();
+
+            console.log("Updated function:", updatedFunction);
+
+            // Update assistants that uses the function
+            await updateFunctionAssistants(updatedFunction, oldSlug);
+
+            // Refresh the functions list and update the UI
+            await loadAndDisplayFunctions();
+            await fetchFunctionsTab();
+            await loadAndDisplayAssistants();
+            fetchAssistantsTab(); // Refresh assistants tab
+
+            showToast("Function updated successfully", name, "success");
+        } catch (error) {
+            // Check for unique slug conflict error
+            if (error.message.includes("UNIQUE constraint failed: function_calls_baseapifunction.slug")) {
+                showToast("Error updating function", "A function with that name already exists. Please choose a different name.", "error");
+            } else {
+                showToast("Error updating function", error.message, "error");
+            }
+            console.error(error);
+        } finally {
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Save';
+            saveBtn.disabled = false;
+        }
+    }
+
+    async function updateFunctionAssistants(updatedFunction, oldSlug) {
+        // If no assistants are associated, nothing to update
+        if (!updatedFunction.assistant_ids || updatedFunction.assistant_ids.length === 0) {
+            return;
+        }
+
+        // Build the new function definition (keep the same structure)
+        const newFunctionDefinition = {
+            name: updatedFunction.slug,
+            description: updatedFunction.description,
+            parameters: updatedFunction.argument_schema.parameters || updatedFunction.argument_schema,
+            strict: updatedFunction.argument_schema.strict || false,
+        };
+
+        // Process each assistant that uses this function concurrently
+        const updatePromises = updatedFunction.assistant_ids.map(async (assistantId) => {
+            const assistant = assistants[assistantId];
+            if (!assistant || !assistant.tools || !Array.isArray(assistant.tools)) return;
+
+            // Create a new tools array updating tools that match either the old or new function slug.
+            const newTools = assistant.tools.map(tool => {
+                if (tool.type === "function" && tool.function) {
+                    // Update if the function name is either the new slug or the old slug.
+                    if (tool.function.name === updatedFunction.slug || tool.function.name === oldSlug) {
+                        return Object.assign({}, tool, { function: newFunctionDefinition });
+                    }
+                }
+                return tool;
+            });
+
+            // Only update if any tool has changed
+            if (JSON.stringify(newTools) === JSON.stringify(assistant.tools)) {
+                return;
+            }
+
+            const updatePayload = {
+                name: assistant.name,
+                description: assistant.description,
+                instructions: assistant.instructions,
+                model: assistant.model,
+                tools: newTools,
+                tool_resources: assistant.tool_resources || {},
+                metadata: assistant.metadata || {}
+            };
+
+            const url = modifyAssistantUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN
+                    },
+                    body: JSON.stringify(updatePayload)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || response.statusText);
+                }
+                const updatedAssistantData = await response.json();
+                console.log(`Assistant ${assistantId} updated via updateFunctionAssistants:`, updatedAssistantData);
+            } catch (err) {
+                console.error("Error updating assistant " + assistantId, err);
+            }
+        });
+
+        await Promise.all(updatePromises);
+    }
+
+
+    /* Delete Function */
+
+    // Global variable to store the ID of the function to delete
+    let functionToDeleteId = null;
+
+    // Called when the user clicks the delete button for a function
+    async function deleteFunction(functionId) {
+        functionToDeleteId = functionId;
+
+        // Collect assistants associated with this function
+        const assistantsUsingFunction = functionAssistantsMapping[functionId] || [];
+
+        // Update the modal content
+        const assistantsUsingFunctionListElement = document.getElementById('assistantsUsingFunctionList');
+        const assistantsUsingFunctionDiv = document.getElementById('assistantsUsingFunction');
+        const functionInfo = document.getElementById('functionInfo');
+
+        // Clear previous list
+        assistantsUsingFunctionListElement.innerHTML = '';
+
+        // Add info
+        functionInfo.textContent = '';
+        functionInfo.textContent = functions[functionId] && functions[functionId].name && functions[functionId].name.trim() !== ''
+            ? functions[functionId].name
+            : 'Untitled function';
+
+        if (assistantsUsingFunction.length > 0) {
+            // Show the list of assistants using this function
+            assistantsUsingFunctionDiv.classList.remove('d-none');
+            assistantsUsingFunction.forEach(assistantId => {
+                const assistantName = assistants[assistantId] && assistants[assistantId].name && assistants[assistantId].name.trim() !== '' ? assistants[assistantId].name : 'Untitled assistant';
+                const li = document.createElement('li');
+                li.textContent = assistantName;
+                assistantsUsingFunctionListElement.appendChild(li);
+            });
+        } else {
+            assistantsUsingFunctionDiv.classList.add('d-none');
+        }
+
+        // Show the delete confirmation modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('functionDeleteModal'));
+        deleteModal.show();
+
+        // Attach event listener to the confirm delete button
+        const confirmDeleteBtn = document.getElementById('confirmDeleteFunctionBtn');
+        confirmDeleteBtn.onclick = confirmDeleteFunction;
+    }
+
+    // Called when the user confirms deletion of the function
+    async function confirmDeleteFunction() {
+        const functionId = functionToDeleteId;
+        const functionName = functions[functionId] && functions[functionId].name && functions[functionId].name.trim() !== ''
+            ? functions[functionId].name
+            : 'Untitled function';
+
+        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('functionDeleteModal'));
+
+        // Show a spinner on the confirm button
+        const confirmBtn = document.getElementById('confirmDeleteFunctionBtn');
+        const cancelBtn = document.getElementById('cancelFunctionDeleteModalBtn');
+        const spinner = confirmBtn.querySelector('.spinner-border');
+        const buttonText = confirmBtn.querySelector('.button-text');
+        confirmBtn.disabled = true;
+        cancelBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Deleting...';
+
+        try {
+            // Update all assistants that use this function by removing the tool entry
+            await updateAssistantsForFunctionDelete(functionId);
+
+            // Delete the function from the backend
+            const url = deleteFunctionUrl.replace('FUNCTION_UUID_PLACEHOLDER', functionId);
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                }
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || response.statusText);
+            }
+
+            // Refresh the functions list and UI
+            await loadAndDisplayFunctions();
+            await fetchFunctionsTab();
+            // Also update the assistants tab as their tools have changed
+            await loadAndDisplayAssistants();
+            fetchAssistantsTab();
+
+            deleteModal.hide();
+            showToast("Function deleted!", functionName, "success");
+            console.log(`Function with ID ${functionId} deleted successfully.`);
+        } catch (error) {
+            showToast("Failed to delete function", error.message, "error");
+            console.error(error);
+        } finally {
+            spinner.classList.add('d-none');
+            buttonText.textContent = 'Delete';
+            confirmBtn.disabled = false;
+            cancelBtn.disabled = false;
+        }
+    }
+
+    // Helper: Update each assistant by removing the deleted function from its tools array
+    async function updateAssistantsForFunctionDelete(functionId) {
+        const func = functions[functionId];
+        if (!func) return;
+        const funcSlug = func.slug;
+
+        // If no assistants are associated, nothing to update
+        if (!func.assistant_ids || func.assistant_ids.length === 0) {
+            return;
+        }
+
+        // Iterate over each assistant associated with this function
+        const updatePromises = func.assistant_ids.map(async (assistantId) => {
+            const assistant = assistants[assistantId];
+            if (!assistant || !assistant.tools || !Array.isArray(assistant.tools)) return;
+
+            // Filter out tools that use the deleted function (matched by function name equals funcSlug)
+            const newTools = assistant.tools.filter(tool => {
+                // Only remove if it's a function tool with a matching function name
+                if (tool.type === "function" && tool.function && tool.function.name === funcSlug) {
+                    return false;
+                }
+                return true;
+            });
+
+            // If no change occurred, skip updating this assistant
+            if (JSON.stringify(newTools) === JSON.stringify(assistant.tools)) {
+                return;
+            }
+
+            const updatePayload = {
+                name: assistant.name,
+                description: assistant.description,
+                instructions: assistant.instructions,
+                model: assistant.model,
+                tools: newTools,
+                tool_resources: assistant.tool_resources || {},
+                metadata: assistant.metadata || {}
+            };
+
+            const url = modifyAssistantUrl.replace('ASSISTANT_ID_PLACEHOLDER', assistantId);
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN
+                    },
+                    body: JSON.stringify(updatePayload)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || response.statusText);
+                }
+                const updatedAssistantData = await response.json();
+                console.log(`Assistant ${assistantId} updated after function delete:`, updatedAssistantData);
+            } catch (err) {
+                console.error("Error updating assistant " + assistantId, err);
+            }
+        });
+        await Promise.all(updatePromises);
+    }
+
+</script>

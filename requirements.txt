@@ -10,3 +10,4 @@ django
 django-ninja
 django-storages[s3]
 django-widget-tweaks
+django-json-widget
